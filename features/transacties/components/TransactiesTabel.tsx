@@ -1,8 +1,10 @@
 // FILE: TransactiesTabel.tsx
 // AANGEMAAKT: 25-03-2026 12:00
 // VERSIE: 1
-// GEWIJZIGD: 31-03-2026 00:00
+// GEWIJZIGD: 31-03-2026 01:45
 //
+// WIJZIGINGEN (31-03-2026 01:45):
+// - Volledige tabelrij klikbaar voor CategoriePopup (onClick op tr i.p.v. individuele cellen)
 // WIJZIGINGEN (31-03-2026 00:00):
 // - Categorisatie popup geëxtraheerd naar CategoriePopup component (features/shared/components/)
 // - PatronModalData interface verplaatst naar CategoriePopup; import type toegevoegd
@@ -1011,13 +1013,9 @@ const [patronModal, setPatronModal]                   = useState<PatronModalData
                   const prevLabel    = inOgz && t.datum ? vorigePeriodeLabel(t.datum) : '';
                   const zk           = zichtbareKolommen;
 
-                  const celStijl = (bezig: boolean): React.CSSProperties => ({
-                    cursor: bezig ? 'default' : 'pointer',
-                  });
-
                   return (
                     <Fragment key={t.id}>
-                      <tr>
+                      <tr onClick={() => openCategoriePopup(t)} style={{ cursor: 'pointer' }}>
                         {zk.has('datum') && (
                           <td
                             style={{ color: t.originele_datum ? '#f76707' : 'var(--text-dim)', fontSize: 12, whiteSpace: 'nowrap' }}
@@ -1056,7 +1054,7 @@ const [patronModal, setPatronModal]                   = useState<PatronModalData
                           </td>
                         )}
                         {zk.has('categorie') && (
-                          <td onClick={() => { if (!editCat) openCategoriePopup(t); }} style={celStijl(editCat)}>
+                          <td>
                             {editCat ? (
                               <select
                                 autoFocus
@@ -1079,7 +1077,7 @@ const [patronModal, setPatronModal]                   = useState<PatronModalData
                           </td>
                         )}
                         {zk.has('subcategorie') && (
-                          <td onClick={() => { if (!editSub) openCategoriePopup(t); }} style={celStijl(editSub)}>
+                          <td>
                             {editSub ? (
                               <>
                                 <input
@@ -1106,7 +1104,7 @@ const [patronModal, setPatronModal]                   = useState<PatronModalData
                           </td>
                         )}
                         {zk.has('omschrijving_1') && (
-                          <td onClick={() => openCategoriePopup(t)} style={{ fontSize: 12, minWidth: 370, whiteSpace: 'normal', wordBreak: 'break-word', overflow: 'visible', cursor: 'pointer' }}>
+                          <td style={{ fontSize: 12, minWidth: 370, whiteSpace: 'normal', wordBreak: 'break-word', overflow: 'visible' }}>
                             {t.toelichting && <div style={{ color: 'var(--accent)', marginBottom: 2 }}>{t.toelichting}</div>}
                             <span style={{ color: 'var(--text-dim)' }}>{t.omschrijving_1 ?? '—'}</span>
                           </td>
