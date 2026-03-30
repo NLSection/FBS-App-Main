@@ -1,7 +1,7 @@
 // FILE: transacties.ts
 // AANGEMAAKT: 25-03-2026 12:00
 // VERSIE: 1
-// GEWIJZIGD: 28-03-2026 18:00
+// GEWIJZIGD: 30-03-2026 19:00
 //
 // WIJZIGINGEN (25-03-2026 18:30):
 // - Initiële aanmaak: getTransacties, getTransactie, updateTransactieTypeByIban
@@ -17,6 +17,8 @@
 // WIJZIGINGEN (26-03-2026 22:00):
 // - TransactieMetCategorie uitgebreid met rekening_naam en tegenrekening_naam
 // - getTransacties: twee LEFT JOINs op rekeningen (r1 = eigen, r2 = tegenrekening)
+// WIJZIGINGEN (30-03-2026 19:00):
+// - TransactieMetCategorie uitgebreid met toelichting
 // WIJZIGINGEN (28-03-2026 18:00):
 // - COALESCE(c.categorie, t.categorie) + COALESCE(c.subcategorie, t.subcategorie): tekstkolommen als fallback voor omboekingen
 
@@ -34,6 +36,7 @@ export interface TransactieFilters {
 export interface TransactieMetCategorie extends Transactie {
   categorie: string | null;
   subcategorie: string | null;
+  toelichting: string | null;
   originele_datum: string | null;
   handmatig_gecategoriseerd: number;
   fout_geboekt: number;

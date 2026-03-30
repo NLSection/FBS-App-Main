@@ -1,8 +1,16 @@
 // FILE: TransactiesTabel.tsx
 // AANGEMAAKT: 25-03-2026 12:00
 // VERSIE: 1
-// GEWIJZIGD: 30-03-2026 18:00
+// GEWIJZIGD: 30-03-2026 19:00
 //
+// WIJZIGINGEN (30-03-2026 19:00):
+// - PatronModalData: toelichting veld toegevoegd
+// - openCategoriePopup: toelichting pre-invullen vanuit transactie
+// - handlePatronModalBevestig: toelichting meesturen bij scope='enkel' (PATCH) en scope='alle' (categoriseer bulk-update)
+// - triggerHermatch: accepteert toelichting + categorieId; stuurt door naar /api/categoriseer
+// - Popup: toelichting tekstveld boven bestaande inhoud
+// - Omschrijving cel: toelichting tonen boven omschrijving_1 in var(--accent) kleur
+// - Zoekfilter: zoekterm ook matchen op toelichting veld
 // WIJZIGINGEN (30-03-2026 18:00):
 // - Subcategorie <td> onClick: openCategoriePopup i.p.v. startEdit (zelfde gedrag als categorie cel)
 // - openCategoriePopup: async; pre-invullen popup bij gecategoriseerde transacties (categorie, subcategorie, naam/omschrijving chips)
@@ -83,6 +91,7 @@ interface EditingCell {
 
 interface PatronModalData {
   transactie: TransactieMetCategorie;
+  toelichting: string;
   nieuweCat: string;
   catNieuw: boolean;
   nieuweCatRekeningId: string;
@@ -369,9 +378,9 @@ const [patronModal, setPatronModal]                   = useState<PatronModalData
       const subcatRes = await fetch(`/api/subcategorieen?categorie=${encodeURIComponent(categorie)}`);
       const subcatOpties: string[] = subcatRes.ok ? await subcatRes.json() : [];
 
-      setPatronModal({ transactie: t, nieuweCat: categorie, catNieuw: false, nieuweCatRekeningId: '', subcategorie, subcatOpties, subcatNieuw: false, naamChips, gekozenNaamChips, chips, gekozenWoorden, scope: 'alle' });
+      setPatronModal({ transactie: t, toelichting: t.toelichting ?? '', nieuweCat: categorie, catNieuw: false, nieuweCatRekeningId: '', subcategorie, subcatOpties, subcatNieuw: false, naamChips, gekozenNaamChips, chips, gekozenWoorden, scope: 'alle' });
     } else {
-      setPatronModal({ transactie: t, nieuweCat: '', catNieuw: false, nieuweCatRekeningId: '', subcategorie: '', subcatOpties: [], subcatNieuw: false, naamChips, gekozenNaamChips: [], chips, gekozenWoorden: [], scope: 'alle' });
+      setPatronModal({ transactie: t, toelichting: t.toelichting ?? '', nieuweCat: '', catNieuw: false, nieuweCatRekeningId: '', subcategorie: '', subcatOpties: [], subcatNieuw: false, naamChips, gekozenNaamChips: [], chips, gekozenWoorden: [], scope: 'alle' });
     }
   }
 
@@ -414,11 +423,12 @@ const [patronModal, setPatronModal]                   = useState<PatronModalData
     return id as number;
   }
 
-  async function triggerHermatch() {
+  async function triggerHermatch(toelichting?: string | null, categorieId?: number | null) {
+    const extra = toelichting && categorieId != null ? { toelichting, categorie_id: categorieId } : {};
     await fetch('/api/categoriseer', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({}),
+      body: JSON.stringify(extra),
     });
   }
 
@@ -448,7 +458,7 @@ const [patronModal, setPatronModal]                   = useState<PatronModalData
       const subcatRes = await fetch(`/api/subcategorieen?categorie=${encodeURIComponent(categorie)}`);
       const subcatOpties: string[] = subcatRes.ok ? await subcatRes.json() : [];
       const naamChips = maakNaamChips(t.naam_tegenpartij ?? null);
-      setPatronModal({ transactie: t, nieuweCat: categorie, catNieuw: false, nieuweCatRekeningId: '', subcategorie, subcatOpties, subcatNieuw: false, naamChips, gekozenNaamChips: [], chips, gekozenWoorden: [], scope: 'alle' });
+      setPatronModal({ transactie: t, toelichting: t.toelichting ?? '', nieuweCat: categorie, catNieuw: false, nieuweCatRekeningId: '', subcategorie, subcatOpties, subcatNieuw: false, naamChips, gekozenNaamChips: [], chips, gekozenWoorden: [], scope: 'alle' });
     } else {
       // Subcategorie-aanpassing: direct opslaan
       await maakCategorieregel(t, categorie, subcategorie, null, true);
@@ -475,7 +485,7 @@ const [patronModal, setPatronModal]                   = useState<PatronModalData
 
   async function handlePatronModalBevestig() {
     if (!patronModal) return;
-    const { transactie: t, nieuweCat, catNieuw, nieuweCatRekeningId, subcategorie, gekozenWoorden, gekozenNaamChips, scope } = patronModal;
+    const { transactie: t, toelichting, nieuweCat, catNieuw, nieuweCatRekeningId, subcategorie, gekozenWoorden, gekozenNaamChips, scope } = patronModal;
     const gekozenNaamChip  = gekozenNaamChips.join(' ');
     const gekozenWoord     = gekozenWoorden.join(' ');
     const gekozenNaamLabel = patronModal.naamChips
@@ -495,7 +505,7 @@ const [patronModal, setPatronModal]                   = useState<PatronModalData
         await fetch(`/api/transacties/${t.id}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ categorie_id: null, status: 'nieuw', handmatig_gecategoriseerd: 0 }),
+          body: JSON.stringify({ categorie_id: null, status: 'nieuw', handmatig_gecategoriseerd: 0, toelichting: toelichting || null }),
         });
       }
       setReloadTrigger(n => n + 1);
@@ -515,13 +525,14 @@ const [patronModal, setPatronModal]                   = useState<PatronModalData
       await fetch(`/api/transacties/${t.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ categorie: nieuweCat.trim(), subcategorie: subcatWaarde || null, status: 'verwerkt', handmatig_gecategoriseerd: 1 }),
+        body: JSON.stringify({ categorie: nieuweCat.trim(), subcategorie: subcatWaarde || null, status: 'verwerkt', handmatig_gecategoriseerd: 1, toelichting: toelichting || null }),
       });
       setReloadTrigger(n => n + 1);
       return;
     }
 
     // scope 'alle': categorieregel aanmaken of updaten
+    let finalRegelId: number | null = null;
     if (catNieuw) {
       await fetch('/api/budgetten-potjes', {
         method: 'POST',
@@ -542,13 +553,14 @@ const [patronModal, setPatronModal]                   = useState<PatronModalData
             ...(t.tegenrekening_iban_bban ? { iban: t.tegenrekening_iban_bban } : {}),
           }),
         });
+        finalRegelId = regelId;
       } else {
-        await maakCategorieregel(t, nieuweCat.trim(), subcatWaarde, gekozenWoord || null, true, gekozenNaamChip || null, gekozenNaamLabel);
+        finalRegelId = await maakCategorieregel(t, nieuweCat.trim(), subcatWaarde, gekozenWoord || null, true, gekozenNaamChip || null, gekozenNaamLabel);
       }
     } else {
-      await maakCategorieregel(t, nieuweCat, subcatWaarde, gekozenWoord || null, true, gekozenNaamChip || null, gekozenNaamLabel);
+      finalRegelId = await maakCategorieregel(t, nieuweCat, subcatWaarde, gekozenWoord || null, true, gekozenNaamChip || null, gekozenNaamLabel);
     }
-    await triggerHermatch();
+    await triggerHermatch(toelichting || null, finalRegelId);
     setReloadTrigger(n => n + 1);
   }
 
@@ -674,7 +686,8 @@ const [patronModal, setPatronModal]                   = useState<PatronModalData
     return (
       t.naam_tegenpartij?.toLowerCase().includes(q) ||
       t.omschrijving_1?.toLowerCase().includes(q) ||
-      t.tegenrekening_iban_bban?.toLowerCase().includes(q)
+      t.tegenrekening_iban_bban?.toLowerCase().includes(q) ||
+      t.toelichting?.toLowerCase().includes(q)
     );
   });
 
@@ -1064,7 +1077,10 @@ const [patronModal, setPatronModal]                   = useState<PatronModalData
                           </td>
                         )}
                         {zk.has('omschrijving_1') && (
-                          <td style={{ color: 'var(--text-dim)', fontSize: 12, minWidth: 370, whiteSpace: 'normal', wordBreak: 'break-word', overflow: 'visible' }}>{t.omschrijving_1 ?? '—'}</td>
+                          <td style={{ fontSize: 12, minWidth: 370, whiteSpace: 'normal', wordBreak: 'break-word', overflow: 'visible' }}>
+                            {t.toelichting && <div style={{ color: 'var(--accent)', marginBottom: 2 }}>{t.toelichting}</div>}
+                            <span style={{ color: 'var(--text-dim)' }}>{t.omschrijving_1 ?? '—'}</span>
+                          </td>
                         )}
                         {zk.has('rentedatum') && (
                           <td style={{ color: 'var(--text-dim)', fontSize: 12 }}>{formatDatum(t.rentedatum)}</td>
@@ -1162,6 +1178,17 @@ const [patronModal, setPatronModal]                   = useState<PatronModalData
               <strong>{patronModal.transactie.naam_tegenpartij ?? 'deze tegenpartij'}</strong>.
               Selecteer optioneel een terugkerend woord om de regel specifieker te maken:
             </p>
+
+            {/* Toelichting */}
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ display: 'block', fontSize: 12, color: 'var(--text-dim)', marginBottom: 4 }}>Toelichting (optioneel)</label>
+              <input
+                value={patronModal.toelichting}
+                onChange={e => setPatronModal(m => m ? { ...m, toelichting: e.target.value } : m)}
+                placeholder="Optionele toelichting..."
+                style={{ width: '100%', background: 'var(--bg-base)', border: '1px solid var(--border)', borderRadius: 4, padding: '4px 8px', fontSize: 12, color: 'var(--text-h)', boxSizing: 'border-box' }}
+              />
+            </div>
 
             {/* Categorie */}
             <div style={{ marginBottom: 16 }}>

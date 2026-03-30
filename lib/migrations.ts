@@ -1,8 +1,10 @@
 // FILE: migrations.ts
 // AANGEMAAKT: 25-03-2026 10:00
 // VERSIE: 1
-// GEWIJZIGD: 30-03-2026 16:00
+// GEWIJZIGD: 30-03-2026 19:00
 //
+// WIJZIGINGEN (30-03-2026 19:00):
+// - Stap 3: kolom toelichting TEXT toegevoegd aan transacties
 // WIJZIGINGEN (25-03-2026 18:30):
 // - Initiële aanmaak: CREATE TABLE IF NOT EXISTS voor imports en transacties
 // - Tabellen rekeningen en vaste_lasten_config toegevoegd
@@ -180,6 +182,7 @@ export function runMigrations(): void {
   try { db.exec('ALTER TABLE transacties ADD COLUMN originele_datum TEXT'); } catch { /* bestaat al */ }
   try { db.exec('ALTER TABLE budgetten_potjes ADD COLUMN kleur TEXT'); } catch { /* bestaat al */ }
   try { db.exec('ALTER TABLE transacties ADD COLUMN fout_geboekt INTEGER DEFAULT 0'); } catch { /* bestaat al */ }
+  try { db.exec('ALTER TABLE transacties ADD COLUMN toelichting TEXT'); } catch { /* bestaat al */ }
 
   // ── Stap 4: Seed budgetten_potjes als tabel leeg is ──────────────────────
   // ── Stap 5: Instellingen tabel + seed ────────────────────────────────────
