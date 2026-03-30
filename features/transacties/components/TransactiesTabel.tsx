@@ -1,8 +1,11 @@
 // FILE: TransactiesTabel.tsx
 // AANGEMAAKT: 25-03-2026 12:00
 // VERSIE: 1
-// GEWIJZIGD: 30-03-2026
+// GEWIJZIGD: 30-03-2026 18:00
 //
+// WIJZIGINGEN (30-03-2026 18:00):
+// - Subcategorie <td> onClick: openCategoriePopup i.p.v. startEdit (zelfde gedrag als categorie cel)
+// - openCategoriePopup: async; pre-invullen popup bij gecategoriseerde transacties (categorie, subcategorie, naam/omschrijving chips)
 // WIJZIGINGEN (30-03-2026):
 // - Tab-logica gebaseerd op rekening.beheerd vlag i.p.v. gekoppelde budgetten_potjes
 // WIJZIGINGEN (29-03-2026 23:00):
@@ -345,10 +348,31 @@ const [patronModal, setPatronModal]                   = useState<PatronModalData
     return p?.label ?? `${prevM}/${prevJ}`;
   }
 
-  function openCategoriePopup(t: TransactieMetCategorie) {
+  async function openCategoriePopup(t: TransactieMetCategorie) {
     const naamChips = maakNaamChips(t.naam_tegenpartij ?? null);
     const chips = analyseerOmschrijvingen(t);
-    setPatronModal({ transactie: t, nieuweCat: '', catNieuw: false, nieuweCatRekeningId: '', subcategorie: '', subcatOpties: [], subcatNieuw: false, naamChips, gekozenNaamChips: [], chips, gekozenWoorden: [], scope: 'alle' });
+
+    if (t.categorie_id != null || t.categorie) {
+      const regelsRes = await fetch('/api/categorieen');
+      const regels: { id: number; naam_zoekwoord: string | null; omschrijving_zoekwoord: string | null; categorie: string; subcategorie: string | null }[] = regelsRes.ok ? await regelsRes.json() : [];
+      const regel = t.categorie_id != null ? regels.find(r => r.id === t.categorie_id) ?? null : null;
+
+      const categorie = t.categorie ?? '';
+      const subcategorie = t.subcategorie ?? '';
+
+      const naamZoekwoorden = regel?.naam_zoekwoord ? regel.naam_zoekwoord.split(' ').filter(Boolean) : [];
+      const gekozenNaamChips = naamChips.filter(c => naamZoekwoorden.includes(c.waarde)).map(c => c.waarde);
+
+      const omschrZoekwoorden = regel?.omschrijving_zoekwoord ? regel.omschrijving_zoekwoord.split(' ').filter(Boolean) : [];
+      const gekozenWoorden = chips.filter(c => omschrZoekwoorden.includes(c.waarde)).map(c => c.waarde);
+
+      const subcatRes = await fetch(`/api/subcategorieen?categorie=${encodeURIComponent(categorie)}`);
+      const subcatOpties: string[] = subcatRes.ok ? await subcatRes.json() : [];
+
+      setPatronModal({ transactie: t, nieuweCat: categorie, catNieuw: false, nieuweCatRekeningId: '', subcategorie, subcatOpties, subcatNieuw: false, naamChips, gekozenNaamChips, chips, gekozenWoorden, scope: 'alle' });
+    } else {
+      setPatronModal({ transactie: t, nieuweCat: '', catNieuw: false, nieuweCatRekeningId: '', subcategorie: '', subcatOpties: [], subcatNieuw: false, naamChips, gekozenNaamChips: [], chips, gekozenWoorden: [], scope: 'alle' });
+    }
   }
 
   function startEdit(t: TransactieMetCategorie, veld: 'categorie' | 'subcategorie') {
@@ -1013,7 +1037,7 @@ const [patronModal, setPatronModal]                   = useState<PatronModalData
                           </td>
                         )}
                         {zk.has('subcategorie') && (
-                          <td onClick={() => { if (!editSub) startEdit(t, 'subcategorie'); }} style={celStijl(editSub)}>
+                          <td onClick={() => { if (!editSub) openCategoriePopup(t); }} style={celStijl(editSub)}>
                             {editSub ? (
                               <>
                                 <input
