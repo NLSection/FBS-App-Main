@@ -1,12 +1,13 @@
 // FILE: BackupRestore.tsx
 // AANGEMAAKT: 29-03-2026 15:00
 // VERSIE: 1
-// GEWIJZIGD: 29-03-2026 15:30
+// GEWIJZIGD: 30-03-2026 10:00
 //
 // WIJZIGINGEN (29-03-2026 15:00):
 // - Initiële aanmaak: Backup & Restore sectie met download en importeer functionaliteit
 // - Importeer backup knop altijd zichtbaar (disabled tot bestand geladen)
 // - Knop opent bestandspicker; na selectie doet knop de import; hint tekst onder de knop
+// - Alles Wissen functie toegevoegd: rode knop, waarschuwingsmodal (stap 2) en bevestigingsmodal (stap 3)
 
 'use client';
 
@@ -24,12 +25,35 @@ const labelCls  = 'block text-xs text-[var(--text-dim)] mb-1';
 const btnPrimary: React.CSSProperties = { background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 6, padding: '7px 16px', fontSize: 13, fontWeight: 600, cursor: 'pointer' };
 const btnDanger: React.CSSProperties  = { background: 'var(--red)',    color: '#fff', border: 'none', borderRadius: 6, padding: '7px 16px', fontSize: 13, fontWeight: 600, cursor: 'pointer' };
 
+const overlayStyle: React.CSSProperties = {
+  position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)',
+  display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000,
+};
+const modalBase: React.CSSProperties = {
+  background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 12,
+  padding: 28, maxWidth: 480, width: '90%', display: 'flex', flexDirection: 'column', gap: 16,
+};
+const modalRood: React.CSSProperties = { ...modalBase, borderColor: 'var(--red)' };
+const btnGrijs: React.CSSProperties = {
+  background: 'transparent', color: 'var(--text-dim)', border: '1px solid var(--border)',
+  borderRadius: 6, padding: '5px 12px', fontSize: 12, cursor: 'pointer',
+};
+
 export default function BackupRestore() {
   const [backupSelectie, setBackupSelectie] = useState<Set<string>>(
     new Set(TABEL_GROEPEN.map(g => g.label))
   );
   const [backupBezig, setBackupBezig] = useState(false);
   const [backupFout,  setBackupFout]  = useState<string | null>(null);
+
+  // Alles Wissen state
+  const [wissenModal,    setWissenModal]    = useState(false);
+  const [bevestigenModal,setBevestigenModal]= useState(false);
+  const [wissenSelectie, setWissenSelectie] = useState<Set<string>>(new Set(TABEL_GROEPEN.map(g => g.label)));
+  const [wissenBackupBezig, setWissenBackupBezig] = useState(false);
+  const [wissenTekst,    setWissenTekst]    = useState('');
+  const [wissenBezig,    setWissenBezig]    = useState(false);
+  const [wissenFout,     setWissenFout]     = useState<string | null>(null);
 
   const fileRef = useRef<HTMLInputElement>(null);
   const [backupData,        setBackupData]        = useState<Record<string, unknown[]> | null>(null);
@@ -82,6 +106,39 @@ export default function BackupRestore() {
       }
     };
     reader.readAsText(file);
+  }
+
+  function toggleWissen(label: string) {
+    setWissenSelectie(prev => { const s = new Set(prev); s.has(label) ? s.delete(label) : s.add(label); return s; });
+  }
+
+  async function handleWissenBackup() {
+    const tabellen = TABEL_GROEPEN.filter(g => wissenSelectie.has(g.label)).flatMap(g => g.tabellen).join(',');
+    if (!tabellen) return;
+    setWissenBackupBezig(true);
+    const res = await fetch(`/api/backup?tabellen=${tabellen}`);
+    setWissenBackupBezig(false);
+    if (!res.ok) return;
+    const blob = await res.blob();
+    const datum = new Date().toISOString().slice(0, 10);
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = `fbs-backup-${datum}.json`; a.click();
+    URL.revokeObjectURL(url);
+    setWissenModal(false); setBevestigenModal(true); setWissenTekst(''); setWissenFout(null);
+  }
+
+  function handleDoorgaanZonderBackup() {
+    setWissenModal(false); setBevestigenModal(true); setWissenTekst(''); setWissenFout(null);
+  }
+
+  async function handleDefinitieWissen() {
+    if (wissenTekst !== 'WISSEN') return;
+    setWissenBezig(true); setWissenFout(null);
+    const res = await fetch('/api/reset', { method: 'POST' });
+    setWissenBezig(false);
+    if (!res.ok) { const d = await res.json(); setWissenFout(d.error ?? 'Reset mislukt.'); return; }
+    setBevestigenModal(false);
+    window.location.reload();
   }
 
   async function handleImporteerKnop() {
@@ -166,7 +223,97 @@ export default function BackupRestore() {
           {!backupData && <p style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 6 }}>Selecteer een backup bestand (.json)</p>}
         </div>
 
+        <div style={{ borderTop: '1px solid var(--border)' }} />
+
+        {/* Alles Wissen */}
+        <div>
+          <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--red)', marginBottom: 10 }}>Gevaarzone</p>
+          <button onClick={() => setWissenModal(true)} style={{ ...btnDanger, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span>☠️</span> Alles Wissen
+          </button>
+        </div>
+
       </div>
+
+      {/* STAP 2 — Waarschuwingsmodal */}
+      {wissenModal && (
+        <div style={overlayStyle} onClick={() => setWissenModal(false)}>
+          <div style={modalRood} onClick={e => e.stopPropagation()}>
+            <p style={{ fontSize: 16, fontWeight: 700, color: 'var(--red)' }}>⚠️ Alle data wordt gewist</p>
+
+            <div style={{ fontSize: 13, color: 'var(--text-h)', display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <div>
+                <p style={{ fontWeight: 600, marginBottom: 4 }}>Dit verdwijnt:</p>
+                <ul style={{ margin: 0, paddingLeft: 18, color: 'var(--text-dim)', display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  <li>Alle transacties en imports</li>
+                  <li>Alle categorieregels</li>
+                  <li>Alle categorieën en rekeningen</li>
+                  <li>Alle instellingen</li>
+                </ul>
+              </div>
+              <div>
+                <p style={{ fontWeight: 600, marginBottom: 4 }}>Daarna opnieuw nodig:</p>
+                <ul style={{ margin: 0, paddingLeft: 18, color: 'var(--text-dim)', display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  <li>Rekeningen opnieuw instellen</li>
+                  <li>Categorieën opnieuw aanmaken</li>
+                  <li>CSV opnieuw importeren</li>
+                </ul>
+              </div>
+            </div>
+
+            <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, padding: 14, display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <p style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-h)' }}>Download backup eerst (aanbevolen)</p>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px 16px' }}>
+                {TABEL_GROEPEN.map(g => (
+                  <label key={g.label} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: 'var(--text-h)', cursor: 'pointer' }}>
+                    <input type="checkbox" checked={wissenSelectie.has(g.label)} onChange={() => toggleWissen(g.label)} />
+                    {g.label}
+                  </label>
+                ))}
+              </div>
+              <button onClick={handleWissenBackup} disabled={wissenBackupBezig || wissenSelectie.size === 0}
+                style={{ ...btnPrimary, fontSize: 12, padding: '6px 14px', opacity: wissenBackupBezig || wissenSelectie.size === 0 ? 0.6 : 1, cursor: wissenBackupBezig || wissenSelectie.size === 0 ? 'not-allowed' : 'pointer', alignSelf: 'flex-start' }}>
+                {wissenBackupBezig ? 'Downloaden…' : 'Download backup'}
+              </button>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
+              <button onClick={() => setWissenModal(false)} style={btnGrijs}>Annuleren</button>
+              <button onClick={handleDoorgaanZonderBackup} style={btnGrijs}>Doorgaan zonder backup</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* STAP 3 — Bevestigingsmodal */}
+      {bevestigenModal && (
+        <div style={overlayStyle}>
+          <div style={modalRood}>
+            <p style={{ fontSize: 16, fontWeight: 700, color: 'var(--red)' }}>Definitief wissen</p>
+            <p style={{ fontSize: 13, color: 'var(--text-dim)' }}>
+              Dit kan niet ongedaan worden gemaakt. Typ <strong style={{ color: 'var(--text-h)' }}>WISSEN</strong> om te bevestigen.
+            </p>
+            <input
+              type="text"
+              value={wissenTekst}
+              onChange={e => setWissenTekst(e.target.value)}
+              placeholder="WISSEN"
+              style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 6, padding: '8px 12px', fontSize: 13, color: 'var(--text-h)', outline: 'none', width: '100%', boxSizing: 'border-box' }}
+            />
+            {wissenFout && <p style={{ color: 'var(--red)', fontSize: 12 }}>{wissenFout}</p>}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
+              <button onClick={() => { setBevestigenModal(false); setWissenTekst(''); setWissenFout(null); }} style={btnGrijs} disabled={wissenBezig}>Annuleren</button>
+              <button
+                onClick={handleDefinitieWissen}
+                disabled={wissenTekst !== 'WISSEN' || wissenBezig}
+                style={{ ...btnDanger, opacity: wissenTekst !== 'WISSEN' || wissenBezig ? 0.4 : 1, cursor: wissenTekst !== 'WISSEN' || wissenBezig ? 'not-allowed' : 'pointer' }}>
+                {wissenBezig ? 'Wissen…' : 'Definitief wissen'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </section>
   );
 }
