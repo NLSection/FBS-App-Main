@@ -3,6 +3,8 @@
 // VERSIE: 1
 // GEWIJZIGD: 31-03-2026 01:00
 //
+// WIJZIGINGEN (31-03-2026 01:30):
+// - Tab "Aangepast" met 🔒 slotje in tab-knop en bij elke transactierij (naam tegenpartij)
 // WIJZIGINGEN (31-03-2026 01:00):
 // - Volledig herbouwd met twee tabs: Categorieregels + Aangepast
 // - Beide tabs: categorie filterknoppen met tellers, zoekbalk, gesynchroniseerde scrollbar
@@ -537,7 +539,7 @@ export default function CategorieenBeheer() {
           Categorieregels ({regels.length})
         </button>
         <button onClick={() => setTab('aangepast')} style={tabStijl(tab === 'aangepast')}>
-          Aangepast ({transacties.length})
+          🔒 Aangepast ({transacties.length})
         </button>
       </div>
 
@@ -634,7 +636,10 @@ export default function CategorieenBeheer() {
                           <td style={{ color: 'var(--text-dim)', fontSize: 12, whiteSpace: 'nowrap' }}>{formatDatum(t.datum)}</td>
                           <td style={{ color: 'var(--text-dim)', fontSize: 11 }}>{t.iban_bban ?? '—'}</td>
                           <td style={{ color: 'var(--text-dim)', fontSize: 11 }}>{t.tegenrekening_iban_bban ?? '—'}</td>
-                          <td style={{ color: 'var(--text-h)', fontWeight: 500 }}>{t.naam_tegenpartij ?? '—'}</td>
+                          <td style={{ color: 'var(--text-h)', fontWeight: 500 }}>
+                            <span style={{ color: 'var(--text-dim)', marginRight: 4, fontSize: 11 }}>🔒</span>
+                            {t.naam_tegenpartij ?? '—'}
+                          </td>
                           <td style={{ textAlign: 'right', fontWeight: 600, color: (t.bedrag ?? 0) < 0 ? 'var(--red)' : 'var(--green)' }}>{formatBedrag(t.bedrag)}</td>
                           <td style={{ color: 'var(--text-dim)', fontSize: 12 }}>{formatType(t.type)}</td>
                           <td>
