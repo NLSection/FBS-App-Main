@@ -3,6 +3,8 @@
 // VERSIE: 1
 // GEWIJZIGD: 31-03-2026 02:00
 //
+// WIJZIGINGEN (31-03-2026 02:30):
+// - onAnalyseer fix: alle omschrijvingsvelden (1+2+3) meenemen in woordfrequentie telling
 // WIJZIGINGEN (31-03-2026 02:00):
 // - onAnalyseer prop toegevoegd aan CategoriePopup: woordfrequentie analyse per tegenpartij
 // WIJZIGINGEN (31-03-2026 01:45):
@@ -1211,8 +1213,9 @@ const [patronModal, setPatronModal]                   = useState<PatronModalData
             const trns: TransactieMetCategorie[] = res.ok ? await res.json() : [];
             const tellers: Record<string, number> = {};
             for (const t of trns) {
+              const omschr = [t.omschrijving_1, t.omschrijving_2, t.omschrijving_3].filter(Boolean).join(' ');
               const woorden = new Set(
-                (t.omschrijving_1 ?? '').split(/[\s.,/()\[\]{}'"!?:;]+/)
+                omschr.split(/[\s.,/()\[\]{}'"!?:;]+/)
                   .filter(w => w.length >= 3)
                   .map(w => w.toLowerCase().replace(/[^a-z0-9&-]/g, ''))
                   .filter(w => w.length > 0)
