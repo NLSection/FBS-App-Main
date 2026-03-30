@@ -1,7 +1,7 @@
 // FILE: rekeningen.ts
 // AANGEMAAKT: 25-03-2026 11:30
 // VERSIE: 1
-// GEWIJZIGD: 30-03-2026 14:00
+// GEWIJZIGD: 30-03-2026 15:00
 //
 // WIJZIGINGEN (25-03-2026 11:30):
 // - Initiële aanmaak: CRUD-queries voor rekeningen tabel
@@ -10,6 +10,7 @@
 // WIJZIGINGEN (30-03-2026):
 // - beheerd veld toegevoegd aan interface, SELECT en updateBeheerd
 // - deleteRekening: FK-blokkade opgeheven door rekening_id in budgetten_potjes eerst te nullen
+// - insertRekening geeft nu het nieuwe id terug (lastInsertRowid)
 
 import getDb from '@/lib/db';
 
@@ -27,10 +28,11 @@ export function getRekeningen(): Rekening[] {
     .all() as Rekening[];
 }
 
-export function insertRekening(iban: string, naam: string, type: 'betaal' | 'spaar'): void {
-  getDb()
+export function insertRekening(iban: string, naam: string, type: 'betaal' | 'spaar'): number {
+  const result = getDb()
     .prepare('INSERT INTO rekeningen (iban, naam, type) VALUES (?, ?, ?)')
     .run(iban.trim().toUpperCase(), naam.trim(), type);
+  return Number(result.lastInsertRowid);
 }
 
 export function updateRekening(id: number, iban: string, naam: string, type: 'betaal' | 'spaar'): void {

@@ -1,12 +1,14 @@
 // FILE: route.ts
 // AANGEMAAKT: 25-03-2026 11:30
 // VERSIE: 1
-// GEWIJZIGD: 26-03-2026 21:30
+// GEWIJZIGD: 30-03-2026 15:00
 //
 // WIJZIGINGEN (25-03-2026 11:30):
 // - Initiële aanmaak: GET en POST /api/rekeningen
 // WIJZIGINGEN (26-03-2026 21:30):
 // - POST roept herclassificeerTypes() aan na insertRekening
+// WIJZIGINGEN (30-03-2026 15:00):
+// - POST geeft nieuw rekening id terug in response body
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getRekeningen, insertRekening } from '@/lib/rekeningen';
@@ -38,9 +40,9 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    insertRekening(iban, naam, type);
+    const id = insertRekening(iban, naam, type);
     herclassificeerTypes();
-    return NextResponse.json({ ok: true }, { status: 201 });
+    return NextResponse.json({ ok: true, id }, { status: 201 });
   } catch (err) {
     const bericht = err instanceof Error ? err.message : 'Databasefout.';
     return NextResponse.json({ error: bericht }, { status: 500 });

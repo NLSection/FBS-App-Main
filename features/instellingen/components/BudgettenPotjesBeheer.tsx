@@ -1,7 +1,7 @@
 // FILE: BudgettenPotjesBeheer.tsx
 // AANGEMAAKT: 25-03-2026 19:30
 // VERSIE: 1
-// GEWIJZIGD: 30-03-2026 00:00
+// GEWIJZIGD: 30-03-2026 15:00
 //
 // WIJZIGINGEN (30-03-2026 00:00):
 // - Categorie toevoegen sectie verwijderd (aanmaken via transactiescherm)
@@ -10,6 +10,9 @@
 // - Sectietitel hernoemd naar "Categorieën"
 // - Type kolom en type veld verwijderd uit tabel en formulieren
 // - Toevoeg-formulier titel hernoemd naar "Categorie toevoegen"
+// WIJZIGINGEN (30-03-2026 15:00):
+// - Dropdown gekoppelde rekening vervangen door radio buttons
+// - Lege state tekst aangepast naar "Geen categorieën gevonden."
 
 'use client';
 
@@ -103,7 +106,7 @@ export default function BudgettenPotjesBeheer() {
       <p className="section-title">Categorieën</p>
 
       {items.length === 0 ? (
-        <p className="empty">Geen budgetten of potjes gevonden.</p>
+        <p className="empty">Geen categorieën gevonden.</p>
       ) : (
         <div className="table-wrapper" style={{ marginBottom: 20 }}>
           <table>
@@ -151,23 +154,13 @@ export default function BudgettenPotjesBeheer() {
                   {bewerkId === item.id && (
                     <tr>
                       <td colSpan={4} style={{ padding: '16px 20px', background: 'var(--bg-card)', borderTop: '1px solid var(--border)' }}>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 12 }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
                           <div>
                             <label className={labelCls}>Naam</label>
                             <input className={inputCls} value={bewerkForm.naam}
                               onChange={e => setBewerkForm(f => ({ ...f, naam: e.target.value }))}
                               readOnly={!!item.beschermd}
                               style={item.beschermd ? { opacity: 0.4, cursor: 'default' } : {}} />
-                          </div>
-                          <div>
-                            <label className={labelCls}>Gekoppelde rekening</label>
-                            <select className={inputCls} value={bewerkForm.rekening_id}
-                              onChange={e => setBewerkForm(f => ({ ...f, rekening_id: e.target.value }))}>
-                              <option value="">— geen —</option>
-                              {rekeningen.map(r => (
-                                <option key={r.id} value={r.id}>{r.naam} ({r.iban})</option>
-                              ))}
-                            </select>
                           </div>
                           <div>
                             <label className={labelCls}>Kleur</label>
@@ -180,6 +173,21 @@ export default function BudgettenPotjesBeheer() {
                               />
                               <span style={{ fontSize: 12, color: 'var(--text-dim)' }}>{bewerkForm.kleur || '—'}</span>
                             </div>
+                          </div>
+                        </div>
+                        <div style={{ marginBottom: 12 }}>
+                          <label className={labelCls} style={{ marginBottom: 8 }}>Gekoppelde rekening</label>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px 20px' }}>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 13, color: 'var(--text-h)', cursor: 'pointer' }}>
+                              <input type="radio" name={`rekening-${item.id}`} value="" checked={bewerkForm.rekening_id === ''} onChange={() => setBewerkForm(f => ({ ...f, rekening_id: '' }))} />
+                              Geen
+                            </label>
+                            {rekeningen.map(r => (
+                              <label key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 13, color: 'var(--text-h)', cursor: 'pointer' }}>
+                                <input type="radio" name={`rekening-${item.id}`} value={r.id} checked={bewerkForm.rekening_id === String(r.id)} onChange={() => setBewerkForm(f => ({ ...f, rekening_id: String(r.id) }))} />
+                                {r.naam}
+                              </label>
+                            ))}
                           </div>
                         </div>
                         {bewerkFout && <p style={{ color: 'var(--red)', fontSize: 12, marginBottom: 8 }}>{bewerkFout}</p>}
