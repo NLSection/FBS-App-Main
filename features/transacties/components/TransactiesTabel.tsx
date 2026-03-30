@@ -1,8 +1,11 @@
 // FILE: TransactiesTabel.tsx
 // AANGEMAAKT: 25-03-2026 12:00
 // VERSIE: 1
-// GEWIJZIGD: 30-03-2026 19:00
+// GEWIJZIGD: 30-03-2026 19:30
 //
+// WIJZIGINGEN (30-03-2026 19:30):
+// - Popup: toelichting verplaatst naar onder chips, boven scope-keuze
+// - Popup: scope-sectie heeft nu koptekst "Toepassen op"
 // WIJZIGINGEN (30-03-2026 19:00):
 // - PatronModalData: toelichting veld toegevoegd
 // - openCategoriePopup: toelichting pre-invullen vanuit transactie
@@ -1179,17 +1182,6 @@ const [patronModal, setPatronModal]                   = useState<PatronModalData
               Selecteer optioneel een terugkerend woord om de regel specifieker te maken:
             </p>
 
-            {/* Toelichting */}
-            <div style={{ marginBottom: 16 }}>
-              <label style={{ display: 'block', fontSize: 12, color: 'var(--text-dim)', marginBottom: 4 }}>Toelichting (optioneel)</label>
-              <input
-                value={patronModal.toelichting}
-                onChange={e => setPatronModal(m => m ? { ...m, toelichting: e.target.value } : m)}
-                placeholder="Optionele toelichting..."
-                style={{ width: '100%', background: 'var(--bg-base)', border: '1px solid var(--border)', borderRadius: 4, padding: '4px 8px', fontSize: 12, color: 'var(--text-h)', boxSizing: 'border-box' }}
-              />
-            </div>
-
             {/* Categorie */}
             <div style={{ marginBottom: 16 }}>
               <label style={{ display: 'block', fontSize: 12, color: 'var(--text-dim)', marginBottom: 4 }}>Categorie</label>
@@ -1376,18 +1368,32 @@ const [patronModal, setPatronModal]                   = useState<PatronModalData
                 <p style={{ margin: 0, color: 'var(--text-dim)', fontSize: 12 }}>Geen terugkerende woorden gevonden in de omschrijvingen.</p>
               )}
             </div>
+            {/* Toelichting */}
+            <div style={{ marginBottom: 16, paddingTop: 12, borderTop: '1px solid var(--border)' }}>
+              <label style={{ display: 'block', fontSize: 12, color: 'var(--text-dim)', marginBottom: 4 }}>Toelichting (optioneel)</label>
+              <input
+                value={patronModal.toelichting}
+                onChange={e => setPatronModal(m => m ? { ...m, toelichting: e.target.value } : m)}
+                placeholder="Optionele toelichting..."
+                style={{ width: '100%', background: 'var(--bg-base)', border: '1px solid var(--border)', borderRadius: 4, padding: '4px 8px', fontSize: 12, color: 'var(--text-h)', boxSizing: 'border-box' }}
+              />
+            </div>
+
             {/* Scope keuze */}
-            <div style={{ marginBottom: 16, display: 'flex', flexDirection: 'column', gap: 6 }}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--text)', cursor: 'pointer' }}>
-                <input type="radio" checked={patronModal.scope === 'alle'}
-                  onChange={() => setPatronModal(m => m ? { ...m, scope: 'alle' } : m)} />
-                Alle transacties van {patronModal.transactie.naam_tegenpartij ?? 'deze tegenpartij'}
-              </label>
-              <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--text)', cursor: 'pointer' }}>
-                <input type="radio" checked={patronModal.scope === 'enkel'}
-                  onChange={() => setPatronModal(m => m ? { ...m, scope: 'enkel' } : m)} />
-                Alleen deze transactie
-              </label>
+            <div style={{ marginBottom: 16, paddingTop: 12, borderTop: '1px solid var(--border)' }}>
+              <label style={{ display: 'block', fontSize: 12, color: 'var(--text-dim)', marginBottom: 6 }}>Toepassen op</label>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--text)', cursor: 'pointer' }}>
+                  <input type="radio" checked={patronModal.scope === 'alle'}
+                    onChange={() => setPatronModal(m => m ? { ...m, scope: 'alle' } : m)} />
+                  Alle transacties van {patronModal.transactie.naam_tegenpartij ?? 'deze tegenpartij'}
+                </label>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--text)', cursor: 'pointer' }}>
+                  <input type="radio" checked={patronModal.scope === 'enkel'}
+                    onChange={() => setPatronModal(m => m ? { ...m, scope: 'enkel' } : m)} />
+                  Alleen deze transactie
+                </label>
+              </div>
             </div>
 
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
