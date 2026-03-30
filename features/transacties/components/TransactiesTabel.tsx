@@ -1,8 +1,11 @@
 // FILE: TransactiesTabel.tsx
 // AANGEMAAKT: 25-03-2026 12:00
 // VERSIE: 1
-// GEWIJZIGD: 30-03-2026 20:15
+// GEWIJZIGD: 30-03-2026 21:00
 //
+// WIJZIGINGEN (30-03-2026 21:00):
+// - maakCategorieregel: toelichting param toegevoegd, meegegeven in POST body
+// - handlePatronModalBevestig scope='alle': toelichting meegeven aan maakCategorieregel en PUT categorieregel
 // WIJZIGINGEN (30-03-2026 20:15):
 // - Toelichting tekst in omschrijving kolom klikbaar: opent openCategoriePopup
 // WIJZIGINGEN (30-03-2026 20:00):
@@ -409,6 +412,7 @@ const [patronModal, setPatronModal]                   = useState<PatronModalData
     inclusiefIban = true,
     naamZoekWoord?: string | null,
     naamOrigineel?: string | null,
+    toelichting?: string | null,
   ): Promise<number | null> {
     const body: Record<string, unknown> = {
       categorie,
@@ -416,6 +420,7 @@ const [patronModal, setPatronModal]                   = useState<PatronModalData
       type:               t.type,
       naam_origineel:     naamOrigineel !== undefined ? naamOrigineel : (t.naam_tegenpartij ?? null),
       naam_zoekwoord_raw: naamZoekWoord ?? null,
+      toelichting:        toelichting ?? null,
     };
     if (inclusiefIban && t.tegenrekening_iban_bban) body.iban = t.tegenrekening_iban_bban;
     if (omschrWoord) body.omschrijving_raw = omschrWoord;
@@ -554,6 +559,7 @@ const [patronModal, setPatronModal]                   = useState<PatronModalData
           body: JSON.stringify({
             categorie:          nieuweCat.trim(),
             subcategorie:       subcatWaarde || null,
+            toelichting:        toelichting || null,
             naam_origineel:     gekozenNaamLabel,
             naam_zoekwoord_raw: gekozenNaamChip || null,
             type:               t.type,
@@ -562,10 +568,10 @@ const [patronModal, setPatronModal]                   = useState<PatronModalData
         });
         finalRegelId = regelId;
       } else {
-        finalRegelId = await maakCategorieregel(t, nieuweCat.trim(), subcatWaarde, gekozenWoord || null, true, gekozenNaamChip || null, gekozenNaamLabel);
+        finalRegelId = await maakCategorieregel(t, nieuweCat.trim(), subcatWaarde, gekozenWoord || null, true, gekozenNaamChip || null, gekozenNaamLabel, toelichting || null);
       }
     } else {
-      finalRegelId = await maakCategorieregel(t, nieuweCat, subcatWaarde, gekozenWoord || null, true, gekozenNaamChip || null, gekozenNaamLabel);
+      finalRegelId = await maakCategorieregel(t, nieuweCat, subcatWaarde, gekozenWoord || null, true, gekozenNaamChip || null, gekozenNaamLabel, toelichting || null);
     }
     await triggerHermatch(toelichting || null, finalRegelId);
     setReloadTrigger(n => n + 1);

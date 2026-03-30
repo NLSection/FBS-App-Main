@@ -1,8 +1,13 @@
 // FILE: categorisatie.ts
 // AANGEMAAKT: 25-03-2026 17:30
 // VERSIE: 1
-// GEWIJZIGD: 29-03-2026 06:00
+// GEWIJZIGD: 30-03-2026 21:00
 //
+// WIJZIGINGEN (30-03-2026 21:00):
+// - CategorieRegel: toelichting veld toegevoegd
+// - categoriseerTransacties: toelichting van matchende regel overnemen naar transactie
+// - insertCategorieRegel: toelichting opslaan; bij duplicaat alsnog toelichting updaten
+// - updateCategorieRegel: toelichting opslaan
 // WIJZIGINGEN (29-03-2026 06:00):
 // - insertCategorieRegel: duplicaatcheck uitgebreid met omschrijving_zoekwoord
 // WIJZIGINGEN (28-03-2026 23:15):
@@ -29,6 +34,7 @@ export interface CategorieRegel {
   omschrijving_zoekwoord: string | null;
   categorie: string;
   subcategorie: string | null;
+  toelichting: string | null;
   type: CategorieType;
   laatste_gebruik: string | null;
 }
@@ -123,7 +129,7 @@ export function categoriseerTransacties(
     : db.prepare('SELECT * FROM transacties WHERE handmatig_gecategoriseerd IS NULL OR handmatig_gecategoriseerd = 0').all() as Transactie[];
 
   const updTransactie = db.prepare(
-    'UPDATE transacties SET categorie_id = ?, status = ? WHERE id = ?'
+    'UPDATE transacties SET categorie_id = ?, status = ?, toelichting = ? WHERE id = ?'
   );
   const updOmboeking = db.prepare(
     'UPDATE transacties SET categorie_id = NULL, categorie = ?, subcategorie = ?, status = ? WHERE id = ?'
@@ -140,7 +146,7 @@ export function categoriseerTransacties(
       if (t.type === 'omboeking-af' || t.type === 'omboeking-bij') {
         const match = matchCategorie(t, regels);
         if (match) {
-          updTransactie.run(match.id, 'verwerkt', t.id);
+          updTransactie.run(match.id, 'verwerkt', match.toelichting ?? null, t.id);
           updLaatsteGebruik.run(match.id);
         } else {
           const { categorie, subcategorie } = categoriseerOmboeking(t, budgettenPotjes);
@@ -150,11 +156,11 @@ export function categoriseerTransacties(
       } else {
         const match = matchCategorie(t, regels);
         if (match) {
-          updTransactie.run(match.id, 'verwerkt', t.id);
+          updTransactie.run(match.id, 'verwerkt', match.toelichting ?? null, t.id);
           updLaatsteGebruik.run(match.id);
           gecategoriseerd++;
         } else {
-          updTransactie.run(null, 'nieuw', t.id);
+          updTransactie.run(null, 'nieuw', null, t.id);
           ongecategoriseerd++;
         }
       }
@@ -179,6 +185,7 @@ export function insertCategorieRegel(data: {
   omschrijving_raw?: string | null;
   categorie: string;
   subcategorie?: string | null;
+  toelichting?: string | null;
   type?: CategorieType;
 }): number {
   const naam_zoekwoord         = data.naam_zoekwoord_raw !== undefined
@@ -192,14 +199,19 @@ export function insertCategorieRegel(data: {
   const bestaand = db
     .prepare('SELECT id FROM categorieen WHERE iban IS ? AND naam_zoekwoord IS ? AND omschrijving_zoekwoord IS ? AND type = ? LIMIT 1')
     .get(data.iban ?? null, naam_zoekwoord, omschrijving_zoekwoord, type) as { id: number } | undefined;
-  if (bestaand) return bestaand.id;
+  if (bestaand) {
+    if (data.toelichting !== undefined) {
+      db.prepare('UPDATE categorieen SET toelichting = ? WHERE id = ?').run(data.toelichting ?? null, bestaand.id);
+    }
+    return bestaand.id;
+  }
 
   const result = db
     .prepare(`
       INSERT INTO categorieen
         (iban, naam_zoekwoord, naam_origineel, omschrijving_zoekwoord,
-         categorie, subcategorie, type)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
+         categorie, subcategorie, toelichting, type)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `)
     .run(
       data.iban ?? null,
@@ -208,6 +220,7 @@ export function insertCategorieRegel(data: {
       omschrijving_zoekwoord,
       data.categorie,
       data.subcategorie ?? null,
+      data.toelichting ?? null,
       type
     );
 
@@ -223,6 +236,7 @@ export function updateCategorieRegel(
     omschrijving_raw?: string | null;
     categorie?: string;
     subcategorie?: string | null;
+    toelichting?: string | null;
     type?: CategorieType;
   }
 ): void {
@@ -235,7 +249,8 @@ export function updateCategorieRegel(
     .prepare(`
       UPDATE categorieen SET
         iban = ?, naam_zoekwoord = ?, naam_origineel = ?,
-        omschrijving_zoekwoord = ?, categorie = ?, subcategorie = ?, type = ?
+        omschrijving_zoekwoord = ?, categorie = ?, subcategorie = ?,
+        toelichting = ?, type = ?
       WHERE id = ?
     `)
     .run(
@@ -245,6 +260,7 @@ export function updateCategorieRegel(
       omschrijving_zoekwoord,
       data.categorie,
       data.subcategorie ?? null,
+      data.toelichting !== undefined ? (data.toelichting ?? null) : null,
       data.type ?? 'alle',
       id
     );

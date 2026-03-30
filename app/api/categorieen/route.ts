@@ -1,8 +1,10 @@
 // FILE: route.ts (api/categorieen)
 // AANGEMAAKT: 25-03-2026 17:30
 // VERSIE: 1
-// GEWIJZIGD: 28-03-2026 14:00
+// GEWIJZIGD: 30-03-2026 21:00
 //
+// WIJZIGINGEN (30-03-2026 21:00):
+// - POST: toelichting doorgestuurd naar insertCategorieRegel
 // WIJZIGINGEN (28-03-2026 14:00):
 // - POST: naam_zoekwoord_raw doorgestuurd naar insertCategorieRegel
 
@@ -26,7 +28,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Ongeldig JSON.' }, { status: 400 });
   }
 
-  const { iban, naam_origineel, naam_zoekwoord_raw, omschrijving_raw, categorie, subcategorie, type } = body;
+  const { iban, naam_origineel, naam_zoekwoord_raw, omschrijving_raw, categorie, subcategorie, toelichting, type } = body;
 
   if (!categorie || typeof categorie !== 'string') {
     return NextResponse.json({ error: 'categorie is verplicht.' }, { status: 400 });
@@ -40,6 +42,7 @@ export async function POST(request: NextRequest) {
       omschrijving_raw:  typeof omschrijving_raw === 'string'  ? omschrijving_raw  : null,
       categorie,
       subcategorie:      typeof subcategorie === 'string'      ? subcategorie      : null,
+      toelichting:       typeof toelichting === 'string'       ? toelichting || null : undefined,
       type:              typeof type === 'string'               ? type as never     : 'alle',
     });
     categoriseerTransacties();
