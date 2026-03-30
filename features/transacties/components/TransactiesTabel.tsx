@@ -1,8 +1,10 @@
 // FILE: TransactiesTabel.tsx
 // AANGEMAAKT: 25-03-2026 12:00
 // VERSIE: 1
-// GEWIJZIGD: 30-03-2026 23:00
+// GEWIJZIGD: 30-03-2026 23:30
 //
+// WIJZIGINGEN (30-03-2026 23:30):
+// - Slotje-filterknop: inline met andere knoppen, label "🔒 Aangepast (N)", accent kleur stijl
 // WIJZIGINGEN (30-03-2026 23:00):
 // - Slotje-filterknop toegevoegd in categoriefilterbalk: filtert op handmatig_gecategoriseerd === 1
 // WIJZIGINGEN (30-03-2026 21:30):
@@ -676,6 +678,7 @@ const [patronModal, setPatronModal]                   = useState<PatronModalData
     if (t.categorie) categorieTellers[t.categorie] = (categorieTellers[t.categorie] ?? 0) + 1;
   }
   const ongecategoriseerdTeller = tabTransacties.filter(t => !t.categorie || t.status === 'nieuw').length;
+  const aangepastTeller = tabTransacties.filter(t => t.handmatig_gecategoriseerd === 1).length;
 
   // Aantal zichtbare kolommen (data + actie + lege buffer)
   const aantalKolommen = ALLE_KOLOMMEN.filter(k => zichtbareKolommen.has(k.id)).length + 1;
@@ -812,10 +815,15 @@ const [patronModal, setPatronModal]                   = useState<PatronModalData
         })}
         <button
           onClick={() => setVergrendeldFilter(v => !v)}
-          style={{ ...filterKnopStijl(vergrendeldFilter), marginLeft: 'auto' }}
+          style={{
+            ...filterKnopStijl(vergrendeldFilter),
+            borderColor: 'var(--accent)',
+            background: vergrendeldFilter ? 'var(--accent)' : 'var(--bg-card)',
+            color: vergrendeldFilter ? '#fff' : 'var(--accent)',
+          }}
           title="Filter op handmatig gecategoriseerd"
         >
-          🔒
+          🔒 Aangepast ({aangepastTeller})
         </button>
       </div>
 
