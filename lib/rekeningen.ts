@@ -1,7 +1,7 @@
 // FILE: rekeningen.ts
 // AANGEMAAKT: 25-03-2026 11:30
 // VERSIE: 1
-// GEWIJZIGD: 30-03-2026
+// GEWIJZIGD: 30-03-2026 14:00
 //
 // WIJZIGINGEN (25-03-2026 11:30):
 // - Initiële aanmaak: CRUD-queries voor rekeningen tabel
@@ -9,6 +9,7 @@
 // - updateRekening toegevoegd
 // WIJZIGINGEN (30-03-2026):
 // - beheerd veld toegevoegd aan interface, SELECT en updateBeheerd
+// - deleteRekening: FK-blokkade opgeheven door rekening_id in budgetten_potjes eerst te nullen
 
 import getDb from '@/lib/db';
 
@@ -47,7 +48,9 @@ export function updateBeheerd(id: number, beheerd: number): void {
 }
 
 export function deleteRekening(id: number): void {
-  getDb()
-    .prepare('DELETE FROM rekeningen WHERE id = ?')
-    .run(id);
+  const db = getDb();
+  db.transaction(() => {
+    db.prepare('UPDATE budgetten_potjes SET rekening_id = NULL WHERE rekening_id = ?').run(id);
+    db.prepare('DELETE FROM rekeningen WHERE id = ?').run(id);
+  })();
 }
