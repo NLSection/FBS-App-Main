@@ -1,8 +1,10 @@
 // FILE: route.ts (api/categoriseer)
 // AANGEMAAKT: 25-03-2026 17:30
 // VERSIE: 1
-// GEWIJZIGD: 30-03-2026 19:00
+// GEWIJZIGD: 30-03-2026 20:00
 //
+// WIJZIGINGEN (30-03-2026 20:00):
+// - POST: toelichting bulk-update ook bij lege waarde (wissen); conditie op categorie_id i.p.v. toelichting
 // WIJZIGINGEN (30-03-2026 19:00):
 // - POST: toelichting + categorie_id optioneel; na hermatch bulk-update toelichting op matchende transacties
 // WIJZIGINGEN (25-03-2026 17:30):
@@ -36,7 +38,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const resultaat = categoriseerTransacties(importId);
-    if (toelichting && categorieId !== null) {
+    if (categorieId !== null) {
       getDb().prepare('UPDATE transacties SET toelichting = ? WHERE categorie_id = ?').run(toelichting, categorieId);
     }
     return NextResponse.json(resultaat);

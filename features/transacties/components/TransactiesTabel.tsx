@@ -1,8 +1,10 @@
 // FILE: TransactiesTabel.tsx
 // AANGEMAAKT: 25-03-2026 12:00
 // VERSIE: 1
-// GEWIJZIGD: 30-03-2026 19:30
+// GEWIJZIGD: 30-03-2026 20:00
 //
+// WIJZIGINGEN (30-03-2026 20:00):
+// - triggerHermatch: toelichting altijd meesturen als categorieId bekend is (ook bij leeg → wist toelichting)
 // WIJZIGINGEN (30-03-2026 19:30):
 // - Popup: toelichting verplaatst naar onder chips, boven scope-keuze
 // - Popup: scope-sectie heeft nu koptekst "Toepassen op"
@@ -427,7 +429,7 @@ const [patronModal, setPatronModal]                   = useState<PatronModalData
   }
 
   async function triggerHermatch(toelichting?: string | null, categorieId?: number | null) {
-    const extra = toelichting && categorieId != null ? { toelichting, categorie_id: categorieId } : {};
+    const extra = categorieId != null ? { toelichting: toelichting || null, categorie_id: categorieId } : {};
     await fetch('/api/categoriseer', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
