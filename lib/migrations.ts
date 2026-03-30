@@ -1,7 +1,7 @@
 // FILE: migrations.ts
 // AANGEMAAKT: 25-03-2026 10:00
 // VERSIE: 1
-// GEWIJZIGD: 30-03-2026 00:00
+// GEWIJZIGD: 30-03-2026 12:00
 //
 // WIJZIGINGEN (25-03-2026 18:30):
 // - Initiële aanmaak: CREATE TABLE IF NOT EXISTS voor imports en transacties
@@ -26,6 +26,8 @@
 // WIJZIGINGEN (26-03-2026 19:00):
 // - Stap 3: kolom fout_geboekt INTEGER DEFAULT 0 toegevoegd aan transacties
 // - Stap 8: Overige Uitgaven kleur gewijzigd van #a0a8c0 naar #63e6be
+// WIJZIGINGEN (30-03-2026 12:00):
+// - 'type' kolom verwijderd uit seed INSERT voor budgetten_potjes (kolom bestaat niet meer)
 
 import getDb from '@/lib/db';
 
@@ -192,12 +194,12 @@ export function runMigrations(): void {
   // ── (origineel stap 4 — hernummerd naar na stap 5 voor leesbaarheid) ─────
   const bpAantal = db.prepare('SELECT COUNT(*) AS n FROM budgetten_potjes').get() as { n: number };
   if (bpAantal.n === 0) {
-    const ins = db.prepare('INSERT INTO budgetten_potjes (naam, type, beschermd) VALUES (?, ?, ?)');
+    const ins = db.prepare('INSERT INTO budgetten_potjes (naam, beschermd) VALUES (?, ?)');
     db.transaction(() => {
-      ins.run('Vaste Lasten',     'budget', 1);
-      ins.run('Overige Uitgaven', 'budget', 1);
+      ins.run('Vaste Lasten',     1);
+      ins.run('Overige Uitgaven', 1);
       for (const naam of ['Boodschappen','Brandstof','Uit Eten','Uitjes','Zorg','Kleding','Sparen']) {
-        ins.run(naam, 'potje', 0);
+        ins.run(naam, 0);
       }
     })();
   }
