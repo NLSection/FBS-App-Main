@@ -1,8 +1,10 @@
 // FILE: TransactiesTabel.tsx
 // AANGEMAAKT: 25-03-2026 12:00
 // VERSIE: 1
-// GEWIJZIGD: 30-03-2026 21:00
+// GEWIJZIGD: 30-03-2026 21:30
 //
+// WIJZIGINGEN (30-03-2026 21:30):
+// - Omschrijving <td> volledig klikbaar: opent openCategoriePopup (onClick op td i.p.v. alleen toelichting div)
 // WIJZIGINGEN (30-03-2026 21:00):
 // - maakCategorieregel: toelichting param toegevoegd, meegegeven in POST body
 // - handlePatronModalBevestig scope='alle': toelichting meegeven aan maakCategorieregel en PUT categorieregel
@@ -1090,8 +1092,8 @@ const [patronModal, setPatronModal]                   = useState<PatronModalData
                           </td>
                         )}
                         {zk.has('omschrijving_1') && (
-                          <td style={{ fontSize: 12, minWidth: 370, whiteSpace: 'normal', wordBreak: 'break-word', overflow: 'visible' }}>
-                            {t.toelichting && <div onClick={() => openCategoriePopup(t)} style={{ color: 'var(--accent)', marginBottom: 2, cursor: 'pointer' }}>{t.toelichting}</div>}
+                          <td onClick={() => openCategoriePopup(t)} style={{ fontSize: 12, minWidth: 370, whiteSpace: 'normal', wordBreak: 'break-word', overflow: 'visible', cursor: 'pointer' }}>
+                            {t.toelichting && <div style={{ color: 'var(--accent)', marginBottom: 2 }}>{t.toelichting}</div>}
                             <span style={{ color: 'var(--text-dim)' }}>{t.omschrijving_1 ?? '—'}</span>
                           </td>
                         )}
