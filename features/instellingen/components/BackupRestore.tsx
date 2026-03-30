@@ -10,6 +10,7 @@
 // - Alles Wissen functie toegevoegd: rode knop, waarschuwingsmodal (stap 2) en bevestigingsmodal (stap 3)
 // WIJZIGINGEN (30-03-2026 13:00):
 // - btnGrijs kleur gewijzigd van --text-dim naar --text-h (knoppen waren onleesbaar in modal)
+// - btnGrijs gestyled als echte knop: solide achtergrond, zelfde padding/weight als btnPrimary
 
 'use client';
 
@@ -37,8 +38,8 @@ const modalBase: React.CSSProperties = {
 };
 const modalRood: React.CSSProperties = { ...modalBase, borderColor: 'var(--red)' };
 const btnGrijs: React.CSSProperties = {
-  background: 'transparent', color: 'var(--text-h)', border: '1px solid var(--border)',
-  borderRadius: 6, padding: '5px 12px', fontSize: 12, cursor: 'pointer',
+  background: 'var(--bg)', color: 'var(--text-h)', border: '1px solid var(--border)',
+  borderRadius: 6, padding: '7px 16px', fontSize: 13, fontWeight: 600, cursor: 'pointer',
 };
 
 export default function BackupRestore() {
