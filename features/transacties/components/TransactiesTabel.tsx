@@ -1,8 +1,10 @@
 // FILE: TransactiesTabel.tsx
 // AANGEMAAKT: 25-03-2026 12:00
 // VERSIE: 1
-// GEWIJZIGD: 30-03-2026 23:30
+// GEWIJZIGD: 30-03-2026 23:45
 //
+// WIJZIGINGEN (30-03-2026 23:45):
+// - Slotje-filterknop kleur opgehaald uit budgettenPotjes ("Aangepast" systeemitem)
 // WIJZIGINGEN (30-03-2026 23:30):
 // - Slotje-filterknop: inline met andere knoppen, label "🔒 Aangepast (N)", accent kleur stijl
 // WIJZIGINGEN (30-03-2026 23:00):
@@ -813,18 +815,23 @@ const [patronModal, setPatronModal]                   = useState<PatronModalData
             </button>
           );
         })}
-        <button
-          onClick={() => setVergrendeldFilter(v => !v)}
-          style={{
-            ...filterKnopStijl(vergrendeldFilter),
-            borderColor: 'var(--accent)',
-            background: vergrendeldFilter ? 'var(--accent)' : 'var(--bg-card)',
-            color: vergrendeldFilter ? '#fff' : 'var(--accent)',
-          }}
-          title="Filter op handmatig gecategoriseerd"
-        >
-          🔒 Aangepast ({aangepastTeller})
-        </button>
+        {(() => {
+          const aangepastKleur = budgettenPotjes.find(bp => bp.naam === 'Aangepast')?.kleur ?? '#e8590c';
+          return (
+            <button
+              onClick={() => setVergrendeldFilter(v => !v)}
+              style={{
+                ...filterKnopStijl(vergrendeldFilter),
+                borderColor: aangepastKleur,
+                background: vergrendeldFilter ? aangepastKleur : 'var(--bg-card)',
+                color: vergrendeldFilter ? '#fff' : aangepastKleur,
+              }}
+              title="Filter op handmatig gecategoriseerd"
+            >
+              🔒 Aangepast ({aangepastTeller})
+            </button>
+          );
+        })()}
       </div>
 
       {/* Jaarfilter-knoppen */}

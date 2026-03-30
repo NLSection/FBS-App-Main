@@ -1,8 +1,10 @@
 // FILE: migrations.ts
 // AANGEMAAKT: 25-03-2026 10:00
 // VERSIE: 1
-// GEWIJZIGD: 30-03-2026 21:00
+// GEWIJZIGD: 30-03-2026 23:45
 //
+// WIJZIGINGEN (30-03-2026 23:45):
+// - Stap 11: "Aangepast" als beschermd systeemitem in budgetten_potjes (kleur #e8590c)
 // WIJZIGINGEN (30-03-2026 21:00):
 // - Stap 3: kolom toelichting TEXT toegevoegd aan categorieen
 // WIJZIGINGEN (30-03-2026 19:00):
@@ -260,6 +262,14 @@ export function runMigrations(): void {
       INSERT OR IGNORE INTO budgetten_potjes_rekeningen (potje_id, rekening_id)
       SELECT id, rekening_id FROM budgetten_potjes WHERE rekening_id IS NOT NULL
     `).run();
+  }
+
+  // ── Stap 11: "Aangepast" als beschermd systeemitem ─────────────────────
+  const aangepastRij = db.prepare("SELECT id FROM budgetten_potjes WHERE naam = 'Aangepast'").get() as { id: number } | undefined;
+  if (!aangepastRij) {
+    db.prepare("INSERT INTO budgetten_potjes (naam, rekening_id, beschermd, kleur) VALUES ('Aangepast', NULL, 1, '#e8590c')").run();
+  } else {
+    db.prepare("UPDATE budgetten_potjes SET beschermd = 1 WHERE naam = 'Aangepast'").run();
   }
 
   // ── Stap 7: Cleanup pre-fix imports zonder volgnummer ────────────────────
