@@ -1,7 +1,7 @@
 // FILE: route.ts
 // AANGEMAAKT: 25-03-2026 10:30
 // VERSIE: 1
-// GEWIJZIGD: 25-03-2026 18:30
+// GEWIJZIGD: 30-03-2026
 //
 // WIJZIGINGEN (25-03-2026 17:30):
 // - Initiële aanmaak: POST /api/import — multipart CSV ontvangen, parsen, matchen en opslaan
@@ -11,6 +11,11 @@
 // - telling bijgewerkt naar nieuw type systeem (normaal-af/bij + omboeking-af/bij)
 // WIJZIGINGEN (26-03-2026 11:00):
 // - categoriseerTransacties aangeroepen zonder importId zodat ALLE transacties herverwerkt worden
+// WIJZIGINGEN (30-03-2026):
+// - Detectie onbekende rekeningen vóór opslaan; return { onbekendeRekeningen } bij onbekenden
+// - Optionele form-fields: bevestigdeRekeningen, genegeerdeIbans, permanentGenegeerdeIbans
+// - Bevestigde rekeningen worden opgeslagen incl. beheerd-vlag en optionele budgetten_potjes koppeling
+// - Genegeerde IBans worden gefilterd uit de import
 
 import { NextRequest, NextResponse } from 'next/server';
 import { parseCSV } from '@/features/import/utils/parseCSV';
@@ -18,6 +23,16 @@ import { matchTransactie } from '@/features/import/utils/matchTransactie';
 import { getMatchConfig } from '@/lib/configStore';
 import { insertImport, insertTransacties } from '@/lib/imports';
 import { categoriseerTransacties } from '@/lib/categorisatie';
+import { insertRekening, updateBeheerd } from '@/lib/rekeningen';
+import getDb from '@/lib/db';
+
+interface BevestigdeRekening {
+  iban: string;
+  naam: string;
+  type: 'betaal' | 'spaar';
+  beheerd: number;
+  categorie_id: number | null;
+}
 
 export async function POST(request: NextRequest) {
   let formData: FormData;
@@ -32,6 +47,17 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Geen bestanden ontvangen.' }, { status: 400 });
   }
 
+  // Optionele bevestigingsparams (worden meegegeven bij herhaalde aanroep na modal)
+  const bevestigdeRekeningen: BevestigdeRekening[] = JSON.parse(
+    (formData.get('bevestigdeRekeningen') as string | null) ?? '[]'
+  );
+  const genegeerdeIbans: string[] = JSON.parse(
+    (formData.get('genegeerdeIbans') as string | null) ?? '[]'
+  );
+  const permanentGenegeerdeIbans: string[] = JSON.parse(
+    (formData.get('permanentGenegeerdeIbans') as string | null) ?? '[]'
+  );
+
   let config;
   try {
     config = getMatchConfig();
@@ -40,19 +66,15 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: bericht }, { status: 500 });
   }
 
-  const resultaten = [];
-
+  // Fase 1: Alle bestanden parsen
+  const geParste: Array<{ bestand: File; ruweTransacties: ReturnType<typeof parseCSV> }> = [];
   for (const bestand of bestanden) {
     let csvTekst: string;
     try {
       csvTekst = await bestand.text();
     } catch {
-      return NextResponse.json(
-        { error: `Bestand '${bestand.name}' kon niet worden gelezen.` },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: `Bestand '${bestand.name}' kon niet worden gelezen.` }, { status: 400 });
     }
-
     const ruweTransacties = parseCSV(csvTekst);
     if (ruweTransacties.length === 0) {
       return NextResponse.json(
@@ -60,18 +82,91 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+    geParste.push({ bestand, ruweTransacties });
+  }
 
-    const gematcht = ruweTransacties.map(t => ({
-      ...t,
-      type: matchTransactie(t, config),
-    }));
+  // Fase 2: Onbekende rekeningen detecteren
+  const db = getDb();
+  const bekendeIbans = new Set(
+    (db.prepare('SELECT iban FROM rekeningen').all() as { iban: string }[]).map(r => r.iban)
+  );
+  const genegeerdeDbIbans = new Set(
+    (db.prepare('SELECT iban FROM genegeerde_rekeningen').all() as { iban: string }[]).map(r => r.iban)
+  );
+  const bevestigdeSet  = new Set(bevestigdeRekeningen.map(r => r.iban.trim().toUpperCase()));
+  const skipSet        = new Set([...genegeerdeIbans, ...permanentGenegeerdeIbans].map(i => i.trim().toUpperCase()));
+
+  const alleIbans = new Set<string>();
+  const eersteTransactiePerIban: Record<string, string | null> = {};
+  for (const { ruweTransacties } of geParste) {
+    for (const t of ruweTransacties) {
+      const iban = t.iban_bban?.trim().toUpperCase();
+      if (!iban) continue;
+      alleIbans.add(iban);
+      if (!(iban in eersteTransactiePerIban)) {
+        eersteTransactiePerIban[iban] = t.naam_tegenpartij ?? null;
+      }
+    }
+  }
+
+  const onbekend = Array.from(alleIbans).filter(
+    iban => !bekendeIbans.has(iban) && !genegeerdeDbIbans.has(iban) && !bevestigdeSet.has(iban) && !skipSet.has(iban)
+  );
+
+  if (onbekend.length > 0) {
+    return NextResponse.json({
+      onbekendeRekeningen: onbekend.map(iban => ({
+        iban,
+        eersteTransactie: eersteTransactiePerIban[iban] ?? null,
+      })),
+    });
+  }
+
+  // Fase 3: Bevestigde rekeningen opslaan
+  for (const r of bevestigdeRekeningen) {
+    try {
+      insertRekening(r.iban, r.naam, r.type);
+      const rec = db
+        .prepare('SELECT id FROM rekeningen WHERE iban = ?')
+        .get(r.iban.trim().toUpperCase()) as { id: number } | undefined;
+      if (rec) {
+        updateBeheerd(rec.id, r.beheerd);
+        if (r.categorie_id) {
+          db.prepare('UPDATE budgetten_potjes SET rekening_id = ? WHERE id = ?').run(rec.id, r.categorie_id);
+        }
+      }
+    } catch { /* rekening bestond al */ }
+  }
+
+  // Permanent genegeerde rekeningen opslaan
+  for (const iban of permanentGenegeerdeIbans) {
+    db.prepare('INSERT OR IGNORE INTO genegeerde_rekeningen (iban) VALUES (?)')
+      .run(iban.trim().toUpperCase());
+  }
+
+  // Fase 4: Import uitvoeren — genegeerde IBans overslaan
+  const resultaten = [];
+  for (const { bestand, ruweTransacties } of geParste) {
+    const gefilterd = ruweTransacties.filter(t => !skipSet.has(t.iban_bban?.trim().toUpperCase() ?? ''));
+
+    if (gefilterd.length === 0) {
+      resultaten.push({
+        importId: 0,
+        aantalNormaalAf: 0, aantalNormaalBij: 0, aantalOmboekingAf: 0, aantalOmboekingBij: 0,
+        totaal: ruweTransacties.length, overgeslagen: ruweTransacties.length,
+        gecategoriseerd: 0, ongecategoriseerd: 0,
+      });
+      continue;
+    }
+
+    const gematcht = gefilterd.map(t => ({ ...t, type: matchTransactie(t, config) }));
 
     let importId: number;
     let opgeslagen: number;
     let gecategoriseerd = 0;
     let ongecategoriseerd = 0;
     try {
-      importId = insertImport(bestand.name, ruweTransacties.length);
+      importId = insertImport(bestand.name, gefilterd.length);
       opgeslagen = insertTransacties(importId, gematcht);
       ({ gecategoriseerd, ongecategoriseerd } = categoriseerTransacties());
     } catch (err) {
@@ -86,12 +181,12 @@ export async function POST(request: NextRequest) {
 
     resultaten.push({
       importId,
-      aantalNormaalAf:   telling['normaal-af'],
-      aantalNormaalBij:  telling['normaal-bij'],
-      aantalOmboekingAf: telling['omboeking-af'],
-      aantalOmboekingBij:telling['omboeking-bij'],
-      totaal:            ruweTransacties.length,
-      overgeslagen:     ruweTransacties.length - opgeslagen,
+      aantalNormaalAf:    telling['normaal-af'],
+      aantalNormaalBij:   telling['normaal-bij'],
+      aantalOmboekingAf:  telling['omboeking-af'],
+      aantalOmboekingBij: telling['omboeking-bij'],
+      totaal:             ruweTransacties.length,
+      overgeslagen:       ruweTransacties.length - opgeslagen,
       gecategoriseerd,
       ongecategoriseerd,
     });
