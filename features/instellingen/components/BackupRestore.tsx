@@ -194,7 +194,7 @@ export default function BackupRestore() {
         {/* Restore */}
         <div>
           <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-h)', marginBottom: 12 }}>Importeer backup</p>
-          <input id="backup-file-input" ref={fileRef} type="file" accept=".json" onChange={handleFileChange} style={{ display: 'none' }} />
+          <input id="backup-file-input" ref={fileRef} type="file" accept=".json" onChange={handleFileChange} style={{ position: 'absolute', width: 0, height: 0, opacity: 0, pointerEvents: 'none' }} />
 
           {backupData && (
             <>
