@@ -1,8 +1,10 @@
 // FILE: TransactiesTabel.tsx
 // AANGEMAAKT: 25-03-2026 12:00
 // VERSIE: 1
-// GEWIJZIGD: 30-03-2026 21:30
+// GEWIJZIGD: 30-03-2026 23:00
 //
+// WIJZIGINGEN (30-03-2026 23:00):
+// - Slotje-filterknop toegevoegd in categoriefilterbalk: filtert op handmatig_gecategoriseerd === 1
 // WIJZIGINGEN (30-03-2026 21:30):
 // - Omschrijving <td> volledig klikbaar: opent openCategoriePopup (onClick op td i.p.v. alleen toelichting div)
 // WIJZIGINGEN (30-03-2026 21:00):
@@ -207,6 +209,7 @@ export default function TransactiesTabel() {
   const [klaar, setKlaar]                               = useState(false);
   const [filter, setFilter]                             = useState<TransactieType | 'alle'>('alle');
   const [categorieFilter, setCategorieFilter]           = useState<string | 'alle'>('alle');
+  const [vergrendeldFilter, setVergrendeldFilter]       = useState(false);
   const [sortCol, setSortCol]                           = useState<string | null>(null);
   const [sortDir, setSortDir]                           = useState<'asc' | 'desc'>('asc');
   const [periodes, setPeriodes]                         = useState<Periode[]>([]);
@@ -696,6 +699,7 @@ const [patronModal, setPatronModal]                   = useState<PatronModalData
         ? tabTransacties.filter(t => !t.categorie || t.status === 'nieuw')
         : tabTransacties.filter(t => t.categorie === categorieFilter)
   ).filter(t => {
+    if (vergrendeldFilter && t.handmatig_gecategoriseerd !== 1) return false;
     if (!zoekterm) return true;
     const q = zoekterm.toLowerCase();
     return (
@@ -806,6 +810,13 @@ const [patronModal, setPatronModal]                   = useState<PatronModalData
             </button>
           );
         })}
+        <button
+          onClick={() => setVergrendeldFilter(v => !v)}
+          style={{ ...filterKnopStijl(vergrendeldFilter), marginLeft: 'auto' }}
+          title="Filter op handmatig gecategoriseerd"
+        >
+          🔒
+        </button>
       </div>
 
       {/* Jaarfilter-knoppen */}
