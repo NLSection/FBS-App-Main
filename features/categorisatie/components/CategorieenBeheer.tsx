@@ -1,8 +1,13 @@
 // FILE: CategorieenBeheer.tsx
 // AANGEMAAKT: 25-03-2026 17:30
 // VERSIE: 1
-// GEWIJZIGD: 28-03-2026 23:45
+// GEWIJZIGD: 30-03-2026 22:00
 //
+// WIJZIGINGEN (30-03-2026 22:00):
+// - CategorieRegel interface: toelichting veld toegevoegd
+// - KOLOMMEN: toelichting kolom na omschrijving_zoekwoord
+// - Tabelrij: toelichting via textCell
+// - Formulier: toelichting tekstveld toegevoegd (POST + PUT)
 // WIJZIGINGEN (28-03-2026 23:45):
 // - Kolom "Naam zoekwoord" terug toegevoegd aan tabel, na "Naam tegenpartij"
 // - Verwijderknop stijl gelijkgetrokken met RekeningenBeheer (border, padding, borderRadius)
@@ -19,6 +24,7 @@ interface CategorieRegel {
   naam_zoekwoord: string | null;
   naam_origineel: string | null;
   omschrijving_zoekwoord: string | null;
+  toelichting: string | null;
   categorie: string;
   subcategorie: string | null;
   type: CategorieType;
@@ -47,7 +53,7 @@ async function triggerReMatch(): Promise<void> {
 
 const leegFormulier = {
   iban: '', naam_origineel: '', naam_zoekwoord_raw: '', omschrijving_raw: '',
-  categorie: '', subcategorie: '', type: 'alle' as CategorieType,
+  toelichting: '', categorie: '', subcategorie: '', type: 'alle' as CategorieType,
 };
 
 const KOLOMMEN: { col: SortCol; label: string }[] = [
@@ -55,6 +61,7 @@ const KOLOMMEN: { col: SortCol; label: string }[] = [
   { col: 'naam_origineel',          label: 'Naam tegenpartij' },
   { col: 'naam_zoekwoord',          label: 'Naam zoekwoord' },
   { col: 'omschrijving_zoekwoord',  label: 'Omschrijving zoekwoord' },
+  { col: 'toelichting',             label: 'Toelichting' },
   { col: 'categorie',               label: 'Categorie' },
   { col: 'subcategorie',            label: 'Subcategorie' },
   { col: 'type',                    label: 'Type' },
@@ -103,6 +110,7 @@ export default function CategorieenBeheer() {
       iban:             form.iban.trim()             || null,
       naam_origineel:   form.naam_origineel.trim()   || null,
       omschrijving_raw: form.omschrijving_raw.trim() || null,
+      toelichting:      form.toelichting.trim()      || null,
       categorie:        form.categorie.trim(),
       subcategorie:     form.subcategorie.trim()     || null,
       type:             form.type,
@@ -140,6 +148,7 @@ export default function CategorieenBeheer() {
       naam_origineel:     regel.naam_origineel,
       naam_zoekwoord_raw: regel.naam_zoekwoord,   // behoudt bestaand zoekwoord standaard
       omschrijving_raw:   regel.omschrijving_zoekwoord,
+      toelichting:        regel.toelichting,
       categorie:          regel.categorie,
       subcategorie:       regel.subcategorie,
       type:               regel.type,
@@ -152,6 +161,7 @@ export default function CategorieenBeheer() {
                                       break;
       case 'naam_zoekwoord':          body.naam_zoekwoord_raw = edit.waarde || null; break;
       case 'omschrijving_zoekwoord':  body.omschrijving_raw = edit.waarde || null; break;
+      case 'toelichting':             body.toelichting = edit.waarde || null; break;
       case 'categorie':               body.categorie = edit.waarde; break;
       case 'subcategorie':            body.subcategorie = edit.waarde || null; break;
       case 'type':                    body.type = edit.waarde; break;
@@ -244,6 +254,12 @@ export default function CategorieenBeheer() {
               placeholder="boodschappen" />
           </div>
           <div>
+            <label className={labelCls}>Toelichting (optioneel)</label>
+            <input className={inputCls} value={form.toelichting}
+              onChange={e => setForm(f => ({ ...f, toelichting: e.target.value }))}
+              placeholder="Optionele toelichting…" />
+          </div>
+          <div>
             <label className={labelCls}>Categorie *</label>
             <input className={inputCls} value={form.categorie}
               onChange={e => setForm(f => ({ ...f, categorie: e.target.value }))}
@@ -302,6 +318,7 @@ export default function CategorieenBeheer() {
                   {textCell(r, 'naam_origineel', r.naam_origineel, { color: 'var(--text-h)', fontWeight: 500 })}
                   {textCell(r, 'naam_zoekwoord', r.naam_zoekwoord, { fontSize: 11, fontFamily: 'monospace' })}
                   {textCell(r, 'omschrijving_zoekwoord', r.omschrijving_zoekwoord, { fontSize: 11 })}
+                  {textCell(r, 'toelichting', r.toelichting, { fontSize: 12 })}
                   {textCell(r, 'categorie', r.categorie, { color: 'var(--text-h)', fontWeight: 500 })}
                   {textCell(r, 'subcategorie', r.subcategorie)}
 
