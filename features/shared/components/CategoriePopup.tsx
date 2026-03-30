@@ -1,8 +1,10 @@
 // FILE: CategoriePopup.tsx
 // AANGEMAAKT: 31-03-2026 00:00
 // VERSIE: 1
-// GEWIJZIGD: 31-03-2026 00:00
+// GEWIJZIGD: 31-03-2026 02:00
 //
+// WIJZIGINGEN (31-03-2026 02:00):
+// - Woordfrequentie analyse: onAnalyseer prop, Analyseer/Verberg knop, tellers in omschrijving chips
 // WIJZIGINGEN (31-03-2026 00:00):
 // - Geëxtraheerd uit TransactiesTabel.tsx: patronModal popup als gedeeld component
 // - Props: patronModal data, setPatronModal, onBevestig, onSluiten, budgettenPotjes, rekeningen, uniekeCategorieenDropdown
@@ -36,16 +38,19 @@ interface CategoriePopupProps {
   setPatronModal: React.Dispatch<React.SetStateAction<PatronModalData | null>>;
   onBevestig: () => void;
   onSluiten: () => void;
+  onAnalyseer: () => Promise<Record<string, number>>;
   budgettenPotjes: BudgetPotjeNaam[];
   rekeningen: Rekening[];
   uniekeCategorieenDropdown: string[];
 }
 
 export default function CategoriePopup({
-  patronModal, setPatronModal, onBevestig, onSluiten, budgettenPotjes, rekeningen, uniekeCategorieenDropdown,
+  patronModal, setPatronModal, onBevestig, onSluiten, onAnalyseer, budgettenPotjes, rekeningen, uniekeCategorieenDropdown,
 }: CategoriePopupProps) {
   const [tooltipNaam, setTooltipNaam]       = useState(false);
   const [tooltipOmschr, setTooltipOmschr]   = useState(false);
+  const [woordTellers, setWoordTellers]     = useState<Record<string, number> | null>(null);
+  const [tellerLaden, setTellerLaden]       = useState(false);
 
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)' }}>
@@ -218,6 +223,24 @@ export default function CategoriePopup({
                 </span>
               )}
             </span>
+            <button
+              disabled={tellerLaden}
+              onClick={async () => {
+                if (woordTellers) { setWoordTellers(null); return; }
+                setTellerLaden(true);
+                const result = await onAnalyseer();
+                setWoordTellers(result);
+                setTellerLaden(false);
+              }}
+              style={{
+                marginLeft: 'auto', fontSize: 11, color: 'var(--text-dim)',
+                background: 'none', border: '1px solid var(--border)', borderRadius: 4,
+                padding: '1px 8px', cursor: tellerLaden ? 'not-allowed' : 'pointer',
+                opacity: tellerLaden ? 0.5 : 1,
+              }}
+            >
+              {tellerLaden ? 'Laden…' : woordTellers ? 'Verberg' : 'Analyseer'}
+            </button>
           </p>
           {patronModal.chips.length > 0 ? (
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
@@ -235,7 +258,7 @@ export default function CategoriePopup({
                       fontWeight: actief ? 600 : 400,
                     }}
                   >
-                    {chip.label}
+                    {chip.label}{woordTellers && woordTellers[chip.waarde] != null ? ` (${woordTellers[chip.waarde]})` : ''}
                   </button>
                 );
               })}

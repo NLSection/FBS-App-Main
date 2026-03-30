@@ -1,8 +1,10 @@
 // FILE: route.ts
 // AANGEMAAKT: 25-03-2026 12:00
 // VERSIE: 1
-// GEWIJZIGD: 25-03-2026 18:30
+// GEWIJZIGD: 31-03-2026 02:00
 //
+// WIJZIGINGEN (31-03-2026 02:00):
+// - naam_tegenpartij query param toegevoegd voor woordfrequentie analyse
 // WIJZIGINGEN (25-03-2026 18:30):
 // - Initiële aanmaak: GET /api/transacties met optionele filters
 // - GELDIGE_TYPES bijgewerkt naar nieuw type systeem
@@ -23,6 +25,7 @@ export function GET(request: NextRequest) {
   const statusParam   = params.get('status');
   const datumVanParam = params.get('datum_van');
   const datumTotParam = params.get('datum_tot');
+  const naamParam     = params.get('naam_tegenpartij');
 
   if (typeParam && !GELDIGE_TYPES.has(typeParam)) {
     return NextResponse.json({ error: `Ongeldig type: ${typeParam}` }, { status: 400 });
@@ -51,6 +54,7 @@ export function GET(request: NextRequest) {
       status:    statusParam ? (statusParam as TransactieStatus) : undefined,
       datum_van: datumVanParam ?? undefined,
       datum_tot: datumTotParam ?? undefined,
+      naam_tegenpartij: naamParam ?? undefined,
     });
     return NextResponse.json(transacties);
   } catch (err) {

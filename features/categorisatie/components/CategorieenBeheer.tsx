@@ -3,6 +3,8 @@
 // VERSIE: 1
 // GEWIJZIGD: 31-03-2026 01:00
 //
+// WIJZIGINGEN (31-03-2026 02:00):
+// - onAnalyseer prop toegevoegd aan CategoriePopup: woordfrequentie analyse per tegenpartij
 // WIJZIGINGEN (31-03-2026 01:30):
 // - Tab "Aangepast" met 🔒 slotje in tab-knop en bij elke transactierij (naam tegenpartij)
 // WIJZIGINGEN (31-03-2026 01:00):
@@ -672,6 +674,23 @@ export default function CategorieenBeheer() {
           setPatronModal={setPatronModal}
           onBevestig={handlePatronModalBevestig}
           onSluiten={() => setPatronModal(null)}
+          onAnalyseer={async () => {
+            const naam = patronModal.transactie.naam_tegenpartij;
+            if (!naam) return {};
+            const res = await fetch(`/api/transacties?naam_tegenpartij=${encodeURIComponent(naam)}`);
+            const trns: TransactieMetCategorie[] = res.ok ? await res.json() : [];
+            const tellers: Record<string, number> = {};
+            for (const t of trns) {
+              const woorden = new Set(
+                (t.omschrijving_1 ?? '').split(/[\s.,/()\[\]{}'"!?:;]+/)
+                  .filter(w => w.length >= 3)
+                  .map(w => w.toLowerCase().replace(/[^a-z0-9&-]/g, ''))
+                  .filter(w => w.length > 0)
+              );
+              for (const w of woorden) tellers[w] = (tellers[w] ?? 0) + 1;
+            }
+            return tellers;
+          }}
           budgettenPotjes={budgettenPotjes}
           rekeningen={rekeningen}
           uniekeCategorieenDropdown={uniekeCatDropdown}

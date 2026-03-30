@@ -1,7 +1,7 @@
 // FILE: transacties.ts
 // AANGEMAAKT: 25-03-2026 12:00
 // VERSIE: 1
-// GEWIJZIGD: 30-03-2026 19:00
+// GEWIJZIGD: 31-03-2026 02:00
 //
 // WIJZIGINGEN (25-03-2026 18:30):
 // - Initiële aanmaak: getTransacties, getTransactie, updateTransactieTypeByIban
@@ -17,6 +17,8 @@
 // WIJZIGINGEN (26-03-2026 22:00):
 // - TransactieMetCategorie uitgebreid met rekening_naam en tegenrekening_naam
 // - getTransacties: twee LEFT JOINs op rekeningen (r1 = eigen, r2 = tegenrekening)
+// WIJZIGINGEN (31-03-2026 02:00):
+// - TransactieFilters: naam_tegenpartij filter toegevoegd
 // WIJZIGINGEN (30-03-2026 19:00):
 // - TransactieMetCategorie uitgebreid met toelichting
 // WIJZIGINGEN (28-03-2026 18:00):
@@ -31,6 +33,7 @@ export interface TransactieFilters {
   status?: TransactieStatus;
   datum_van?: string;
   datum_tot?: string;
+  naam_tegenpartij?: string;
 }
 
 export interface TransactieMetCategorie extends Transactie {
@@ -67,6 +70,10 @@ export function getTransacties(filters?: TransactieFilters): TransactieMetCatego
   if (filters?.datum_tot) {
     conditions.push('t.datum <= ?');
     params.push(filters.datum_tot);
+  }
+  if (filters?.naam_tegenpartij) {
+    conditions.push('t.naam_tegenpartij = ?');
+    params.push(filters.naam_tegenpartij);
   }
 
   const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
