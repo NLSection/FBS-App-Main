@@ -1,7 +1,7 @@
 // FILE: ImportForm.tsx
 // AANGEMAAKT: 25-03-2026 10:30
 // VERSIE: 1
-// GEWIJZIGD: 30-03-2026
+// GEWIJZIGD: 30-03-2026 16:30
 //
 // WIJZIGINGEN (25-03-2026 17:30):
 // - Initiële aanmaak: formulier voor CSV-import met resultaatweergave
@@ -12,6 +12,9 @@
 // WIJZIGINGEN (30-03-2026):
 // - Modal voor onbekende rekeningen: toevoegen / negeren / permanent negeren per IBAN
 // - Herhaalde aanroep met bevestigde keuzes na modal-bevestiging
+// WIJZIGINGEN (30-03-2026 16:30):
+// - categorie_id dropdown → categorie_ids checkboxes (many-to-many)
+// - "Koppel aan budget" → "Koppel aan categorieën"
 
 'use client';
 
@@ -41,10 +44,10 @@ interface RekeningKeuze {
   naam: string;
   type: 'betaal' | 'spaar';
   beheerd: boolean;
-  categorie_id: number | null;
+  categorie_ids: number[];
 }
 
-interface BudgetPotje { id: number; naam: string; }
+interface Categorie { id: number; naam: string; }
 
 const fieldStyle: React.CSSProperties = {
   width: '100%',
@@ -76,12 +79,12 @@ export default function ImportForm() {
   const [onbekend, setOnbekend]               = useState<OnbekendeRekening[] | null>(null);
   const [keuzes, setKeuzes]                   = useState<RekeningKeuze[]>([]);
   const [opgeslagenBestanden, setOpgeslagenBestanden] = useState<File[]>([]);
-  const [budgettenPotjes, setBudgettenPotjes] = useState<BudgetPotje[]>([]);
+  const [categorieen, setCategorieen] = useState<Categorie[]>([]);
 
   useEffect(() => {
     fetch('/api/budgetten-potjes')
       .then(r => r.ok ? r.json() : [])
-      .then((data: BudgetPotje[]) => setBudgettenPotjes(data))
+      .then((data: Categorie[]) => setCategorieen(data))
       .catch(() => {});
   }, []);
 
@@ -103,7 +106,7 @@ export default function ImportForm() {
           naam: '',
           type: 'betaal',
           beheerd: true,
-          categorie_id: null,
+          categorie_ids: [],
         })));
       } else {
         setOnbekend(null);
@@ -141,7 +144,7 @@ export default function ImportForm() {
 
     const bevestigde = keuzes
       .filter(k => k.actie === 'toevoegen')
-      .map(k => ({ iban: k.iban, naam: k.naam.trim(), type: k.type, beheerd: k.beheerd ? 1 : 0, categorie_id: k.categorie_id }));
+      .map(k => ({ iban: k.iban, naam: k.naam.trim(), type: k.type, beheerd: k.beheerd ? 1 : 0, categorie_ids: k.categorie_ids }));
     const genegeerd  = keuzes.filter(k => k.actie === 'negeren').map(k => k.iban);
     const permanent  = keuzes.filter(k => k.actie === 'permanent').map(k => k.iban);
 
@@ -293,19 +296,25 @@ export default function ImportForm() {
                           <span style={{ color: 'var(--text-dim)' }}>Samenvoegen onder Beheerde Rekeningen</span>
                         </label>
                       </div>
-                      {budgettenPotjes.length > 0 && (
+                      {categorieen.length > 0 && (
                         <div style={{ gridColumn: '1 / -1' }}>
-                          <label style={labelStyle}>Koppel aan budget (optioneel)</label>
-                          <select
-                            style={fieldStyle}
-                            value={k.categorie_id ?? ''}
-                            onChange={e => updateKeuze(k.iban, { categorie_id: e.target.value ? parseInt(e.target.value, 10) : null })}
-                          >
-                            <option value="">— Geen koppeling —</option>
-                            {budgettenPotjes.map(bp => (
-                              <option key={bp.id} value={bp.id}>{bp.naam}</option>
+                          <label style={labelStyle}>Koppel aan categorieën (optioneel)</label>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px 20px', marginTop: 4 }}>
+                            {categorieen.map(c => (
+                              <label key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 13, color: 'var(--text-h)', cursor: 'pointer' }}>
+                                <input
+                                  type="checkbox"
+                                  checked={k.categorie_ids.includes(c.id)}
+                                  onChange={e => updateKeuze(k.iban, {
+                                    categorie_ids: e.target.checked
+                                      ? [...k.categorie_ids, c.id]
+                                      : k.categorie_ids.filter(id => id !== c.id),
+                                  })}
+                                />
+                                {c.naam}
+                              </label>
                             ))}
-                          </select>
+                          </div>
                         </div>
                       )}
                     </div>

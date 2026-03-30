@@ -1,7 +1,7 @@
 // FILE: route.ts
 // AANGEMAAKT: 25-03-2026 10:30
 // VERSIE: 1
-// GEWIJZIGD: 30-03-2026
+// GEWIJZIGD: 30-03-2026 16:30
 //
 // WIJZIGINGEN (25-03-2026 17:30):
 // - Initiële aanmaak: POST /api/import — multipart CSV ontvangen, parsen, matchen en opslaan
@@ -13,6 +13,8 @@
 // - categoriseerTransacties aangeroepen zonder importId zodat ALLE transacties herverwerkt worden
 // WIJZIGINGEN (30-03-2026):
 // - Detectie onbekende rekeningen vóór opslaan; return { onbekendeRekeningen } bij onbekenden
+// WIJZIGINGEN (30-03-2026 16:30):
+// - categorie_id → categorie_ids (many-to-many via budgetten_potjes_rekeningen)
 // - Optionele form-fields: bevestigdeRekeningen, genegeerdeIbans, permanentGenegeerdeIbans
 // - Bevestigde rekeningen worden opgeslagen incl. beheerd-vlag en optionele budgetten_potjes koppeling
 // - Genegeerde IBans worden gefilterd uit de import
@@ -31,7 +33,7 @@ interface BevestigdeRekening {
   naam: string;
   type: 'betaal' | 'spaar';
   beheerd: number;
-  categorie_id: number | null;
+  categorie_ids: number[];
 }
 
 export async function POST(request: NextRequest) {
@@ -131,8 +133,8 @@ export async function POST(request: NextRequest) {
         .get(r.iban.trim().toUpperCase()) as { id: number } | undefined;
       if (rec) {
         updateBeheerd(rec.id, r.beheerd);
-        if (r.categorie_id) {
-          db.prepare('UPDATE budgetten_potjes SET rekening_id = ? WHERE id = ?').run(rec.id, r.categorie_id);
+        for (const catId of r.categorie_ids ?? []) {
+          db.prepare('INSERT OR IGNORE INTO budgetten_potjes_rekeningen (potje_id, rekening_id) VALUES (?, ?)').run(catId, rec.id);
         }
       }
     } catch { /* rekening bestond al */ }
