@@ -35,3 +35,5 @@ Vervang de inhoud van ROADMAP.md met het volgende:
 11. Patching en uitrol bij andere gebruikers
 12. Login / authenticatie + MFA
 13. Encryptie / licentie
+14. Gedeelde database via netwerkpad: optie in instellingen om de locatie van de SQLite database te wijzigen naar een lokaal of UNC netwerkpad (bijv. \\NAS\FBS\fbs.db). Bij wijziging wordt de huidige database naar de nieuwe locatie gekopieerd. De app gebruikt daarna altijd die locatie. Bedoeld voor gebruik op één actieve instantie tegelijk.
+15. Synology NAS package: de app verpakken als installeerbaar SPK package voor Synology NAS. De app draait dan als server op de NAS en is benaderbaar via de browser vanaf meerdere apparaten. Vereist Node.js ondersteuning op de NAS.
