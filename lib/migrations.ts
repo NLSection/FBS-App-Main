@@ -1,7 +1,7 @@
 // FILE: migrations.ts
 // AANGEMAAKT: 25-03-2026 10:00
 // VERSIE: 1
-// GEWIJZIGD: 30-03-2026 12:00
+// GEWIJZIGD: 30-03-2026 13:00
 //
 // WIJZIGINGEN (25-03-2026 18:30):
 // - Initiële aanmaak: CREATE TABLE IF NOT EXISTS voor imports en transacties
@@ -28,6 +28,7 @@
 // - Stap 8: Overige Uitgaven kleur gewijzigd van #a0a8c0 naar #63e6be
 // WIJZIGINGEN (30-03-2026 12:00):
 // - 'type' kolom verwijderd uit seed INSERT voor budgetten_potjes (kolom bestaat niet meer)
+// - Seed voor budgetten_potjes verwijderd: voorkomt dat categorieën na reset opnieuw verschijnen
 
 import getDb from '@/lib/db';
 
@@ -191,18 +192,6 @@ export function runMigrations(): void {
     db.prepare('INSERT INTO instellingen (id, maand_start_dag) VALUES (1, 27)').run();
   }
 
-  // ── (origineel stap 4 — hernummerd naar na stap 5 voor leesbaarheid) ─────
-  const bpAantal = db.prepare('SELECT COUNT(*) AS n FROM budgetten_potjes').get() as { n: number };
-  if (bpAantal.n === 0) {
-    const ins = db.prepare('INSERT INTO budgetten_potjes (naam, beschermd) VALUES (?, ?)');
-    db.transaction(() => {
-      ins.run('Vaste Lasten',     1);
-      ins.run('Overige Uitgaven', 1);
-      for (const naam of ['Boodschappen','Brandstof','Uit Eten','Uitjes','Zorg','Kleding','Sparen']) {
-        ins.run(naam, 0);
-      }
-    })();
-  }
 
   // ── Stap 6: Seed kleuren voor budgetten_potjes ────────────────────────────
   const KLEUR_PALETTE = ['#f06595','#ff8787','#ffa94d','#ffd43b','#a9e34b','#69db7c',
