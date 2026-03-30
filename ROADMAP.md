@@ -25,12 +25,13 @@ Vervang de inhoud van ROADMAP.md met het volgende:
 5. Categorie database: naam_origineel vullen met chip-label, naam_zoekwoord verbergen
 6. Trendgrafieken (equivalent van Script T)
 7. Quick-question feature
+8. Rekening verwijderen — data integriteit: als een rekening verwijderd wordt uit de instellingen, moeten transacties van die rekening met type omboeking-af of omboeking-bij worden herberekend (omboeking-detectie werkt op basis van bekende IBAN's). Na verwijdering: herdetectie van type + hermatching van categorisatie voor alle transacties van dat IBAN.
 
 ### Fase 2 — Uitstraling
-8. Section Labs branding / huisstijl (huidige staat onvoldoende)
+9. Section Labs branding / huisstijl (huidige staat onvoldoende)
 
 ### Fase 3 — Uitrol
-9. Installatie op andere systemen
-10. Patching en uitrol bij andere gebruikers
-11. Login / authenticatie + MFA
-12. Encryptie / licentie
+10. Installatie op andere systemen
+11. Patching en uitrol bij andere gebruikers
+12. Login / authenticatie + MFA
+13. Encryptie / licentie
