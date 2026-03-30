@@ -1,13 +1,15 @@
 // FILE: BackupRestore.tsx
 // AANGEMAAKT: 29-03-2026 15:00
 // VERSIE: 1
-// GEWIJZIGD: 30-03-2026 10:00
+// GEWIJZIGD: 30-03-2026 13:00
 //
 // WIJZIGINGEN (29-03-2026 15:00):
 // - Initiële aanmaak: Backup & Restore sectie met download en importeer functionaliteit
 // - Importeer backup knop altijd zichtbaar (disabled tot bestand geladen)
 // - Knop opent bestandspicker; na selectie doet knop de import; hint tekst onder de knop
 // - Alles Wissen functie toegevoegd: rode knop, waarschuwingsmodal (stap 2) en bevestigingsmodal (stap 3)
+// WIJZIGINGEN (30-03-2026 13:00):
+// - btnGrijs kleur gewijzigd van --text-dim naar --text-h (knoppen waren onleesbaar in modal)
 
 'use client';
 
@@ -35,7 +37,7 @@ const modalBase: React.CSSProperties = {
 };
 const modalRood: React.CSSProperties = { ...modalBase, borderColor: 'var(--red)' };
 const btnGrijs: React.CSSProperties = {
-  background: 'transparent', color: 'var(--text-dim)', border: '1px solid var(--border)',
+  background: 'transparent', color: 'var(--text-h)', border: '1px solid var(--border)',
   borderRadius: 6, padding: '5px 12px', fontSize: 12, cursor: 'pointer',
 };
 
