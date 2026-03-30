@@ -1,0 +1,121 @@
+// FILE: budgettenPotjes.ts
+// AANGEMAAKT: 25-03-2026 19:30
+// VERSIE: 1
+// GEWIJZIGD: 30-03-2026 00:00
+//
+// WIJZIGINGEN (30-03-2026 00:00):
+// - Zacht kleurenpalet met 12 kleuren; auto-kleur kiest maximale hue-afstand t.o.v. bestaande kleuren
+//
+// WIJZIGINGEN (28-03-2026 00:00):
+// - type veld verwijderd uit interface, insertBudgetPotje en updateBudgetPotje
+
+import getDb from '@/lib/db';
+
+export interface BudgetPotje {
+  id: number;
+  naam: string;
+  rekening_id: number | null;
+  beschermd: number;
+  kleur: string | null;
+}
+
+// Zacht palette met goed verspreide hue-waarden (HSL ~60-70% sat, ~72% light)
+const KLEUR_PALETTE = [
+  '#7ca0f4', // blauw
+  '#a78bfa', // lavendel
+  '#f4a7b9', // roze
+  '#f4b77c', // warm oranje
+  '#7cdba8', // mint
+  '#e4a0f4', // lila
+  '#8bd4f4', // hemelsblauw
+  '#f4d87c', // zachtgeel
+  '#a7f4cb', // lichtgroen
+  '#f49dad', // koraal
+  '#b8a7f4', // violet
+  '#7cf4e4', // turquoise
+];
+
+function hexNaarHsl(hex: string): [number, number, number] {
+  const r = parseInt(hex.slice(1, 3), 16) / 255;
+  const g = parseInt(hex.slice(3, 5), 16) / 255;
+  const b = parseInt(hex.slice(5, 7), 16) / 255;
+  const max = Math.max(r, g, b), min = Math.min(r, g, b);
+  const l = (max + min) / 2;
+  if (max === min) return [0, 0, l];
+  const d = max - min;
+  const s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+  let h = 0;
+  if (max === r) h = ((g - b) / d + (g < b ? 6 : 0)) / 6;
+  else if (max === g) h = ((b - r) / d + 2) / 6;
+  else h = ((r - g) / d + 4) / 6;
+  return [h * 360, s, l];
+}
+
+function kleurAfstand(hex1: string, hex2: string): number {
+  const [h1] = hexNaarHsl(hex1);
+  const [h2] = hexNaarHsl(hex2);
+  const diff = Math.abs(h1 - h2);
+  return Math.min(diff, 360 - diff);
+}
+
+function volgendePaletKleur(db: ReturnType<typeof getDb>): string {
+  const bestaand = (db.prepare('SELECT kleur FROM budgetten_potjes WHERE kleur IS NOT NULL').all() as { kleur: string }[])
+    .map(r => r.kleur);
+  if (bestaand.length === 0) return KLEUR_PALETTE[0];
+  let besteKleur = KLEUR_PALETTE[0];
+  let besteAfstand = 0;
+  for (const kandidaat of KLEUR_PALETTE) {
+    const minAfstand = Math.min(...bestaand.map(b => kleurAfstand(kandidaat, b)));
+    if (minAfstand > besteAfstand) {
+      besteAfstand = minAfstand;
+      besteKleur = kandidaat;
+    }
+  }
+  return besteKleur;
+}
+
+export function getBudgettenPotjes(): BudgetPotje[] {
+  return getDb()
+    .prepare('SELECT * FROM budgetten_potjes ORDER BY beschermd DESC, id ASC')
+    .all() as BudgetPotje[];
+}
+
+export function insertBudgetPotje(naam: string, rekening_id: number | null, kleur?: string | null): number {
+  const db = getDb();
+  const k = kleur ?? volgendePaletKleur(db);
+  const result = db
+    .prepare('INSERT INTO budgetten_potjes (naam, rekening_id, kleur) VALUES (?, ?, ?)')
+    .run(naam, rekening_id, k);
+  return result.lastInsertRowid as number;
+}
+
+export function updateBudgetPotje(
+  id: number,
+  naam: string | null,
+  rekening_id: number | null,
+  kleur: string | null,
+): void {
+  const db = getDb();
+  const rij = db
+    .prepare('SELECT beschermd FROM budgetten_potjes WHERE id = ?')
+    .get(id) as { beschermd: number } | undefined;
+  if (!rij) throw new Error('Budget/potje niet gevonden.');
+
+  if (rij.beschermd) {
+    db.prepare('UPDATE budgetten_potjes SET rekening_id = ?, kleur = ? WHERE id = ?').run(rekening_id, kleur, id);
+  } else {
+    if (!naam?.trim()) throw new Error('Naam mag niet leeg zijn.');
+    db.prepare('UPDATE budgetten_potjes SET naam = ?, rekening_id = ?, kleur = ? WHERE id = ?')
+      .run(naam.trim(), rekening_id, kleur, id);
+  }
+}
+
+export function deleteBudgetPotje(id: number): void {
+  const db = getDb();
+  const rij = db
+    .prepare('SELECT beschermd FROM budgetten_potjes WHERE id = ?')
+    .get(id) as { beschermd: number } | undefined;
+  if (!rij) throw new Error('Budget/potje niet gevonden.');
+  if (rij.beschermd) throw new Error('Dit item is beschermd en kan niet worden verwijderd.');
+  db.prepare('DELETE FROM budgetten_potjes WHERE id = ?').run(id);
+}

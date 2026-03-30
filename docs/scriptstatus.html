@@ -1,0 +1,304 @@
+<!--
+  FILE: scriptstatus.html
+  AANGEMAAKT: 25-03-2026 16:00
+  VERSIE: 1
+  GEWIJZIGD: 25-03-2026 16:00
+
+  WIJZIGINGEN (25-03-2026 16:00):
+  - Initiële aanmaak: vertaalstatus Excel scripts naar web app
+-->
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Scriptstatus — FBS App</title>
+  <style>
+    :root {
+      --bg-base:    #0f1117;
+      --bg-surface: #1a1d27;
+      --bg-card:    #212433;
+      --bg-hover:   #272a3a;
+      --border:     #2e3148;
+      --text:       #a0a8c0;
+      --text-h:     #e8eaf6;
+      --text-dim:   #5a607a;
+      --accent:     #5c7cfa;
+      --accent-dim: rgba(92, 124, 250, 0.15);
+      --green:      #40c96e;
+      --red:        #f05252;
+      --orange:     #f5a524;
+      --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; }
+
+    body {
+      font-family: var(--sans);
+      font-size: 14px;
+      line-height: 1.5;
+      color: var(--text);
+      background: var(--bg-base);
+      margin: 0;
+      padding: 0;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    h1, h2, h3, h4 { color: var(--text-h); font-weight: 600; margin: 0; }
+
+    /* ── Layout ── */
+
+    .shell {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 40px 32px;
+    }
+
+    .page-header {
+      margin-bottom: 36px;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 24px;
+    }
+
+    .page-header h1 {
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: -0.3px;
+    }
+
+    .page-header p {
+      font-size: 13px;
+      color: var(--text-dim);
+      margin-top: 6px;
+    }
+
+    /* ── Legenda ── */
+
+    .legenda {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-bottom: 36px;
+    }
+
+    .legenda-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      color: var(--text-dim);
+    }
+
+    /* ── Script blok ── */
+
+    .script-blok {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+      margin-bottom: 28px;
+    }
+
+    .script-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 16px 20px;
+      background: var(--bg-surface);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .script-naam {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text-h);
+      letter-spacing: -0.2px;
+    }
+
+    .script-label {
+      font-size: 11px;
+      color: var(--text-dim);
+      font-weight: 400;
+    }
+
+    /* ── Tabel ── */
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    thead th {
+      padding: 10px 16px;
+      text-align: left;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      color: var(--text-dim);
+      background: var(--bg-surface);
+      border-bottom: 1px solid var(--border);
+    }
+
+    thead th:nth-child(1) { width: 34%; }
+    thead th:nth-child(2) { width: 14%; }
+    thead th:nth-child(3) { width: 52%; }
+
+    tbody tr {
+      border-bottom: 1px solid var(--border);
+      transition: background 0.1s;
+    }
+
+    tbody tr:last-child { border-bottom: none; }
+    tbody tr:hover { background: var(--bg-hover); }
+
+    tbody td {
+      padding: 11px 16px;
+      font-size: 13px;
+      color: var(--text);
+      vertical-align: top;
+    }
+
+    .functie-naam {
+      color: var(--text-h);
+      font-weight: 500;
+    }
+
+    .notitie {
+      color: var(--text-dim);
+      font-size: 12px;
+    }
+
+    code {
+      font-family: ui-monospace, Consolas, monospace;
+      font-size: 11px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      padding: 1px 5px;
+      color: var(--accent);
+    }
+
+    /* ── Badges ── */
+
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    .badge-vertaald    { background: rgba(64, 201, 110, 0.15); color: var(--green); }
+    .badge-geparkeerd  { background: rgba(245, 165, 36, 0.15);  color: var(--orange); }
+    .badge-niet-nodig  { background: rgba(90, 96, 122, 0.2);    color: var(--text-dim); }
+    .badge-te-doen     { background: rgba(240, 82, 82, 0.15);   color: var(--red); }
+  </style>
+</head>
+<body>
+  <div class="shell">
+
+    <div class="page-header">
+      <h1>Scriptstatus</h1>
+      <p>Vertaalstatus van de Excel VBA-scripts naar de FBS web app</p>
+    </div>
+
+    <div class="legenda">
+      <div class="legenda-item"><span class="badge badge-vertaald">Vertaald</span> Volledig geïmplementeerd in de web app</div>
+      <div class="legenda-item"><span class="badge badge-geparkeerd">Geparkeerd</span> Bewust uitgesteld, afhankelijkheid of later</div>
+      <div class="legenda-item"><span class="badge badge-niet-nodig">Niet nodig</span> Overbodig in de nieuwe architectuur</div>
+      <div class="legenda-item"><span class="badge badge-te-doen">Te doen</span> Nog niet geanalyseerd of geïmplementeerd</div>
+    </div>
+
+    <!-- SCRIPT A -->
+    <div class="script-blok">
+      <div class="script-header">
+        <span class="script-naam">Script A — ImporteerCSV</span>
+        <span class="script-label">CSV-import pipeline</span>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>Functie</th>
+            <th>Status</th>
+            <th>Notitie</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="functie-naam">CSV selecteren (meerdere bestanden)</td>
+            <td><span class="badge badge-vertaald">Vertaald</span></td>
+            <td class="notitie"><code>features/import/components/ImportForm.tsx</code></td>
+          </tr>
+          <tr>
+            <td class="functie-naam">Alle 26 Rabobank kolommen opslaan</td>
+            <td><span class="badge badge-vertaald">Vertaald</span></td>
+            <td class="notitie"><code>lib/migrations.ts</code> + <code>lib/imports.ts</code></td>
+          </tr>
+          <tr>
+            <td class="functie-naam">Datum/bedrag normalisatie</td>
+            <td><span class="badge badge-vertaald">Vertaald</span></td>
+            <td class="notitie"><code>features/import/utils/parseCSV.ts</code></td>
+          </tr>
+          <tr>
+            <td class="functie-naam">Duplicate check via volgnummer</td>
+            <td><span class="badge badge-vertaald">Vertaald</span></td>
+            <td class="notitie">UNIQUE INDEX op <code>volgnummer</code> + <code>INSERT OR IGNORE</code> in <code>lib/imports.ts</code></td>
+          </tr>
+          <tr>
+            <td class="functie-naam">Routing vast/spaar/omboeking/overig</td>
+            <td><span class="badge badge-vertaald">Vertaald</span></td>
+            <td class="notitie"><code>features/import/utils/matchTransactie.ts</code></td>
+          </tr>
+          <tr>
+            <td class="functie-naam">Score-based vaste lasten matching</td>
+            <td><span class="badge badge-vertaald">Vertaald</span></td>
+            <td class="notitie"><code>features/import/utils/matchTransactie.ts</code></td>
+          </tr>
+          <tr>
+            <td class="functie-naam">Naam verrijking (Naam in FO)</td>
+            <td><span class="badge badge-niet-nodig">Niet nodig</span></td>
+            <td class="notitie">Label direct opgeslagen in database via <code>vaste_lasten_config.label</code></td>
+          </tr>
+          <tr>
+            <td class="functie-naam">Laatste Gebruik bijwerken</td>
+            <td><span class="badge badge-geparkeerd">Geparkeerd</span></td>
+            <td class="notitie">Afhankelijk van Script C</td>
+          </tr>
+          <tr>
+            <td class="functie-naam">UT-mechanisme</td>
+            <td><span class="badge badge-niet-nodig">Niet nodig</span></td>
+            <td class="notitie">Type handmatig aanpasbaar via transactiepagina</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- SCRIPTS B t/m T -->
+    <div class="script-blok">
+      <div class="script-header">
+        <span class="script-naam">Scripts B t/m T</span>
+        <span class="script-label">Nog te analyseren</span>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>Script</th>
+            <th>Status</th>
+            <th>Notitie</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="functie-naam">Script B t/m T — alle functies</td>
+            <td><span class="badge badge-te-doen">Te doen</span></td>
+            <td class="notitie">Nog niet geanalyseerd</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+  </div>
+</body>
+</html>

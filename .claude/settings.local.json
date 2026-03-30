@@ -1,0 +1,27 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(curl:*)",
+      "Bash(npx tsc:*)",
+      "Bash(node -e \":*)",
+      "Bash(npm install:*)",
+      "Bash(npm run:*)",
+      "Bash(sqlite3 fbs.db \"SELECT * FROM categorieen WHERE iban IS NOT NULL ORDER BY iban, omschrijving_zoekwoord\")",
+      "Bash(where sqlite3:*)",
+      "Read(//c/Users/Section/**)",
+      "Bash(node:*)",
+      "Bash(git pull:*)",
+      "Bash(powershell -Command \"\n\\\\$WshShell = New-Object -ComObject WScript.Shell\n\\\\$Shortcut = \\\\$WshShell.CreateShortcut\\('C:\\\\Users\\\\Section\\\\Desktop\\\\FBS.lnk'\\)\n\\\\$Shortcut.TargetPath = 'C:\\\\Users\\\\Section\\\\Documents\\\\_Mijn Documenten\\\\_Finance\\\\FBS-App\\\\start-fbs.bat'\n\\\\$Shortcut.IconLocation = 'C:\\\\Users\\\\Section\\\\Documents\\\\_Mijn Documenten\\\\_Finance\\\\FBS-App\\\\fbs.ico'\n\\\\$Shortcut.Description = 'Financieel Beheer Systeem'\n\\\\$Shortcut.WindowStyle = 7\n\\\\$Shortcut.WorkingDirectory = 'C:\\\\Users\\\\Section\\\\Documents\\\\_Mijn Documenten\\\\_Finance\\\\FBS-App'\n\\\\$Shortcut.Save\\(\\)\nWrite-Output 'Snelkoppeling aangemaakt.'\n\")",
+      "Bash(python -c \"import cairosvg; print\\(''''cairosvg ok''''\\)\")",
+      "Bash(pip install:*)",
+      "Bash(python:*)",
+      "Bash(powershell -Command \"\n\\\\$ws = New-Object -ComObject WScript.Shell\n\\\\$s = \\\\$ws.CreateShortcut\\(\\\\\"\\\\$env:USERPROFILE\\\\Desktop\\\\FBS.lnk\\\\\"\\)\n\\\\$s.TargetPath = 'C:\\\\Users\\\\Section\\\\Documents\\\\_Mijn Documenten\\\\_Finance\\\\FBS-App\\\\start-fbs.bat'\n\\\\$s.IconLocation = 'C:\\\\Users\\\\Section\\\\Documents\\\\_Mijn Documenten\\\\_Finance\\\\FBS-App\\\\fbs.ico'\n\\\\$s.WindowStyle = 7\n\\\\$s.Description = 'Financieel Beheer Systeem'\n\\\\$s.Save\\(\\)\nWrite-Host 'Snelkoppeling aangemaakt: ' + \\\\$s.FullName\n\")",
+      "Bash(/tmp/recreate_lnk.ps1:*)",
+      "Bash(powershell.exe -NoProfile -File /tmp/recreate_lnk.ps1)",
+      "Bash(sqlite3 fbs.db \".tables\")",
+      "Bash(find /c/Users/Section/Documents/_Mijn Documenten/_Finance/FBS-App -type f \\\\\\(-name *transact* -o -name *Transact* \\\\\\))",
+      "Bash(find /c/Users/Section/Documents/_Mijn Documenten/_Finance/FBS-App/components -type f -name *.tsx -o -name *.ts)",
+      "Bash(/dev/null --include=*.tsx --include=*.ts -i)"
+    ]
+  }
+}

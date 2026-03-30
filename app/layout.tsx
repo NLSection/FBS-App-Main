@@ -1,0 +1,52 @@
+// FILE: layout.tsx
+// AANGEMAAKT: 25-03-2026 10:00
+// VERSIE: 1
+// GEWIJZIGD: 25-03-2026 14:00
+//
+// WIJZIGINGEN (25-03-2026 14:00):
+// - Database migrations aangeroepen bij app-start
+// - Navigatiebalk vervangen door sidebar + main layout
+// - Sidebar component geïmporteerd
+
+import type { Metadata } from "next";
+import { Geist, Geist_Mono } from "next/font/google";
+import Sidebar from "@/components/Sidebar";
+import { SidebarProvider } from "@/lib/sidebar-context";
+import "./globals.css";
+import { runMigrations } from "@/lib/migrations";
+
+const geistSans = Geist({
+  variable: "--font-geist-sans",
+  subsets: ["latin"],
+});
+
+const geistMono = Geist_Mono({
+  variable: "--font-geist-mono",
+  subsets: ["latin"],
+});
+
+export const metadata: Metadata = {
+  title: "FBS App",
+  description: "Financieel beheer en categorisatie",
+};
+
+export default function RootLayout({
+  children,
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
+  runMigrations();
+
+  return (
+    <html lang="nl" className={`${geistSans.variable} ${geistMono.variable}`}>
+      <body>
+        <SidebarProvider>
+          <div className="app">
+            <Sidebar />
+            <main className="main">{children}</main>
+          </div>
+        </SidebarProvider>
+      </body>
+    </html>
+  );
+}
