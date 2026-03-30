@@ -26,7 +26,7 @@ import { Fragment, useEffect, useState } from 'react';
 import type { Rekening } from '@/lib/rekeningen';
 
 interface GenegeerdeRekening { id: number; iban: string; datum_toegevoegd: string; }
-interface Categorie { id: number; naam: string; rekening_id: number | null; }
+interface Categorie { id: number; naam: string; rekening_ids: number[]; }
 
 const inputCls = 'w-full bg-[var(--bg-base)] border border-[var(--border)] rounded px-2 py-1.5 text-sm text-[var(--text-h)] focus:outline-none focus:border-[var(--accent)]';
 const labelCls = 'block text-xs text-[var(--text-dim)] mb-1';
@@ -75,23 +75,21 @@ export default function RekeningenBeheer() {
   }
 
   async function koppelCategorieen(rekeningId: number, geselecteerd: Set<number>) {
-    // Categorieen die nu aan deze rekening gekoppeld zijn
-    const huidigGekoppeld = categorieen.filter(c => c.rekening_id === rekeningId).map(c => c.id);
-    const toKoppelen   = [...geselecteerd].filter(id => !huidigGekoppeld.includes(id));
-    const teOntkoppelen = huidigGekoppeld.filter(id => !geselecteerd.has(id));
-
-    await Promise.all([
-      ...toKoppelen.map(id => fetch(`/api/budgetten-potjes/${id}`, {
+    const gewijzigd = categorieen.filter(c => {
+      const was = c.rekening_ids.includes(rekeningId);
+      const is  = geselecteerd.has(c.id);
+      return was !== is;
+    });
+    await Promise.all(gewijzigd.map(c => {
+      const nieuweIds = geselecteerd.has(c.id)
+        ? [...c.rekening_ids, rekeningId]
+        : c.rekening_ids.filter(id => id !== rekeningId);
+      return fetch(`/api/budgetten-potjes/${c.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ rekening_id: rekeningId }),
-      })),
-      ...teOntkoppelen.map(id => fetch(`/api/budgetten-potjes/${id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ rekening_id: null }),
-      })),
-    ]);
+        body: JSON.stringify({ rekening_ids: nieuweIds }),
+      });
+    }));
   }
 
   async function handleToevoegen(e: React.FormEvent) {
@@ -110,11 +108,14 @@ export default function RekeningenBeheer() {
     }
     const { id } = await res.json();
     if (formCats.size > 0) {
-      await Promise.all([...formCats].map(catId => fetch(`/api/budgetten-potjes/${catId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ rekening_id: id }),
-      })));
+      await Promise.all([...formCats].map(catId => {
+        const c = categorieen.find(x => x.id === catId);
+        return fetch(`/api/budgetten-potjes/${catId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ rekening_ids: [...(c?.rekening_ids ?? []), id] }),
+        });
+      }));
     }
     setForm({ iban: '', naam: '', type: 'betaal' });
     setFormCats(new Set());
@@ -125,7 +126,7 @@ export default function RekeningenBeheer() {
     if (bewerkId === r.id) { setBewerkId(null); return; }
     setBewerkId(r.id);
     setBewerkForm({ iban: r.iban, naam: r.naam, type: r.type });
-    setBewerkCats(new Set(categorieen.filter(c => c.rekening_id === r.id).map(c => c.id)));
+    setBewerkCats(new Set(categorieen.filter(c => c.rekening_ids.includes(r.id)).map(c => c.id)));
     setBewerkFout(null);
   }
 

@@ -21,7 +21,7 @@ import { Fragment, useEffect, useState } from 'react';
 interface BudgetPotje {
   id: number;
   naam: string;
-  rekening_id: number | null;
+  rekening_ids: number[];
   beschermd: number;
   kleur: string | null;
 }
@@ -44,7 +44,7 @@ export default function BudgettenPotjesBeheer() {
   const [fout, setFout]             = useState<string | null>(null);
 
   const [bewerkId, setBewerkId]         = useState<number | null>(null);
-  const [bewerkForm, setBewerkForm]     = useState({ naam: '', rekening_id: '', kleur: '' });
+  const [bewerkForm, setBewerkForm]     = useState({ naam: '', rekening_ids: [] as number[], kleur: '' });
   const [bewerkBezig, setBewerkBezig]   = useState(false);
   const [bewerkFout, setBewerkFout]     = useState<string | null>(null);
 
@@ -62,12 +62,17 @@ export default function BudgettenPotjesBeheer() {
   function openBewerk(item: BudgetPotje) {
     if (bewerkId === item.id) { setBewerkId(null); return; }
     setBewerkId(item.id);
-    setBewerkForm({
-      naam:        item.naam,
-      rekening_id: item.rekening_id ? String(item.rekening_id) : '',
-      kleur:       item.kleur ?? '',
-    });
+    setBewerkForm({ naam: item.naam, rekening_ids: item.rekening_ids, kleur: item.kleur ?? '' });
     setBewerkFout(null);
+  }
+
+  function toggleBewerkRekening(id: number) {
+    setBewerkForm(f => ({
+      ...f,
+      rekening_ids: f.rekening_ids.includes(id)
+        ? f.rekening_ids.filter(r => r !== id)
+        : [...f.rekening_ids, id],
+    }));
   }
 
   async function handleBewerkOpslaan(item: BudgetPotje) {
@@ -76,9 +81,9 @@ export default function BudgettenPotjesBeheer() {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        naam:        item.beschermd ? undefined : bewerkForm.naam.trim(),
-        rekening_id: bewerkForm.rekening_id ? parseInt(bewerkForm.rekening_id, 10) : null,
-        kleur:       bewerkForm.kleur || null,
+        naam:         item.beschermd ? undefined : bewerkForm.naam.trim(),
+        rekening_ids: bewerkForm.rekening_ids,
+        kleur:        bewerkForm.kleur || null,
       }),
     });
     setBewerkBezig(false);
@@ -134,10 +139,10 @@ export default function BudgettenPotjesBeheer() {
                         ? <span style={{ display: 'inline-block', width: 20, height: 20, borderRadius: 4, background: item.kleur, border: '1px solid var(--border)', verticalAlign: 'middle' }} />
                         : <span style={{ color: 'var(--text-dim)', fontSize: 12 }}>—</span>}
                     </td>
-                    <td style={{ color: 'var(--text-dim)' }}>
-                      {item.rekening_id
-                        ? (rekeningen.find(r => r.id === item.rekening_id)?.naam ?? `#${item.rekening_id}`)
-                        : '—'}
+                    <td style={{ color: 'var(--text-dim)', fontSize: 12 }}>
+                      {item.rekening_ids.length === 0
+                        ? '—'
+                        : item.rekening_ids.map(rid => rekeningen.find(r => r.id === rid)?.naam ?? `#${rid}`).join(', ')}
                     </td>
                     <td>
                       <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
@@ -176,15 +181,11 @@ export default function BudgettenPotjesBeheer() {
                           </div>
                         </div>
                         <div style={{ marginBottom: 12 }}>
-                          <label className={labelCls} style={{ marginBottom: 8 }}>Gekoppelde rekening</label>
+                          <label className={labelCls} style={{ marginBottom: 8 }}>Gekoppelde rekeningen</label>
                           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px 20px' }}>
-                            <label style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 13, color: 'var(--text-h)', cursor: 'pointer' }}>
-                              <input type="radio" name={`rekening-${item.id}`} value="" checked={bewerkForm.rekening_id === ''} onChange={() => setBewerkForm(f => ({ ...f, rekening_id: '' }))} />
-                              Geen
-                            </label>
                             {rekeningen.map(r => (
                               <label key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 13, color: 'var(--text-h)', cursor: 'pointer' }}>
-                                <input type="radio" name={`rekening-${item.id}`} value={r.id} checked={bewerkForm.rekening_id === String(r.id)} onChange={() => setBewerkForm(f => ({ ...f, rekening_id: String(r.id) }))} />
+                                <input type="checkbox" checked={bewerkForm.rekening_ids.includes(r.id)} onChange={() => toggleBewerkRekening(r.id)} />
                                 {r.naam}
                               </label>
                             ))}

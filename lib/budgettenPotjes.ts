@@ -1,20 +1,24 @@
 // FILE: budgettenPotjes.ts
 // AANGEMAAKT: 25-03-2026 19:30
 // VERSIE: 1
-// GEWIJZIGD: 30-03-2026 00:00
+// GEWIJZIGD: 30-03-2026 16:00
 //
 // WIJZIGINGEN (30-03-2026 00:00):
 // - Zacht kleurenpalet met 12 kleuren; auto-kleur kiest maximale hue-afstand t.o.v. bestaande kleuren
 //
 // WIJZIGINGEN (28-03-2026 00:00):
 // - type veld verwijderd uit interface, insertBudgetPotje en updateBudgetPotje
+// WIJZIGINGEN (30-03-2026 16:00):
+// - rekening_id (single) vervangen door rekening_ids (many-to-many via koppeltabel)
+// - getBudgettenPotjes: joins met budgetten_potjes_rekeningen
+// - updateBudgetPotje/insertBudgetPotje: beheren koppeltabel
 
 import getDb from '@/lib/db';
 
 export interface BudgetPotje {
   id: number;
   naam: string;
-  rekening_id: number | null;
+  rekening_ids: number[];
   beschermd: number;
   kleur: string | null;
 }
@@ -75,39 +79,59 @@ function volgendePaletKleur(db: ReturnType<typeof getDb>): string {
 }
 
 export function getBudgettenPotjes(): BudgetPotje[] {
-  return getDb()
-    .prepare('SELECT * FROM budgetten_potjes ORDER BY beschermd DESC, id ASC')
-    .all() as BudgetPotje[];
+  const db = getDb();
+  const items = db.prepare(
+    'SELECT id, naam, beschermd, kleur FROM budgetten_potjes ORDER BY beschermd DESC, id ASC'
+  ).all() as Omit<BudgetPotje, 'rekening_ids'>[];
+
+  const koppelingen = db.prepare(
+    'SELECT potje_id, rekening_id FROM budgetten_potjes_rekeningen'
+  ).all() as { potje_id: number; rekening_id: number }[];
+
+  return items.map(item => ({
+    ...item,
+    rekening_ids: koppelingen.filter(k => k.potje_id === item.id).map(k => k.rekening_id),
+  }));
 }
 
-export function insertBudgetPotje(naam: string, rekening_id: number | null, kleur?: string | null): number {
+function setRekeningKoppelingen(db: ReturnType<typeof getDb>, potjeId: number, rekeningIds: number[]): void {
+  db.prepare('DELETE FROM budgetten_potjes_rekeningen WHERE potje_id = ?').run(potjeId);
+  const ins = db.prepare('INSERT OR IGNORE INTO budgetten_potjes_rekeningen (potje_id, rekening_id) VALUES (?, ?)');
+  for (const rId of rekeningIds) {
+    ins.run(potjeId, rId);
+  }
+}
+
+export function insertBudgetPotje(naam: string, rekening_ids: number[], kleur?: string | null): number {
   const db = getDb();
   const k = kleur ?? volgendePaletKleur(db);
-  const result = db
-    .prepare('INSERT INTO budgetten_potjes (naam, rekening_id, kleur) VALUES (?, ?, ?)')
-    .run(naam, rekening_id, k);
-  return result.lastInsertRowid as number;
+  const result = db.prepare('INSERT INTO budgetten_potjes (naam, kleur) VALUES (?, ?)').run(naam, k);
+  const id = result.lastInsertRowid as number;
+  db.transaction(() => setRekeningKoppelingen(db, id, rekening_ids))();
+  return id;
 }
 
 export function updateBudgetPotje(
   id: number,
   naam: string | null,
-  rekening_id: number | null,
+  rekening_ids: number[],
   kleur: string | null,
 ): void {
   const db = getDb();
   const rij = db
     .prepare('SELECT beschermd FROM budgetten_potjes WHERE id = ?')
     .get(id) as { beschermd: number } | undefined;
-  if (!rij) throw new Error('Budget/potje niet gevonden.');
+  if (!rij) throw new Error('Categorie niet gevonden.');
 
-  if (rij.beschermd) {
-    db.prepare('UPDATE budgetten_potjes SET rekening_id = ?, kleur = ? WHERE id = ?').run(rekening_id, kleur, id);
-  } else {
-    if (!naam?.trim()) throw new Error('Naam mag niet leeg zijn.');
-    db.prepare('UPDATE budgetten_potjes SET naam = ?, rekening_id = ?, kleur = ? WHERE id = ?')
-      .run(naam.trim(), rekening_id, kleur, id);
-  }
+  db.transaction(() => {
+    if (rij.beschermd) {
+      db.prepare('UPDATE budgetten_potjes SET kleur = ? WHERE id = ?').run(kleur, id);
+    } else {
+      if (!naam?.trim()) throw new Error('Naam mag niet leeg zijn.');
+      db.prepare('UPDATE budgetten_potjes SET naam = ?, kleur = ? WHERE id = ?').run(naam.trim(), kleur, id);
+    }
+    setRekeningKoppelingen(db, id, rekening_ids);
+  })();
 }
 
 export function deleteBudgetPotje(id: number): void {
@@ -115,7 +139,7 @@ export function deleteBudgetPotje(id: number): void {
   const rij = db
     .prepare('SELECT beschermd FROM budgetten_potjes WHERE id = ?')
     .get(id) as { beschermd: number } | undefined;
-  if (!rij) throw new Error('Budget/potje niet gevonden.');
+  if (!rij) throw new Error('Categorie niet gevonden.');
   if (rij.beschermd) throw new Error('Dit item is beschermd en kan niet worden verwijderd.');
   db.prepare('DELETE FROM budgetten_potjes WHERE id = ?').run(id);
 }

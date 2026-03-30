@@ -19,7 +19,7 @@ export function GET() {
 }
 
 export async function POST(request: NextRequest) {
-  let body: { naam?: string; rekening_id?: number | null; kleur?: string | null };
+  let body: { naam?: string; rekening_ids?: number[]; kleur?: string | null };
   try {
     body = await request.json();
   } catch {
@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
   if (!naam) return NextResponse.json({ error: 'Naam is verplicht.' }, { status: 400 });
 
   try {
-    const id = insertBudgetPotje(naam, body.rekening_id ?? null, body.kleur ?? null);
+    const id = insertBudgetPotje(naam, body.rekening_ids ?? [], body.kleur ?? null);
     return NextResponse.json({ id }, { status: 201 });
   } catch (err) {
     const bericht = err instanceof Error ? err.message : 'Databasefout.';

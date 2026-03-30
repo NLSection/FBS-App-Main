@@ -14,7 +14,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   const numId = parseInt(id, 10);
   if (isNaN(numId)) return NextResponse.json({ error: 'Ongeldig id.' }, { status: 400 });
 
-  let body: { naam?: string; rekening_id?: number | null; kleur?: string | null };
+  let body: { naam?: string; rekening_ids?: number[]; kleur?: string | null };
   try { body = await req.json(); } catch {
     return NextResponse.json({ error: 'Ongeldig JSON.' }, { status: 400 });
   }
@@ -23,7 +23,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     updateBudgetPotje(
       numId,
       body.naam ?? null,
-      body.rekening_id ?? null,
+      body.rekening_ids ?? [],
       body.kleur ?? null,
     );
     return new NextResponse(null, { status: 204 });

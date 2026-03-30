@@ -1,7 +1,7 @@
 // FILE: migrations.ts
 // AANGEMAAKT: 25-03-2026 10:00
 // VERSIE: 1
-// GEWIJZIGD: 30-03-2026 13:00
+// GEWIJZIGD: 30-03-2026 16:00
 //
 // WIJZIGINGEN (25-03-2026 18:30):
 // - Initiële aanmaak: CREATE TABLE IF NOT EXISTS voor imports en transacties
@@ -29,6 +29,8 @@
 // WIJZIGINGEN (30-03-2026 12:00):
 // - 'type' kolom verwijderd uit seed INSERT voor budgetten_potjes (kolom bestaat niet meer)
 // - Seed voor budgetten_potjes verwijderd: voorkomt dat categorieën na reset opnieuw verschijnen
+// WIJZIGINGEN (30-03-2026 16:00):
+// - Stap 10: koppeltabel budgetten_potjes_rekeningen aangemaakt; bestaande rekening_id gemigreerd
 
 import getDb from '@/lib/db';
 
@@ -235,6 +237,23 @@ export function runMigrations(): void {
     db.prepare('UPDATE budgetten_potjes SET kleur = ? WHERE naam = ? AND kleur IN (' +
       [...ALLE_OUDE_KLEUREN].map(() => '?').join(',') + ')')
       .run(kleur, naam, ...ALLE_OUDE_KLEUREN);
+  }
+
+  // ── Stap 10: Koppeltabel budgetten_potjes_rekeningen (many-to-many) ───────
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS budgetten_potjes_rekeningen (
+      potje_id    INTEGER NOT NULL REFERENCES budgetten_potjes(id) ON DELETE CASCADE,
+      rekening_id INTEGER NOT NULL REFERENCES rekeningen(id) ON DELETE CASCADE,
+      PRIMARY KEY (potje_id, rekening_id)
+    )
+  `);
+  // Migreer bestaande rekening_id waarden naar de koppeltabel
+  const bprLeeg = db.prepare('SELECT COUNT(*) AS n FROM budgetten_potjes_rekeningen').get() as { n: number };
+  if (bprLeeg.n === 0) {
+    db.prepare(`
+      INSERT OR IGNORE INTO budgetten_potjes_rekeningen (potje_id, rekening_id)
+      SELECT id, rekening_id FROM budgetten_potjes WHERE rekening_id IS NOT NULL
+    `).run();
   }
 
   // ── Stap 7: Cleanup pre-fix imports zonder volgnummer ────────────────────
