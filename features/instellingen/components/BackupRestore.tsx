@@ -11,6 +11,7 @@
 // WIJZIGINGEN (30-03-2026 13:00):
 // - btnGrijs kleur gewijzigd van --text-dim naar --text-h (knoppen waren onleesbaar in modal)
 // - btnGrijs gestyled als echte knop: solide achtergrond, zelfde padding/weight als btnPrimary
+// - Fix: file picker direct via synchrone onClick (was async → 30s vertraging in browser)
 
 'use client';
 
@@ -145,7 +146,7 @@ export default function BackupRestore() {
   }
 
   async function handleImporteerKnop() {
-    if (!backupData) { fileRef.current?.click(); return; }
+    if (!backupData) return;
     const body: Record<string, unknown[]> = {};
     TABEL_GROEPEN
       .filter(g => restoreSelectie.has(g.label))
@@ -219,7 +220,7 @@ export default function BackupRestore() {
             </p>
           )}
 
-          <button onClick={handleImporteerKnop} disabled={restoreBezig || (!!backupData && restoreSelectie.size === 0)}
+          <button onClick={backupData ? handleImporteerKnop : () => fileRef.current?.click()} disabled={restoreBezig || (!!backupData && restoreSelectie.size === 0)}
             style={{ ...btnDanger, opacity: restoreBezig || (!!backupData && restoreSelectie.size === 0) ? 0.4 : 1, cursor: restoreBezig || (!!backupData && restoreSelectie.size === 0) ? 'not-allowed' : 'pointer' }}>
             {restoreBezig ? 'Importeren…' : 'Importeer backup'}
           </button>
