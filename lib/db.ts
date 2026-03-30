@@ -7,6 +7,7 @@
 // - Initiële aanmaak: singleton SQLite verbinding naar fbs.db
 // WIJZIGINGEN (30-03-2026):
 // - Migratie: kolom beheerd (INTEGER DEFAULT 1) toegevoegd aan rekeningen
+// - Tabel genegeerde_rekeningen aangemaakt (CREATE TABLE IF NOT EXISTS)
 
 import Database from 'better-sqlite3';
 import path from 'path';
@@ -28,6 +29,13 @@ function getDb(): Database.Database {
       global._db.prepare('ALTER TABLE rekeningen ADD COLUMN beheerd INTEGER DEFAULT 1').run();
       global._db.prepare('UPDATE rekeningen SET beheerd = 1 WHERE beheerd IS NULL').run();
     } catch { /* kolom bestaat al */ }
+    global._db.prepare(`
+      CREATE TABLE IF NOT EXISTS genegeerde_rekeningen (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        iban TEXT NOT NULL UNIQUE,
+        datum_toegevoegd TEXT NOT NULL DEFAULT (date('now'))
+      )
+    `).run();
   }
   return global._db;
 }

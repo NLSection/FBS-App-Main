@@ -8,6 +8,7 @@
 // - Type labels voluit: Betaalrekening / Spaarrekening
 // WIJZIGINGEN (30-03-2026):
 // - Checkbox "Samenvoegen onder Beheerde Rekeningen" per rij toegevoegd
+// - Sectie "Genegeerde Rekeningen" toegevoegd met tabel en verwijderknop
 //
 // WIJZIGINGEN (25-03-2026 11:30):
 // - Initiële aanmaak: tabel + formulier voor rekeningen beheer
@@ -21,6 +22,8 @@
 import { Fragment, useEffect, useState } from 'react';
 import type { Rekening } from '@/lib/rekeningen';
 
+interface GenegeerdeRekening { id: number; iban: string; datum_toegevoegd: string; }
+
 const inputCls = 'w-full bg-[var(--bg-base)] border border-[var(--border)] rounded px-2 py-1.5 text-sm text-[var(--text-h)] focus:outline-none focus:border-[var(--accent)]';
 const labelCls = 'block text-xs text-[var(--text-dim)] mb-1';
 const btnBewerk  = { background: 'none', border: '1px solid var(--accent)', color: 'var(--accent)',  fontSize: 12, padding: '3px 10px', borderRadius: 4, cursor: 'pointer', width: 70 } as const;
@@ -33,6 +36,8 @@ export default function RekeningenBeheer() {
   const [bezig, setBezig] = useState(false);
   const [fout, setFout]   = useState<string | null>(null);
 
+  const [genegeerd, setGenegeerd] = useState<GenegeerdeRekening[]>([]);
+
   const [bewerkId, setBewerkId]     = useState<number | null>(null);
   const [bewerkForm, setBewerkForm] = useState({ iban: '', naam: '', type: 'betaal' as 'betaal' | 'spaar' });
   const [bewerkBezig, setBewerkBezig] = useState(false);
@@ -44,7 +49,12 @@ export default function RekeningenBeheer() {
     setRekeningen(await res.json());
   }
 
-  useEffect(() => { laad(); }, []);
+  async function laadGenegeerd() {
+    const res = await fetch('/api/genegeerde-rekeningen');
+    if (res.ok) setGenegeerd(await res.json());
+  }
+
+  useEffect(() => { laad(); laadGenegeerd(); }, []);
 
   async function handleToevoegen(e: React.FormEvent) {
     e.preventDefault();
@@ -102,6 +112,11 @@ export default function RekeningenBeheer() {
     const res = await fetch(`/api/rekeningen/${id}`, { method: 'DELETE' });
     if (!res.ok) { setFout('Verwijderen mislukt.'); return; }
     laad();
+  }
+
+  async function handleVerwijderGenegeerd(id: number) {
+    await fetch(`/api/genegeerde-rekeningen/${id}`, { method: 'DELETE' });
+    laadGenegeerd();
   }
 
   const typeLabel = (t: string) => t === 'betaal' ? 'Betaalrekening' : 'Spaarrekening';
@@ -218,6 +233,38 @@ export default function RekeningenBeheer() {
                     </tr>
                   )}
                 </Fragment>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      {/* Genegeerde Rekeningen */}
+      <p className="section-title" style={{ marginTop: 32 }}>Genegeerde Rekeningen</p>
+      {genegeerd.length === 0 ? (
+        <p className="empty">Geen genegeerde rekeningen.</p>
+      ) : (
+        <div className="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>IBAN</th>
+                <th>Datum toegevoegd</th>
+                <th style={{ width: 100 }}></th>
+              </tr>
+            </thead>
+            <tbody>
+              {genegeerd.map(g => (
+                <tr key={g.id}>
+                  <td style={{ fontFamily: 'monospace', fontSize: 12 }}>{g.iban}</td>
+                  <td>{g.datum_toegevoegd}</td>
+                  <td>
+                    <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                      <button onClick={() => handleVerwijderGenegeerd(g.id)} style={btnVerwijder}>
+                        Verwijder
+                      </button>
+                    </div>
+                  </td>
+                </tr>
               ))}
             </tbody>
           </table>
