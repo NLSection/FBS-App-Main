@@ -11,7 +11,7 @@
 // WIJZIGINGEN (30-03-2026 13:00):
 // - btnGrijs kleur gewijzigd van --text-dim naar --text-h (knoppen waren onleesbaar in modal)
 // - btnGrijs gestyled als echte knop: solide achtergrond, zelfde padding/weight als btnPrimary
-// - Fix: file picker direct via synchrone onClick (was async → 30s vertraging in browser)
+// - Fix: file picker via <label htmlFor> i.p.v. programmatische .click() (blokkeerde Chrome)
 
 'use client';
 
@@ -194,7 +194,7 @@ export default function BackupRestore() {
         {/* Restore */}
         <div>
           <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-h)', marginBottom: 12 }}>Importeer backup</p>
-          <input ref={fileRef} type="file" accept=".json" onChange={handleFileChange} style={{ display: 'none' }} />
+          <input id="backup-file-input" ref={fileRef} type="file" accept=".json" onChange={handleFileChange} style={{ display: 'none' }} />
 
           {backupData && (
             <>
@@ -220,10 +220,13 @@ export default function BackupRestore() {
             </p>
           )}
 
-          <button onClick={backupData ? handleImporteerKnop : () => fileRef.current?.click()} disabled={restoreBezig || (!!backupData && restoreSelectie.size === 0)}
-            style={{ ...btnDanger, opacity: restoreBezig || (!!backupData && restoreSelectie.size === 0) ? 0.4 : 1, cursor: restoreBezig || (!!backupData && restoreSelectie.size === 0) ? 'not-allowed' : 'pointer' }}>
-            {restoreBezig ? 'Importeren…' : 'Importeer backup'}
-          </button>
+          {!backupData
+            ? <label htmlFor="backup-file-input" style={{ ...btnDanger, display: 'inline-block', cursor: 'pointer' }}>Importeer backup</label>
+            : <button onClick={handleImporteerKnop} disabled={restoreBezig || restoreSelectie.size === 0}
+                style={{ ...btnDanger, opacity: restoreBezig || restoreSelectie.size === 0 ? 0.4 : 1, cursor: restoreBezig || restoreSelectie.size === 0 ? 'not-allowed' : 'pointer' }}>
+                {restoreBezig ? 'Importeren…' : 'Importeer backup'}
+              </button>
+          }
           {!backupData && <p style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 6 }}>Selecteer een backup bestand (.json)</p>}
         </div>
 
