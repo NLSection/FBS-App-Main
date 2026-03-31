@@ -1,30 +1,28 @@
 // FILE: route.ts (api/dashboard/bls)
 // AANGEMAAKT: 31-03-2026 21:00
 // VERSIE: 1
-// GEWIJZIGD: 31-03-2026 21:30
+// GEWIJZIGD: 31-03-2026 22:00
 //
 // WIJZIGINGEN (31-03-2026 21:00):
 // - Initiële aanmaak: GET /api/dashboard/bls — BLS-berekening per categorie
 // WIJZIGINGEN (31-03-2026 21:30):
-// - BLS filter: transacties op eigen rekening van de gekoppelde categorie worden uitgesloten
-// - isOmboeking check op t.type === 'omboeking-af' || 'omboeking-bij' i.p.v. subcatNaam.startsWith()
+// - BLS filter op eigen rekening; isOmboeking check op type
+// WIJZIGINGEN (31-03-2026 22:00):
+// - Volledig herschreven: BLS = verkeerde boekingen per {categorie, transactierekening, gekoppelde rekening}
+// - Gecorrigeerd via omboekingen die exact matchen op {subcategorie, iban_bban}
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getTransacties } from '@/lib/transacties';
 import { getBudgettenPotjes } from '@/lib/budgettenPotjes';
 import { getRekeningen } from '@/lib/rekeningen';
 
-interface SubcategorieRegel {
-  naam: string;
-  bedrag: number;
-}
-
 interface BlsRegel {
   categorie: string;
-  uitgegeven: number;
+  gedaanOpRekening: string;
+  hoortOpRekening: string;
+  bedrag: number;
   gecorrigeerd: number;
   saldo: number;
-  subcategorieen: SubcategorieRegel[];
 }
 
 export function GET(request: NextRequest) {
@@ -41,70 +39,75 @@ export function GET(request: NextRequest) {
   }
 
   try {
-    const transacties = getTransacties({ datum_van: datumVan, datum_tot: datumTot });
+    // Stap 1 — Data ophalen
+    const rekeningen = getRekeningen();
+    const rekeningNaamById  = new Map<number, string>(rekeningen.map(r => [r.id,   r.naam]));
+    const rekeningNaamByIban = new Map<string, string>(rekeningen.map(r => [r.iban, r.naam]));
+    const rekeningIdByIban   = new Map<string, number>(rekeningen.map(r => [r.iban, r.id]));
 
-    // Bouw Map<categorienaam, Set<rekening_id>> op basis van budgetten/potjes
-    const catRekeningMap = new Map<string, Set<number>>();
+    // Categorieën (budgetten/potjes) met gekoppelde rekening_id
+    const catGekoppeld = new Map<string, number>(); // naam → rekening_id
     for (const potje of getBudgettenPotjes()) {
-      catRekeningMap.set(potje.naam, new Set(potje.rekening_ids));
-    }
-
-    // Bouw Map<iban, rekening_id> voor IBAN → id vertaling
-    const ibanNaarId = new Map<string, number>();
-    for (const rek of getRekeningen()) {
-      ibanNaarId.set(rek.iban, rek.id);
-    }
-
-    const uitgegevenPerCat = new Map<string, number>();
-    const subcatPerCat = new Map<string, Map<string, number>>();
-    const gecorrPerCat = new Map<string, number>();
-
-    for (const t of transacties) {
-      if (!t.categorie) continue;
-      const bedrag = t.bedrag ?? 0;
-      const subcatNaam = t.subcategorie ?? '';
-      const isOmboeking = t.type === 'omboeking-af' || t.type === 'omboeking-bij';
-
-      if (!isOmboeking && (t.type === 'normaal-af' || t.type === 'normaal-bij')) {
-        // Sluit transacties uit op eigen rekening van de gekoppelde categorie
-        const gekoppeldeRekeningen = catRekeningMap.get(t.categorie);
-        const rekeningId = t.iban_bban ? ibanNaarId.get(t.iban_bban) : undefined;
-        if (gekoppeldeRekeningen && rekeningId !== undefined && gekoppeldeRekeningen.has(rekeningId)) continue;
-        uitgegevenPerCat.set(t.categorie, (uitgegevenPerCat.get(t.categorie) ?? 0) + bedrag);
-
-        const subMap = subcatPerCat.get(t.categorie) ?? new Map<string, number>();
-        const label = t.subcategorie ?? '(geen subcategorie)';
-        subMap.set(label, (subMap.get(label) ?? 0) + bedrag);
-        subcatPerCat.set(t.categorie, subMap);
-      } else if (isOmboeking) {
-        // Formaat: "Omboekingen – [doelcategorie] – GR/BR"
-        const delen = subcatNaam.split(' – ');
-        if (delen.length >= 2) {
-          const doelcat = delen[1].trim();
-          gecorrPerCat.set(doelcat, (gecorrPerCat.get(doelcat) ?? 0) + bedrag);
-        }
+      if (potje.rekening_ids.length > 0) {
+        catGekoppeld.set(potje.naam, potje.rekening_ids[0]);
       }
     }
 
-    const alleCats = new Set([...uitgegevenPerCat.keys(), ...gecorrPerCat.keys()]);
+    const transacties = getTransacties({ datum_van: datumVan, datum_tot: datumTot });
+
+    // Stap 2 — BLS rijen: verkeerde boekingen
+    type Groep = { categorie: string; iban_bban: string; gekoppeldeRekeningId: number; bedrag: number; gecorrigeerd: number };
+    const groepMap = new Map<string, Groep>();
+
+    for (const t of transacties) {
+      if (!t.categorie || !t.iban_bban) continue;
+      if (t.type !== 'normaal-af' && t.type !== 'normaal-bij') continue;
+
+      const gekoppeldeRekeningId = catGekoppeld.get(t.categorie);
+      if (gekoppeldeRekeningId === undefined) continue;
+
+      const trxRekeningId = rekeningIdByIban.get(t.iban_bban);
+      if (trxRekeningId === undefined) continue;
+      if (trxRekeningId === gekoppeldeRekeningId) continue; // juiste rekening
+
+      const sleutel = `${t.categorie}::${t.iban_bban}::${gekoppeldeRekeningId}`;
+      const bestaand = groepMap.get(sleutel);
+      if (bestaand) {
+        bestaand.bedrag += t.bedrag ?? 0;
+      } else {
+        groepMap.set(sleutel, {
+          categorie: t.categorie,
+          iban_bban: t.iban_bban,
+          gekoppeldeRekeningId,
+          bedrag: t.bedrag ?? 0,
+          gecorrigeerd: 0,
+        });
+      }
+    }
+
+    // Stap 3 — Gecorrigeerd: omboekingen die exact matchen op {subcategorie = categorie_naam, iban_bban}
+    for (const t of transacties) {
+      if (t.type !== 'omboeking-af' && t.type !== 'omboeking-bij') continue;
+      if (!t.subcategorie || !t.iban_bban) continue;
+
+      const gekoppeldeRekeningId = catGekoppeld.get(t.subcategorie);
+      if (gekoppeldeRekeningId === undefined) continue;
+
+      const sleutel = `${t.subcategorie}::${t.iban_bban}::${gekoppeldeRekeningId}`;
+      const groep = groepMap.get(sleutel);
+      if (groep) groep.gecorrigeerd += t.bedrag ?? 0;
+    }
+
+    // Stap 4 — Response opmaken
     const resultaat: BlsRegel[] = [];
-
-    for (const cat of alleCats) {
-      const uitgegeven = uitgegevenPerCat.get(cat) ?? 0;
-      const gecorrigeerd = gecorrPerCat.get(cat) ?? 0;
-      const subMap = subcatPerCat.get(cat);
-      const subcategorieen: SubcategorieRegel[] = subMap
-        ? [...subMap.entries()]
-            .map(([naam, bedrag]) => ({ naam, bedrag }))
-            .sort((a, b) => a.naam.localeCompare(b.naam, 'nl'))
-        : [];
-
+    for (const g of groepMap.values()) {
       resultaat.push({
-        categorie: cat,
-        uitgegeven,
-        gecorrigeerd,
-        saldo: uitgegeven + gecorrigeerd,
-        subcategorieen,
+        categorie:        g.categorie,
+        gedaanOpRekening: rekeningNaamByIban.get(g.iban_bban)         ?? g.iban_bban,
+        hoortOpRekening:  rekeningNaamById.get(g.gekoppeldeRekeningId) ?? String(g.gekoppeldeRekeningId),
+        bedrag:           g.bedrag,
+        gecorrigeerd:     g.gecorrigeerd,
+        saldo:            g.bedrag + g.gecorrigeerd,
       });
     }
 

@@ -1,10 +1,14 @@
 // FILE: page.tsx
 // AANGEMAAKT: 25-03-2026 14:00
 // VERSIE: 1
-// GEWIJZIGD: 31-03-2026 21:00
+// GEWIJZIGD: 31-03-2026 22:00
 //
 // WIJZIGINGEN (31-03-2026 21:00):
 // - Volledige herbouw: periodenavigatie, BLS-tabel, categorieoverzicht
+// WIJZIGINGEN (31-03-2026 22:00):
+// - BlsRegel interface aangepast aan nieuw endpoint formaat (bedrag, gedaanOpRekening, hoortOpRekening)
+// - BLS tabel: categorie kolom toont [categorie] · [gedaanOpRekening] → [hoortOpRekening]
+// - Categorieoverzicht sectie verwijderd (niet meer beschikbaar in nieuw formaat)
 
 'use client';
 
@@ -13,17 +17,13 @@ import type { Periode } from '@/lib/maandperiodes';
 
 const MAAND_NAMEN = ['jan','feb','mrt','apr','mei','jun','jul','aug','sep','okt','nov','dec'];
 
-interface SubcategorieRegel {
-  naam: string;
-  bedrag: number;
-}
-
 interface BlsRegel {
   categorie: string;
-  uitgegeven: number;
+  gedaanOpRekening: string;
+  hoortOpRekening: string;
+  bedrag: number;
   gecorrigeerd: number;
   saldo: number;
-  subcategorieen: SubcategorieRegel[];
 }
 
 function formatBedrag(bedrag: number) {
@@ -44,7 +44,6 @@ export default function DashboardPage() {
   const [geselecteerdJaar, setGeselecteerdJaar]   = useState<number>(new Date().getFullYear());
   const [cumulatief, setCumulatief]               = useState(false);
   const [blsData, setBlsData]                     = useState<BlsRegel[]>([]);
-  const [uitgeklapt, setUitgeklapt]               = useState<Set<string>>(new Set());
   const [laadtPeriodes, setLaadtPeriodes]         = useState(true);
   const [laadtBls, setLaadtBls]                   = useState(false);
   const [fout, setFout]                           = useState('');
@@ -102,23 +101,14 @@ export default function DashboardPage() {
     setGeselecteerdePeriode(nieuw);
   }
 
-  function toggleUitgeklapt(cat: string) {
-    setUitgeklapt(prev => {
-      const next = new Set(prev);
-      next.has(cat) ? next.delete(cat) : next.add(cat);
-      return next;
-    });
-  }
-
   const jaarOpties = [...new Set(periodes.map(p => p.jaar))].sort((a, b) => a - b);
   const periodesVoorJaar = periodes.filter(p => p.jaar === geselecteerdJaar);
 
-  const totaalUitgegeven   = blsData.reduce((s, r) => s + r.uitgegeven, 0);
+  const totaalBedrag       = blsData.reduce((s, r) => s + r.bedrag, 0);
   const totaalGecorrigeerd = blsData.reduce((s, r) => s + r.gecorrigeerd, 0);
   const totaalSaldo        = blsData.reduce((s, r) => s + r.saldo, 0);
 
   const tdNum: React.CSSProperties = { textAlign: 'right', fontVariantNumeric: 'tabular-nums' };
-  const trHover: React.CSSProperties = { cursor: 'pointer' };
 
   return (
     <>
@@ -208,85 +198,38 @@ export default function DashboardPage() {
             <thead>
               <tr>
                 <th>Categorie</th>
-                <th style={{ textAlign: 'right' }}>Uitgegeven</th>
+                <th style={{ textAlign: 'right' }}>Bedrag</th>
                 <th style={{ textAlign: 'right' }}>Gecorrigeerd</th>
                 <th style={{ textAlign: 'right' }}>Saldo</th>
               </tr>
             </thead>
             <tbody>
               {blsData.map(rij => {
-                const open = uitgeklapt.has(rij.categorie);
+                const sleutel = `${rij.categorie}::${rij.gedaanOpRekening}`;
                 const saldoKleur = rij.saldo >= 0 ? 'var(--green)' : 'var(--red)';
                 return (
-                  <>
-                    <tr key={rij.categorie} onClick={() => toggleUitgeklapt(rij.categorie)} style={trHover}>
-                      <td style={{ userSelect: 'none' }}>
-                        <span style={{ marginRight: 6, fontSize: 10, color: 'var(--text-dim)' }}>{open ? '▼' : '▶'}</span>
-                        {rij.categorie}
-                      </td>
-                      <td style={tdNum}>{formatBedrag(rij.uitgegeven)}</td>
-                      <td style={tdNum}>{rij.gecorrigeerd !== 0 ? formatBedrag(rij.gecorrigeerd) : <span style={{ color: 'var(--text-dim)' }}>—</span>}</td>
-                      <td style={{ ...tdNum, color: saldoKleur, fontWeight: 600 }}>{formatBedrag(rij.saldo)}</td>
-                    </tr>
-                    {open && rij.subcategorieen.map(sub => (
-                      <tr key={`${rij.categorie}-${sub.naam}`} style={{ background: 'var(--bg-surface)' }}>
-                        <td style={{ paddingLeft: 28, color: 'var(--text-dim)', fontSize: 12 }}>{sub.naam}</td>
-                        <td style={{ ...tdNum, color: 'var(--text-dim)', fontSize: 12 }}>{formatBedrag(sub.bedrag)}</td>
-                        <td />
-                        <td />
-                      </tr>
-                    ))}
-                  </>
+                  <tr key={sleutel}>
+                    <td>
+                      <strong>{rij.categorie}</strong>
+                      <span style={{ color: 'var(--text-dim)', fontSize: 12 }}>
+                        {' '}·{' '}{rij.gedaanOpRekening}{' → '}{rij.hoortOpRekening}
+                      </span>
+                    </td>
+                    <td style={tdNum}>{formatBedrag(rij.bedrag)}</td>
+                    <td style={tdNum}>{rij.gecorrigeerd !== 0 ? formatBedrag(rij.gecorrigeerd) : <span style={{ color: 'var(--text-dim)' }}>—</span>}</td>
+                    <td style={{ ...tdNum, color: saldoKleur, fontWeight: 600 }}>{formatBedrag(rij.saldo)}</td>
+                  </tr>
                 );
               })}
             </tbody>
             <tfoot>
               <tr style={{ fontWeight: 700, borderTop: '2px solid var(--border)' }}>
                 <td>Totaal</td>
-                <td style={tdNum}>{formatBedrag(totaalUitgegeven)}</td>
+                <td style={tdNum}>{formatBedrag(totaalBedrag)}</td>
                 <td style={tdNum}>{formatBedrag(totaalGecorrigeerd)}</td>
                 <td style={{ ...tdNum, color: totaalSaldo >= 0 ? 'var(--green)' : 'var(--red)' }}>{formatBedrag(totaalSaldo)}</td>
               </tr>
             </tfoot>
-          </table>
-        </div>
-      )}
-
-      {/* Categorieoverzicht Sectie */}
-      <p className="section-title">Categorieoverzicht</p>
-      {laadtBls ? (
-        <div className="loading">Categorieoverzicht wordt geladen…</div>
-      ) : blsData.length === 0 && !fout ? (
-        <div className="empty">Geen data voor deze periode.</div>
-      ) : (
-        <div className="table-wrapper">
-          <table>
-            <thead>
-              <tr>
-                <th>Categorie / Subcategorie</th>
-                <th style={{ textAlign: 'right' }}>Bedrag</th>
-              </tr>
-            </thead>
-            <tbody>
-              {blsData.map(rij => (
-                <>
-                  <tr key={rij.categorie} style={{ background: 'var(--bg-surface)' }}>
-                    <td style={{ fontWeight: 700 }}>{rij.categorie}</td>
-                    <td style={{ ...tdNum, fontWeight: 700, color: rij.saldo >= 0 ? 'var(--green)' : 'var(--red)' }}>
-                      {formatBedrag(rij.saldo)}
-                    </td>
-                  </tr>
-                  {rij.subcategorieen.map(sub => (
-                    <tr key={`cat-${rij.categorie}-${sub.naam}`}>
-                      <td style={{ paddingLeft: 24, fontSize: 13, color: 'var(--text-dim)' }}>{sub.naam}</td>
-                      <td style={{ ...tdNum, fontSize: 13, color: sub.bedrag >= 0 ? 'var(--green)' : 'var(--red)' }}>
-                        {formatBedrag(sub.bedrag)}
-                      </td>
-                    </tr>
-                  ))}
-                </>
-              ))}
-            </tbody>
           </table>
         </div>
       )}
