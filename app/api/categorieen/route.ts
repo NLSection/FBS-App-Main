@@ -1,8 +1,10 @@
 // FILE: route.ts (api/categorieen)
 // AANGEMAAKT: 25-03-2026 17:30
 // VERSIE: 1
-// GEWIJZIGD: 30-03-2026 21:00
+// GEWIJZIGD: 31-03-2026 11:00
 //
+// WIJZIGINGEN (31-03-2026 11:00):
+// - POST toelichting: null in body doorgestuurd als null (was undefined bij typeof-check op null)
 // WIJZIGINGEN (30-03-2026 21:00):
 // - POST: toelichting doorgestuurd naar insertCategorieRegel
 // WIJZIGINGEN (28-03-2026 14:00):
@@ -42,7 +44,7 @@ export async function POST(request: NextRequest) {
       omschrijving_raw:  typeof omschrijving_raw === 'string'  ? omschrijving_raw  : null,
       categorie,
       subcategorie:      typeof subcategorie === 'string'      ? subcategorie      : null,
-      toelichting:       typeof toelichting === 'string'       ? toelichting || null : undefined,
+      toelichting:       'toelichting' in body ? (typeof toelichting === 'string' ? toelichting || null : null) : undefined,
       type:              typeof type === 'string'               ? type as never     : 'alle',
     });
     categoriseerTransacties();

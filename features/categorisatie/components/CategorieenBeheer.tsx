@@ -1,8 +1,10 @@
 // FILE: CategorieenBeheer.tsx
 // AANGEMAAKT: 25-03-2026 17:30
 // VERSIE: 1
-// GEWIJZIGD: 31-03-2026 01:00
+// GEWIJZIGD: 31-03-2026 11:00
 //
+// WIJZIGINGEN (31-03-2026 11:00):
+// - scope bij openen popup bepaald op basis van categorie_id: 'alle' bij regel, 'enkel' bij handmatig
 // WIJZIGINGEN (31-03-2026 02:30):
 // - onAnalyseer fix: alle omschrijvingsvelden (1+2+3) meenemen in woordfrequentie telling
 // WIJZIGINGEN (31-03-2026 02:00):
@@ -194,7 +196,7 @@ export default function CategorieenBeheer() {
       const subcatRes = await fetch(`/api/subcategorieen?categorie=${encodeURIComponent(categorie)}`);
       const subcatOpties: string[] = subcatRes.ok ? await subcatRes.json() : [];
 
-      setPatronModal({ transactie: t, toelichting: t.toelichting ?? '', nieuweCat: categorie, catNieuw: false, nieuweCatRekeningId: '', subcategorie, subcatOpties, subcatNieuw: false, naamChips, gekozenNaamChips, chips, gekozenWoorden, scope: 'alle' });
+      setPatronModal({ transactie: t, toelichting: t.toelichting ?? '', nieuweCat: categorie, catNieuw: false, nieuweCatRekeningId: '', subcategorie, subcatOpties, subcatNieuw: false, naamChips, gekozenNaamChips, chips, gekozenWoorden, scope: t.categorie_id != null ? 'alle' : 'enkel' });
     } else {
       setPatronModal({ transactie: t, toelichting: t.toelichting ?? '', nieuweCat: '', catNieuw: false, nieuweCatRekeningId: '', subcategorie: '', subcatOpties: [], subcatNieuw: false, naamChips, gekozenNaamChips: [], chips, gekozenWoorden: [], scope: 'alle' });
     }

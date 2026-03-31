@@ -1,8 +1,10 @@
 // FILE: VasteLastenConfigBeheer.tsx
 // AANGEMAAKT: 25-03-2026 11:30
 // VERSIE: 1
-// GEWIJZIGD: 25-03-2026 20:30
+// GEWIJZIGD: 31-03-2026 12:00
 //
+// WIJZIGINGEN (31-03-2026 12:00):
+// - Annuleer-knop toegevoegd naast Opslaan in bewerk-formulier
 // WIJZIGINGEN (25-03-2026 11:30):
 // - Initiële aanmaak: tabel + formulier voor vaste lasten definities
 // WIJZIGINGEN (25-03-2026 20:00):
@@ -181,10 +183,16 @@ export default function VasteLastenConfigBeheer() {
                           </div>
                         </div>
                         {bewerkFout && <p style={{ color: 'var(--red)', fontSize: 12, marginBottom: 8 }}>{bewerkFout}</p>}
-                        <button onClick={() => handleBewerkOpslaan(d.id)} disabled={bewerkBezig}
-                          style={{ ...btnOpslaan, opacity: bewerkBezig ? 0.6 : 1, cursor: bewerkBezig ? 'not-allowed' : 'pointer' }}>
-                          {bewerkBezig ? 'Opslaan…' : 'Opslaan'}
-                        </button>
+                        <div style={{ display: 'flex', gap: 8 }}>
+                          <button onClick={() => handleBewerkOpslaan(d.id)} disabled={bewerkBezig}
+                            style={{ ...btnOpslaan, opacity: bewerkBezig ? 0.6 : 1, cursor: bewerkBezig ? 'not-allowed' : 'pointer' }}>
+                            {bewerkBezig ? 'Opslaan…' : 'Opslaan'}
+                          </button>
+                          <button onClick={() => setBewerkId(null)} disabled={bewerkBezig}
+                            style={{ background: 'none', border: '1px solid var(--border)', color: 'var(--text)', borderRadius: 6, padding: '7px 16px', fontSize: 13, cursor: 'pointer' }}>
+                            Annuleer
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   )}

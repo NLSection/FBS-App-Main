@@ -1,8 +1,10 @@
 // FILE: CategoriePopup.tsx
 // AANGEMAAKT: 31-03-2026 00:00
 // VERSIE: 1
-// GEWIJZIGD: 31-03-2026 02:00
+// GEWIJZIGD: 31-03-2026 11:00
 //
+// WIJZIGINGEN (31-03-2026 11:00):
+// - Wis-knop (✕) toegevoegd naast toelichting input; zichtbaar zodra er tekst is
 // WIJZIGINGEN (31-03-2026 02:00):
 // - Woordfrequentie analyse: onAnalyseer prop, Analyseer/Verberg knop, tellers in omschrijving chips
 // WIJZIGINGEN (31-03-2026 00:00):
@@ -271,12 +273,20 @@ export default function CategoriePopup({
         {/* Toelichting */}
         <div style={{ marginBottom: 16, paddingTop: 12, borderTop: '1px solid var(--border)' }}>
           <label style={{ display: 'block', fontSize: 12, color: 'var(--text-dim)', marginBottom: 4 }}>Toelichting (optioneel)</label>
-          <input
-            value={patronModal.toelichting}
-            onChange={e => setPatronModal(m => m ? { ...m, toelichting: e.target.value } : m)}
-            placeholder="Optionele toelichting..."
-            style={{ width: '100%', background: 'var(--bg-base)', border: '1px solid var(--border)', borderRadius: 4, padding: '4px 8px', fontSize: 12, color: 'var(--text-h)', boxSizing: 'border-box' }}
-          />
+          <div style={{ display: 'flex', gap: 6 }}>
+            <input
+              value={patronModal.toelichting}
+              onChange={e => setPatronModal(m => m ? { ...m, toelichting: e.target.value } : m)}
+              placeholder="Optionele toelichting..."
+              style={{ flex: 1, background: 'var(--bg-base)', border: '1px solid var(--border)', borderRadius: 4, padding: '4px 8px', fontSize: 12, color: 'var(--text-h)' }}
+            />
+            {patronModal.toelichting && (
+              <button
+                onClick={() => setPatronModal(m => m ? { ...m, toelichting: '' } : m)}
+                style={{ background: 'none', border: '1px solid var(--border)', color: 'var(--text-dim)', borderRadius: 4, padding: '4px 8px', fontSize: 12, cursor: 'pointer' }}
+              >✕</button>
+            )}
+          </div>
         </div>
 
         {/* Scope keuze */}
