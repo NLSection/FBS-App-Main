@@ -1,11 +1,13 @@
 // FILE: TransactiesTabel.tsx
 // AANGEMAAKT: 25-03-2026 12:00
 // VERSIE: 1
-// GEWIJZIGD: 31-03-2026 14:00
+// GEWIJZIGD: 31-03-2026 14:30
 //
-// WIJZIGINGEN (31-03-2026 14:00):
-// - Hamburgermenu volledig verwijderd: handlers, state, JSX, sticky-acties <th>/<td>, vaste-last formulier
-// - aantalKolommen: +1 voor actieskolom verwijderd
+// WIJZIGINGEN (31-03-2026 14:30):
+// - CategoriePopup: periodes, onDatumWijzig, onVoegRekeningToe props meegegeven
+// - handleDatumWijzig: PATCH datum + originele_datum (indien eerste keer)
+// - handleVoegRekeningToe: navigeer naar /instellingen met iban + naam query params
+// - Datumkolom: Calendar icoon + var(--accent) kleur als originele_datum gevuld
 // WIJZIGINGEN (31-03-2026 02:30):
 // - onAnalyseer fix: alle omschrijvingsvelden (1+2+3) meenemen in woordfrequentie telling
 // WIJZIGINGEN (31-03-2026 02:00):
@@ -104,6 +106,7 @@
 'use client';
 
 import { Fragment, useEffect, useRef, useState } from 'react';
+import { Calendar } from 'lucide-react';
 import { useSidebar } from '@/lib/sidebar-context';
 import type { TransactieType } from '@/lib/schema';
 import type { TransactieMetCategorie } from '@/lib/transacties';
@@ -595,6 +598,23 @@ const [patronModal, setPatronModal]                   = useState<PatronModalData
     setGeselecteerdJaar(jaar);
   }
 
+  async function handleDatumWijzig(nieuweDatum: string, origineelBehouden: boolean) {
+    const tr = patronModal!.transactie;
+    const body: Record<string, unknown> = { datum: nieuweDatum };
+    if (!origineelBehouden) body.originele_datum = tr.datum;
+    await fetch(`/api/transacties/${tr.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    setPatronModal(null);
+    setReloadTrigger(n => n + 1);
+  }
+
+  function handleVoegRekeningToe(iban: string, naam: string) {
+    window.location.href = `/instellingen?iban=${encodeURIComponent(iban)}&naam=${encodeURIComponent(naam)}`;
+  }
+
   // Unieke categorieën uit huidige gefilterde transacties (voor categorie-filterrij)
   const uniekeCategorieën = Array.from(
     new Set(tabTransacties.map(t => t.categorie).filter((c): c is string => c !== null))
@@ -951,9 +971,10 @@ const [patronModal, setPatronModal]                   = useState<PatronModalData
                       <tr onClick={() => openCategoriePopup(t)} style={{ cursor: 'pointer' }}>
                         {zk.has('datum') && (
                           <td
-                            style={{ color: t.originele_datum ? '#f76707' : 'var(--text-dim)', fontSize: 12, whiteSpace: 'nowrap' }}
-                            title={t.originele_datum ? `Origineel: ${formatDatum(t.originele_datum)}` : undefined}
+                            style={{ color: t.originele_datum ? 'var(--accent)' : 'var(--text-dim)', fontSize: 12, whiteSpace: 'nowrap' }}
+                            title={t.originele_datum ? `Origineel geboekt op ${formatDatum(t.originele_datum)}` : undefined}
                           >
+                            {t.originele_datum && <Calendar size={11} style={{ marginRight: 3, verticalAlign: 'middle' }} />}
                             {formatDatum(t.datum)}
                           </td>
                         )}
@@ -1098,6 +1119,9 @@ const [patronModal, setPatronModal]                   = useState<PatronModalData
           }}
           budgettenPotjes={budgettenPotjes}
           rekeningen={rekeningen}
+          periodes={periodes}
+          onDatumWijzig={handleDatumWijzig}
+          onVoegRekeningToe={handleVoegRekeningToe}
           uniekeCategorieenDropdown={uniekeCategorieenDropdown}
         />
       )}

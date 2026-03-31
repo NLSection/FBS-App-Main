@@ -1,10 +1,12 @@
 // FILE: CategorieenBeheer.tsx
 // AANGEMAAKT: 25-03-2026 17:30
 // VERSIE: 1
-// GEWIJZIGD: 31-03-2026 11:00
+// GEWIJZIGD: 31-03-2026 14:30
 //
-// WIJZIGINGEN (31-03-2026 11:00):
-// - scope bij openen popup bepaald op basis van categorie_id: 'alle' bij regel, 'enkel' bij handmatig
+// WIJZIGINGEN (31-03-2026 14:30):
+// - periodes state toegevoegd + fetch /api/periodes
+// - handleDatumWijzig en handleVoegRekeningToe geïmplementeerd
+// - CategoriePopup: periodes, onDatumWijzig, onVoegRekeningToe props meegegeven
 // WIJZIGINGEN (31-03-2026 02:30):
 // - onAnalyseer fix: alle omschrijvingsvelden (1+2+3) meenemen in woordfrequentie telling
 // WIJZIGINGEN (31-03-2026 02:00):
@@ -23,6 +25,7 @@
 import { Fragment, useEffect, useRef, useState } from 'react';
 import type { CategorieType } from '@/lib/categorisatie';
 import type { TransactieMetCategorie } from '@/lib/transacties';
+import type { Periode } from '@/lib/maandperiodes';
 import { formatType } from '@/lib/formatType';
 import CategoriePopup from '@/features/shared/components/CategoriePopup';
 import type { PatronModalData } from '@/features/shared/components/CategoriePopup';
@@ -98,6 +101,7 @@ export default function CategorieenBeheer() {
   const [transacties, setTransacties]           = useState<TransactieMetCategorie[]>([]);
   const [budgettenPotjes, setBudgettenPotjes]   = useState<BudgetPotjeNaam[]>([]);
   const [rekeningen, setRekeningen]             = useState<Rekening[]>([]);
+  const [periodes, setPeriodes]                 = useState<Periode[]>([]);
   const [uniekeCatDropdown, setUniekeCatDropdown] = useState<string[]>([]);
   const [reloadTrigger, setReloadTrigger]       = useState(0);
   const [patronModal, setPatronModal]           = useState<PatronModalData | null>(null);
@@ -133,6 +137,7 @@ export default function CategorieenBeheer() {
     });
     fetch('/api/budgetten-potjes').then(r => r.ok ? r.json() : []).then(setBudgettenPotjes);
     fetch('/api/rekeningen').then(r => r.ok ? r.json() : []).then(setRekeningen);
+    fetch('/api/periodes').then(r => r.ok ? r.json() : []).then(setPeriodes);
     fetch('/api/categorieen/uniek').then(r => r.ok ? r.json() : []).then(setUniekeCatDropdown);
   }, [reloadTrigger]);
 
@@ -219,6 +224,23 @@ export default function CategorieenBeheer() {
       categorie: r.categorie, subcategorie: r.subcategorie, toelichting: r.toelichting,
     };
     openCategoriePopup(dummy);
+  }
+
+  async function handleDatumWijzig(nieuweDatum: string, origineelBehouden: boolean) {
+    const tr = patronModal!.transactie;
+    const body: Record<string, unknown> = { datum: nieuweDatum };
+    if (!origineelBehouden) body.originele_datum = tr.datum;
+    await fetch(`/api/transacties/${tr.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    setPatronModal(null);
+    setReloadTrigger(n => n + 1);
+  }
+
+  function handleVoegRekeningToe(iban: string, naam: string) {
+    window.location.href = `/instellingen?iban=${encodeURIComponent(iban)}&naam=${encodeURIComponent(naam)}`;
   }
 
   async function maakCategorieregel(
@@ -698,6 +720,9 @@ export default function CategorieenBeheer() {
           }}
           budgettenPotjes={budgettenPotjes}
           rekeningen={rekeningen}
+          periodes={periodes}
+          onDatumWijzig={handleDatumWijzig}
+          onVoegRekeningToe={handleVoegRekeningToe}
           uniekeCategorieenDropdown={uniekeCatDropdown}
         />
       )}

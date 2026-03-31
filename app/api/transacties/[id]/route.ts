@@ -1,10 +1,10 @@
 // FILE: route.ts (api/transacties/[id])
 // AANGEMAAKT: 25-03-2026 17:30
 // VERSIE: 1
-// GEWIJZIGD: 30-03-2026 19:00
+// GEWIJZIGD: 31-03-2026 14:30
 //
-// WIJZIGINGEN (30-03-2026 19:00):
-// - PATCH: toelichting veld toegevoegd
+// WIJZIGINGEN (31-03-2026 14:30):
+// - PATCH: datum en originele_datum velden toegevoegd
 // WIJZIGINGEN (29-03-2026 05:30):
 // - PATCH: categorie (string) → altijd categorie+subcategorie tekstvelden opslaan + categorie_id lookup
 // WIJZIGINGEN (26-03-2026 19:00):
@@ -64,6 +64,14 @@ export async function PATCH(request: NextRequest, { params }: { params: Params }
   if (body.toelichting !== undefined) {
     setClauses.push('toelichting = ?');
     vals.push(body.toelichting !== null && body.toelichting !== '' ? String(body.toelichting) : null);
+  }
+  if (body.datum !== undefined) {
+    setClauses.push('datum = ?');
+    vals.push(String(body.datum));
+  }
+  if (body.originele_datum !== undefined) {
+    setClauses.push('originele_datum = ?');
+    vals.push(body.originele_datum !== null ? String(body.originele_datum) : null);
   }
 
   if (setClauses.length === 0) {

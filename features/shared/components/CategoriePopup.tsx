@@ -1,10 +1,12 @@
 // FILE: CategoriePopup.tsx
 // AANGEMAAKT: 31-03-2026 00:00
 // VERSIE: 1
-// GEWIJZIGD: 31-03-2026 11:00
+// GEWIJZIGD: 31-03-2026 14:30
 //
-// WIJZIGINGEN (31-03-2026 11:00):
-// - Wis-knop (✕) toegevoegd naast toelichting input; zichtbaar zodra er tekst is
+// WIJZIGINGEN (31-03-2026 14:30):
+// - Sectie 1: datum met knoppen voor vorige/volgende periode (ChevronsLeft/Right)
+// - Sectie 2: rekeningen tegenover elkaar met ArrowRight/ArrowLeftRight en + knop voor nieuwe rekening
+// - Props toegevoegd: periodes, onDatumWijzig, onVoegRekeningToe
 // WIJZIGINGEN (31-03-2026 02:00):
 // - Woordfrequentie analyse: onAnalyseer prop, Analyseer/Verberg knop, tellers in omschrijving chips
 // WIJZIGINGEN (31-03-2026 00:00):
@@ -14,7 +16,9 @@
 'use client';
 
 import { useState } from 'react';
+import { ChevronsLeft, ChevronsRight, ArrowRight, ArrowLeftRight } from 'lucide-react';
 import type { TransactieMetCategorie } from '@/lib/transacties';
+import type { Periode } from '@/lib/maandperiodes';
 
 export interface PatronModalData {
   transactie: TransactieMetCategorie;
@@ -41,18 +45,48 @@ interface CategoriePopupProps {
   onBevestig: () => void;
   onSluiten: () => void;
   onAnalyseer: () => Promise<Record<string, number>>;
+  onDatumWijzig: (nieuweDatum: string, origineelBehouden: boolean) => Promise<void>;
+  onVoegRekeningToe: (iban: string, naam: string) => void;
   budgettenPotjes: BudgetPotjeNaam[];
   rekeningen: Rekening[];
+  periodes: Periode[];
   uniekeCategorieenDropdown: string[];
 }
 
+function formatDatum(d: string | null): string {
+  if (!d) return '—';
+  const p = d.split('-');
+  return p.length === 3 ? `${p[2]}-${p[1]}-${p[0]}` : d;
+}
+
 export default function CategoriePopup({
-  patronModal, setPatronModal, onBevestig, onSluiten, onAnalyseer, budgettenPotjes, rekeningen, uniekeCategorieenDropdown,
+  patronModal, setPatronModal, onBevestig, onSluiten, onAnalyseer, onDatumWijzig, onVoegRekeningToe,
+  budgettenPotjes, rekeningen, periodes, uniekeCategorieenDropdown,
 }: CategoriePopupProps) {
   const [tooltipNaam, setTooltipNaam]       = useState(false);
   const [tooltipOmschr, setTooltipOmschr]   = useState(false);
   const [woordTellers, setWoordTellers]     = useState<Record<string, number> | null>(null);
   const [tellerLaden, setTellerLaden]       = useState(false);
+
+  const t = patronModal.transactie;
+  const isOmboeking = t.type === 'omboeking-af' || t.type === 'omboeking-bij';
+  const isEigenTegenrekening = !t.tegenrekening_iban_bban || rekeningen.some(r => r.iban === t.tegenrekening_iban_bban);
+
+  const currentPeriodeIdx = t.datum
+    ? periodes.findIndex(p => t.datum! >= p.start && t.datum! <= p.eind)
+    : -1;
+  const volgendePeriode = currentPeriodeIdx >= 0 && currentPeriodeIdx < periodes.length - 1
+    ? periodes[currentPeriodeIdx + 1]
+    : null;
+  const vorigePeriode = currentPeriodeIdx > 0
+    ? periodes[currentPeriodeIdx - 1]
+    : null;
+
+  const knopStijl: React.CSSProperties = {
+    display: 'flex', alignItems: 'center', gap: 6,
+    background: 'var(--accent)', border: 'none', color: '#fff',
+    borderRadius: 4, padding: '4px 10px', fontSize: 12, cursor: 'pointer',
+  };
 
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)' }}>
@@ -63,6 +97,62 @@ export default function CategoriePopup({
           <strong>{patronModal.transactie.naam_tegenpartij ?? 'deze tegenpartij'}</strong>.
           Selecteer optioneel een terugkerend woord om de regel specifieker te maken:
         </p>
+
+        {/* Sectie 1: Datum */}
+        <div style={{ marginBottom: 16, paddingBottom: 16, borderBottom: '1px solid var(--border)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16 }}>
+            <div>
+              <div style={{ fontSize: 13, color: 'var(--text-h)', fontWeight: 500 }}>{formatDatum(t.datum)}</div>
+              {t.originele_datum && (
+                <div style={{ fontSize: 11, color: 'var(--text-dim)', textDecoration: 'line-through', marginTop: 2 }}>
+                  {formatDatum(t.originele_datum)}
+                </div>
+              )}
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              {volgendePeriode && (
+                <button style={knopStijl} onClick={() => onDatumWijzig(volgendePeriode.start, !!t.originele_datum)}>
+                  <ChevronsRight size={13} />
+                  Boeken in {volgendePeriode.label}
+                </button>
+              )}
+              {vorigePeriode && (
+                <button style={knopStijl} onClick={() => onDatumWijzig(vorigePeriode.eind, !!t.originele_datum)}>
+                  <ChevronsLeft size={13} />
+                  Boeken in {vorigePeriode.label}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Sectie 2: Rekeningen */}
+        <div style={{ marginBottom: 16, paddingBottom: 16, borderBottom: '1px solid var(--border)' }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 11, color: 'var(--text-dim)', marginBottom: 2 }}>Eigen rekening</div>
+              <div style={{ fontSize: 12, color: 'var(--text-h)' }}>{t.rekening_naam ?? '—'}</div>
+              <div style={{ fontSize: 11, color: 'var(--text-dim)' }}>{t.iban_bban ?? ''}</div>
+            </div>
+            <div style={{ color: 'var(--text-dim)', paddingTop: 14 }}>
+              {isOmboeking ? <ArrowLeftRight size={16} /> : <ArrowRight size={16} />}
+            </div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 11, color: 'var(--text-dim)', marginBottom: 2 }}>Tegenrekening</div>
+              <div style={{ fontSize: 12, color: 'var(--text-h)', display: 'flex', alignItems: 'center', gap: 4 }}>
+                {t.naam_tegenpartij ?? '—'}
+                {!isEigenTegenrekening && t.tegenrekening_iban_bban && (
+                  <button
+                    title="Toevoegen als eigen rekening"
+                    onClick={() => onVoegRekeningToe(t.tegenrekening_iban_bban!, t.naam_tegenpartij ?? '')}
+                    style={{ background: 'var(--accent)', border: 'none', color: '#fff', borderRadius: 3, width: 18, height: 18, cursor: 'pointer', fontSize: 13, lineHeight: '18px', padding: 0, flexShrink: 0 }}
+                  >+</button>
+                )}
+              </div>
+              <div style={{ fontSize: 11, color: 'var(--text-dim)' }}>{t.tegenrekening_iban_bban ?? ''}</div>
+            </div>
+          </div>
+        </div>
 
         {/* Categorie */}
         <div style={{ marginBottom: 16 }}>
