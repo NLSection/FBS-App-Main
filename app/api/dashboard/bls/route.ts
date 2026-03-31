@@ -1,13 +1,18 @@
 // FILE: route.ts (api/dashboard/bls)
 // AANGEMAAKT: 31-03-2026 21:00
 // VERSIE: 1
-// GEWIJZIGD: 31-03-2026 21:00
+// GEWIJZIGD: 31-03-2026 21:30
 //
 // WIJZIGINGEN (31-03-2026 21:00):
 // - Initiële aanmaak: GET /api/dashboard/bls — BLS-berekening per categorie
+// WIJZIGINGEN (31-03-2026 21:30):
+// - BLS filter: transacties op eigen rekening van de gekoppelde categorie worden uitgesloten
+// - isOmboeking check op t.type === 'omboeking-af' || 'omboeking-bij' i.p.v. subcatNaam.startsWith()
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getTransacties } from '@/lib/transacties';
+import { getBudgettenPotjes } from '@/lib/budgettenPotjes';
+import { getRekeningen } from '@/lib/rekeningen';
 
 interface SubcategorieRegel {
   naam: string;
@@ -38,6 +43,18 @@ export function GET(request: NextRequest) {
   try {
     const transacties = getTransacties({ datum_van: datumVan, datum_tot: datumTot });
 
+    // Bouw Map<categorienaam, Set<rekening_id>> op basis van budgetten/potjes
+    const catRekeningMap = new Map<string, Set<number>>();
+    for (const potje of getBudgettenPotjes()) {
+      catRekeningMap.set(potje.naam, new Set(potje.rekening_ids));
+    }
+
+    // Bouw Map<iban, rekening_id> voor IBAN → id vertaling
+    const ibanNaarId = new Map<string, number>();
+    for (const rek of getRekeningen()) {
+      ibanNaarId.set(rek.iban, rek.id);
+    }
+
     const uitgegevenPerCat = new Map<string, number>();
     const subcatPerCat = new Map<string, Map<string, number>>();
     const gecorrPerCat = new Map<string, number>();
@@ -46,9 +63,13 @@ export function GET(request: NextRequest) {
       if (!t.categorie) continue;
       const bedrag = t.bedrag ?? 0;
       const subcatNaam = t.subcategorie ?? '';
-      const isOmboeking = subcatNaam.startsWith('Omboekingen');
+      const isOmboeking = t.type === 'omboeking-af' || t.type === 'omboeking-bij';
 
       if (!isOmboeking && (t.type === 'normaal-af' || t.type === 'normaal-bij')) {
+        // Sluit transacties uit op eigen rekening van de gekoppelde categorie
+        const gekoppeldeRekeningen = catRekeningMap.get(t.categorie);
+        const rekeningId = t.iban_bban ? ibanNaarId.get(t.iban_bban) : undefined;
+        if (gekoppeldeRekeningen && rekeningId !== undefined && gekoppeldeRekeningen.has(rekeningId)) continue;
         uitgegevenPerCat.set(t.categorie, (uitgegevenPerCat.get(t.categorie) ?? 0) + bedrag);
 
         const subMap = subcatPerCat.get(t.categorie) ?? new Map<string, number>();
