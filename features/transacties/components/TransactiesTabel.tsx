@@ -1,8 +1,10 @@
 // FILE: TransactiesTabel.tsx
 // AANGEMAAKT: 25-03-2026 12:00
 // VERSIE: 1
-// GEWIJZIGD: 31-03-2026 14:30
+// GEWIJZIGD: 31-03-2026 23:30
 //
+// WIJZIGINGEN (31-03-2026 23:30):
+// - Standaard sortering op datum descending (nieuwste bovenaan)
 // WIJZIGINGEN (31-03-2026 14:30):
 // - CategoriePopup: periodes, onDatumWijzig, onVoegRekeningToe props meegegeven
 // - handleDatumWijzig: PATCH datum + originele_datum (indien eerste keer)
@@ -209,8 +211,8 @@ export default function TransactiesTabel() {
   const [filter, setFilter]                             = useState<TransactieType | 'alle'>('alle');
   const [categorieFilter, setCategorieFilter]           = useState<string | 'alle'>('alle');
   const [vergrendeldFilter, setVergrendeldFilter]       = useState(false);
-  const [sortCol, setSortCol]                           = useState<string | null>(null);
-  const [sortDir, setSortDir]                           = useState<'asc' | 'desc'>('asc');
+  const [sortCol, setSortCol]                           = useState<string>('datum');
+  const [sortDir, setSortDir]                           = useState<'asc' | 'desc'>('desc');
   const [periodes, setPeriodes]                         = useState<Periode[]>([]);
   const [geselecteerdePeriode, setGeselecteerdePeriode] = useState<Periode | null>(null);
   const [geselecteerdJaar, setGeselecteerdJaar]         = useState<number>(new Date().getFullYear());
@@ -676,16 +678,14 @@ const [patronModal, setPatronModal]                   = useState<PatronModalData
     else { setSortCol(col); setSortDir('asc'); }
   }
 
-  const gesorteerdeTransacties = sortCol
-    ? [...gefilterdeTransacties].sort((a, b) => {
-        const av = (a as unknown as Record<string, unknown>)[sortCol] ?? '';
-        const bv = (b as unknown as Record<string, unknown>)[sortCol] ?? '';
-        const cmp = typeof av === 'number' && typeof bv === 'number'
-          ? av - bv
-          : String(av).localeCompare(String(bv), 'nl');
-        return sortDir === 'asc' ? cmp : -cmp;
-      })
-    : gefilterdeTransacties;
+  const gesorteerdeTransacties = [...gefilterdeTransacties].sort((a, b) => {
+    const av = (a as unknown as Record<string, unknown>)[sortCol] ?? '';
+    const bv = (b as unknown as Record<string, unknown>)[sortCol] ?? '';
+    const cmp = typeof av === 'number' && typeof bv === 'number'
+      ? av - bv
+      : String(av).localeCompare(String(bv), 'nl');
+    return sortDir === 'asc' ? cmp : -cmp;
+  });
 
   return (
     <div>

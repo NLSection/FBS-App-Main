@@ -1,8 +1,10 @@
 // FILE: categorisatie.ts
 // AANGEMAAKT: 25-03-2026 17:30
 // VERSIE: 1
-// GEWIJZIGD: 31-03-2026 20:00
+// GEWIJZIGD: 31-03-2026 23:45
 //
+// WIJZIGINGEN (31-03-2026 23:45):
+// - deleteCategorieRegel: FK in transactie_aanpassingen genulld voor delete (voorkomt FK constraint fout)
 // WIJZIGINGEN (31-03-2026 20:00):
 // - categoriseerTransacties: schrijft naar transactie_aanpassingen (UPSERT) i.p.v. transacties
 // - handmatig_gecategoriseerd filter via JOIN op transactie_aanpassingen
@@ -282,5 +284,7 @@ export function updateCategorieRegel(
 }
 
 export function deleteCategorieRegel(id: number): void {
-  getDb().prepare('DELETE FROM categorieen WHERE id = ?').run(id);
+  const db = getDb();
+  db.prepare('UPDATE transactie_aanpassingen SET categorie_id = NULL WHERE categorie_id = ?').run(id);
+  db.prepare('DELETE FROM categorieen WHERE id = ?').run(id);
 }

@@ -1,21 +1,31 @@
 // FILE: page.tsx
 // AANGEMAAKT: 25-03-2026 14:00
 // VERSIE: 1
-// GEWIJZIGD: 31-03-2026 22:00
+// GEWIJZIGD: 31-03-2026 23:59
 //
 // WIJZIGINGEN (31-03-2026 21:00):
 // - Volledige herbouw: periodenavigatie, BLS-tabel, categorieoverzicht
 // WIJZIGINGEN (31-03-2026 22:00):
 // - BlsRegel interface aangepast aan nieuw endpoint formaat (bedrag, gedaanOpRekening, hoortOpRekening)
 // - BLS tabel: categorie kolom toont [categorie] · [gedaanOpRekening] → [hoortOpRekening]
+// WIJZIGINGEN (31-03-2026 23:00):
+// - Totaalrij verwijderd uit BLS-tabel
+// - Cumulatief toggle vervangen door Alle knop; layout gelijkgetrokken met TransactiesTabel
+// - Alle modus: BLS laadt over heel geselecteerd jaar ipv één maand
 // - Categorieoverzicht sectie verwijderd (niet meer beschikbaar in nieuw formaat)
+// WIJZIGINGEN (31-03-2026 23:59):
+// - BLS tabel: twee-laags rijen (categorienaam + badge-pijlvisualisatie)
+// - Saldo kleur: groen >0, rood <0, grijs =0
+// - Linkerborder per rij: groen bij saldo=0, rood bij saldo≠0
+// - Totaalrij terug met dezelfde saldo-kleurlogica
 
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
 import type { Periode } from '@/lib/maandperiodes';
 
-const MAAND_NAMEN = ['jan','feb','mrt','apr','mei','jun','jul','aug','sep','okt','nov','dec'];
+const MAAND_NAMEN = ['Januari','Februari','Maart','April','Mei','Juni','Juli','Augustus','September','Oktober','November','December'];
+const MAAND_KORT  = ['jan','feb','mrt','apr','mei','jun','jul','aug','sep','okt','nov','dec'];
 
 interface BlsRegel {
   categorie: string;
@@ -42,7 +52,6 @@ export default function DashboardPage() {
   const [periodes, setPeriodes]                   = useState<Periode[]>([]);
   const [geselecteerdePeriode, setGeselecteerdePeriode] = useState<Periode | null>(null);
   const [geselecteerdJaar, setGeselecteerdJaar]   = useState<number>(new Date().getFullYear());
-  const [cumulatief, setCumulatief]               = useState(false);
   const [blsData, setBlsData]                     = useState<BlsRegel[]>([]);
   const [laadtPeriodes, setLaadtPeriodes]         = useState(true);
   const [laadtBls, setLaadtBls]                   = useState(false);
@@ -65,17 +74,21 @@ export default function DashboardPage() {
   }, []);
 
   // BLS data laden
-  const laadBls = useCallback((periode: Periode | null, cum: boolean, allesPeriodes: Periode[]) => {
-    if (!periode) return;
+  const laadBls = useCallback((periode: Periode | null, jaar: number, allesPeriodes: Periode[]) => {
     setLaadtBls(true);
     setFout('');
 
-    let datumVan = periode.start;
-    if (cum) {
-      const janPeriode = allesPeriodes.find(p => p.jaar === periode.jaar && p.maand === 1);
-      datumVan = janPeriode ? janPeriode.start : `${periode.jaar}-01-01`;
+    let datumVan: string, datumTot: string;
+    if (periode) {
+      datumVan = periode.start;
+      datumTot = periode.eind;
+    } else {
+      // Alle modus: heel jaar
+      const jaarPeriodes = allesPeriodes.filter(p => p.jaar === jaar && p.status !== 'toekomstig');
+      if (jaarPeriodes.length === 0) { setLaadtBls(false); return; }
+      datumVan = jaarPeriodes[0].start;
+      datumTot = jaarPeriodes[jaarPeriodes.length - 1].eind;
     }
-    const datumTot = periode.eind;
 
     fetch(`/api/dashboard/bls?datum_van=${datumVan}&datum_tot=${datumTot}`)
       .then(r => r.ok ? r.json() : Promise.reject(r.statusText))
@@ -85,8 +98,8 @@ export default function DashboardPage() {
   }, []);
 
   useEffect(() => {
-    if (geselecteerdePeriode) laadBls(geselecteerdePeriode, cumulatief, periodes);
-  }, [geselecteerdePeriode, cumulatief, periodes, laadBls]);
+    laadBls(geselecteerdePeriode, geselecteerdJaar, periodes);
+  }, [geselecteerdePeriode, geselecteerdJaar, periodes, laadBls]);
 
   function handleJaar(jaar: number) {
     setGeselecteerdJaar(jaar);
@@ -104,19 +117,28 @@ export default function DashboardPage() {
   const jaarOpties = [...new Set(periodes.map(p => p.jaar))].sort((a, b) => a - b);
   const periodesVoorJaar = periodes.filter(p => p.jaar === geselecteerdJaar);
 
+  const tdNum: React.CSSProperties = { textAlign: 'right', fontVariantNumeric: 'tabular-nums' };
+
   const totaalBedrag       = blsData.reduce((s, r) => s + r.bedrag, 0);
   const totaalGecorrigeerd = blsData.reduce((s, r) => s + r.gecorrigeerd, 0);
   const totaalSaldo        = blsData.reduce((s, r) => s + r.saldo, 0);
 
-  const tdNum: React.CSSProperties = { textAlign: 'right', fontVariantNumeric: 'tabular-nums' };
+  function saldoKleur(saldo: number) {
+    return saldo > 0 ? 'var(--green)' : saldo < 0 ? 'var(--red)' : 'var(--text-dim)';
+  }
+  function borderKleur(saldo: number) {
+    return saldo === 0 ? 'var(--green)' : 'var(--red)';
+  }
 
   return (
     <>
       <div className="page-header">
         <h1>Dashboard</h1>
-        {geselecteerdePeriode && (
-          <p>{cumulatief ? `jan t/m ` : ''}{MAAND_NAMEN[geselecteerdePeriode.maand - 1]} {geselecteerdePeriode.jaar}</p>
-        )}
+        <p>
+          {geselecteerdePeriode
+            ? `${MAAND_NAMEN[geselecteerdePeriode.maand - 1].toLowerCase()} ${geselecteerdePeriode.jaar}`
+            : `${geselecteerdJaar} — alle maanden`}
+        </p>
       </div>
 
       {fout && <div className="error-melding">{fout}</div>}
@@ -133,9 +155,22 @@ export default function DashboardPage() {
             ))}
           </div>
 
-          {/* Maandknoppen + cumulatief toggle */}
-          <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(12, 1fr)', gap: 6, flex: 1, minWidth: 0 }}>
+          {/* Maandknoppen */}
+          {periodesVoorJaar.length > 0 && (
+            <div style={{ display: 'grid', gridTemplateColumns: 'auto repeat(12, 1fr)', gap: 6, marginBottom: 0 }}>
+              <button
+                onClick={() => setGeselecteerdePeriode(null)}
+                style={{
+                  padding: '4px 10px', borderRadius: 6, fontSize: 12, textAlign: 'center',
+                  fontWeight: !geselecteerdePeriode ? 600 : 400,
+                  background: !geselecteerdePeriode ? 'var(--accent)' : 'var(--bg-card)',
+                  color: !geselecteerdePeriode ? '#fff' : 'var(--text-dim)',
+                  border: !geselecteerdePeriode ? '1px solid transparent' : '1px solid var(--border)',
+                  cursor: 'pointer',
+                }}
+              >
+                Alle
+              </button>
               {periodesVoorJaar.map(p => {
                 const geselecteerd = geselecteerdePeriode?.jaar === p.jaar && geselecteerdePeriode?.maand === p.maand;
                 const toekomstig   = p.status === 'toekomstig';
@@ -167,22 +202,13 @@ export default function DashboardPage() {
                       pointerEvents: toekomstig ? 'none' : 'auto',
                     }}
                   >
-                    {MAAND_NAMEN[p.maand - 1]}
+                    <span className="maand-vol">{MAAND_NAMEN[p.maand - 1]}</span>
+                    <span className="maand-kort">{MAAND_KORT[p.maand - 1]}</span>
                   </button>
                 );
               })}
             </div>
-            <button
-              onClick={() => setCumulatief(v => !v)}
-              style={{
-                ...filterKnop(cumulatief),
-                whiteSpace: 'nowrap',
-                flexShrink: 0,
-              }}
-            >
-              Cumulatief
-            </button>
-          </div>
+          )}
         </div>
       )}
 
@@ -206,28 +232,30 @@ export default function DashboardPage() {
             <tbody>
               {blsData.map(rij => {
                 const sleutel = `${rij.categorie}::${rij.gedaanOpRekening}`;
-                const saldoKleur = rij.saldo >= 0 ? 'var(--green)' : 'var(--red)';
+                const badgeBase: React.CSSProperties = { fontSize: 11, borderRadius: 4, padding: '1px 6px', fontWeight: 500 };
                 return (
                   <tr key={sleutel}>
-                    <td>
-                      <strong>{rij.categorie}</strong>
-                      <span style={{ color: 'var(--text-dim)', fontSize: 12 }}>
-                        {' '}·{' '}{rij.gedaanOpRekening}{' → '}{rij.hoortOpRekening}
-                      </span>
+                    <td style={{ borderLeft: `2px solid ${borderKleur(rij.saldo)}`, paddingLeft: 10 }}>
+                      <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--text-h)' }}>{rij.categorie}</div>
+                      <div style={{ marginTop: 4, display: 'flex', alignItems: 'center', gap: 5 }}>
+                        <span style={{ ...badgeBase, background: 'var(--bg-base)', border: '1px solid var(--border)', color: 'var(--text-dim)' }}>{rij.gedaanOpRekening}</span>
+                        <span style={{ fontSize: 12, color: 'var(--text-dim)' }}>──→</span>
+                        <span style={{ ...badgeBase, background: 'var(--bg-base)', border: '1px solid var(--accent)', color: 'var(--accent)' }}>{rij.hoortOpRekening}</span>
+                      </div>
                     </td>
                     <td style={tdNum}>{formatBedrag(rij.bedrag)}</td>
                     <td style={tdNum}>{rij.gecorrigeerd !== 0 ? formatBedrag(rij.gecorrigeerd) : <span style={{ color: 'var(--text-dim)' }}>—</span>}</td>
-                    <td style={{ ...tdNum, color: saldoKleur, fontWeight: 600 }}>{formatBedrag(rij.saldo)}</td>
+                    <td style={{ ...tdNum, color: saldoKleur(rij.saldo), fontWeight: 600 }}>{formatBedrag(rij.saldo)}</td>
                   </tr>
                 );
               })}
             </tbody>
             <tfoot>
               <tr style={{ fontWeight: 700, borderTop: '2px solid var(--border)' }}>
-                <td>Totaal</td>
+                <td style={{ borderLeft: `2px solid ${borderKleur(totaalSaldo)}`, paddingLeft: 10 }}>Totaal</td>
                 <td style={tdNum}>{formatBedrag(totaalBedrag)}</td>
                 <td style={tdNum}>{formatBedrag(totaalGecorrigeerd)}</td>
-                <td style={{ ...tdNum, color: totaalSaldo >= 0 ? 'var(--green)' : 'var(--red)' }}>{formatBedrag(totaalSaldo)}</td>
+                <td style={{ ...tdNum, color: saldoKleur(totaalSaldo), fontWeight: 700 }}>{formatBedrag(totaalSaldo)}</td>
               </tr>
             </tfoot>
           </table>
