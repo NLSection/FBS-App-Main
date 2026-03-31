@@ -1,28 +1,12 @@
 // FILE: transacties.ts
 // AANGEMAAKT: 25-03-2026 12:00
 // VERSIE: 1
-// GEWIJZIGD: 31-03-2026 02:00
+// GEWIJZIGD: 31-03-2026 20:00
 //
-// WIJZIGINGEN (25-03-2026 18:30):
-// - Initiële aanmaak: getTransacties, getTransactie, updateTransactieTypeByIban
-// - updateTransactieTypeByIban verwijderd (markeer-vast concept vervallen)
-// WIJZIGINGEN (25-03-2026 21:00):
-// - TransactieMetCategorie interface toegevoegd met categorie + subcategorie
-// - getTransacties gebruikt LEFT JOIN op categorieen tabel
-// - TransactieFilters uitgebreid met datum_van en datum_tot
-// WIJZIGINGEN (26-03-2026 17:00):
-// - TransactieMetCategorie uitgebreid met originele_datum en handmatig_gecategoriseerd
-// WIJZIGINGEN (26-03-2026 19:00):
-// - TransactieMetCategorie uitgebreid met fout_geboekt
-// WIJZIGINGEN (26-03-2026 22:00):
-// - TransactieMetCategorie uitgebreid met rekening_naam en tegenrekening_naam
-// - getTransacties: twee LEFT JOINs op rekeningen (r1 = eigen, r2 = tegenrekening)
-// WIJZIGINGEN (31-03-2026 02:00):
-// - TransactieFilters: naam_tegenpartij filter toegevoegd
-// WIJZIGINGEN (30-03-2026 19:00):
-// - TransactieMetCategorie uitgebreid met toelichting
-// WIJZIGINGEN (28-03-2026 18:00):
-// - COALESCE(c.categorie, t.categorie) + COALESCE(c.subcategorie, t.subcategorie): tekstkolommen als fallback voor omboekingen
+// WIJZIGINGEN (31-03-2026 20:00):
+// - Alle aanpassingsvelden via LEFT JOIN transactie_aanpassingen (datum_aanpassing, categorie_id, status, etc.)
+// - Datumfilter en ORDER BY op COALESCE(a.datum_aanpassing, t.datum)
+// - TransactieMetCategorie: originele_datum vervangen door datum_aanpassing
 
 import getDb from '@/lib/db';
 import type { Transactie, TransactieType, TransactieStatus } from '@/lib/schema';
@@ -37,15 +21,29 @@ export interface TransactieFilters {
 }
 
 export interface TransactieMetCategorie extends Transactie {
-  categorie: string | null;
-  subcategorie: string | null;
-  toelichting: string | null;
-  originele_datum: string | null;
+  // Aanpassingen (via transactie_aanpassingen JOIN)
+  datum_aanpassing: string | null;
+  categorie_id: number | null;
+  status: TransactieStatus;
   handmatig_gecategoriseerd: number;
   fout_geboekt: number;
+  toelichting: string | null;
+  // Categorie-tekst (via categorieen JOIN of directe tekst voor omboekingen)
+  categorie: string | null;
+  subcategorie: string | null;
+  // Rekeningen (via rekeningen JOIN)
   rekening_naam: string | null;
   tegenrekening_naam: string | null;
 }
+
+const IMPORT_KOLOMMEN = `
+  t.id, t.import_id, t.iban_bban, t.munt, t.bic, t.volgnummer, t.datum, t.rentedatum,
+  t.bedrag, t.saldo_na_trn, t.tegenrekening_iban_bban, t.naam_tegenpartij,
+  t.naam_uiteindelijke_partij, t.naam_initierende_partij, t.bic_tegenpartij,
+  t.code, t.batch_id, t.transactiereferentie, t.machtigingskenmerk, t.incassant_id,
+  t.betalingskenmerk, t.omschrijving_1, t.omschrijving_2, t.omschrijving_3,
+  t.reden_retour, t.oorspr_bedrag, t.oorspr_munt, t.koers, t.type
+`;
 
 export function getTransacties(filters?: TransactieFilters): TransactieMetCategorie[] {
   const conditions: string[] = [];
@@ -60,15 +58,15 @@ export function getTransacties(filters?: TransactieFilters): TransactieMetCatego
     params.push(filters.import_id);
   }
   if (filters?.status) {
-    conditions.push('t.status = ?');
+    conditions.push("COALESCE(a.status, 'nieuw') = ?");
     params.push(filters.status);
   }
   if (filters?.datum_van) {
-    conditions.push('t.datum >= ?');
+    conditions.push('COALESCE(a.datum_aanpassing, t.datum) >= ?');
     params.push(filters.datum_van);
   }
   if (filters?.datum_tot) {
-    conditions.push('t.datum <= ?');
+    conditions.push('COALESCE(a.datum_aanpassing, t.datum) <= ?');
     params.push(filters.datum_tot);
   }
   if (filters?.naam_tegenpartij) {
@@ -78,17 +76,25 @@ export function getTransacties(filters?: TransactieFilters): TransactieMetCatego
 
   const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
   const sql = `
-    SELECT t.*,
-           COALESCE(c.categorie, t.categorie) AS categorie,
-           COALESCE(c.subcategorie, t.subcategorie) AS subcategorie,
-           r1.naam AS rekening_naam,
-           r2.naam AS tegenrekening_naam
+    SELECT
+      ${IMPORT_KOLOMMEN},
+      a.datum_aanpassing,
+      a.categorie_id,
+      COALESCE(a.status, 'nieuw')                    AS status,
+      COALESCE(a.handmatig_gecategoriseerd, 0)        AS handmatig_gecategoriseerd,
+      COALESCE(a.fout_geboekt, 0)                    AS fout_geboekt,
+      a.toelichting,
+      COALESCE(c.categorie, a.categorie)              AS categorie,
+      COALESCE(c.subcategorie, a.subcategorie)        AS subcategorie,
+      r1.naam                                         AS rekening_naam,
+      r2.naam                                         AS tegenrekening_naam
     FROM transacties t
-    LEFT JOIN categorieen c ON t.categorie_id = c.id
+    LEFT JOIN transactie_aanpassingen a ON t.id = a.transactie_id
+    LEFT JOIN categorieen c ON a.categorie_id = c.id
     LEFT JOIN rekeningen r1 ON t.iban_bban = r1.iban
     LEFT JOIN rekeningen r2 ON t.tegenrekening_iban_bban = r2.iban
     ${where}
-    ORDER BY t.datum DESC, t.id DESC
+    ORDER BY COALESCE(a.datum_aanpassing, t.datum) DESC, t.id DESC
   `;
 
   return getDb().prepare(sql).all(params) as TransactieMetCategorie[];

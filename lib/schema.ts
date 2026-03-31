@@ -1,16 +1,26 @@
 // FILE: schema.ts
 // AANGEMAAKT: 25-03-2026 10:00
 // VERSIE: 1
-// GEWIJZIGD: 26-03-2026 17:00
+// GEWIJZIGD: 31-03-2026 20:00
 //
-// WIJZIGINGEN (25-03-2026 18:30):
-// - Initiële aanmaak: TypeScript types voor imports en transacties
-// - TransactieType herzien: normaal-af/bij + omboeking-af/bij (vast/spaar/overig/omboeking vervallen)
-// WIJZIGINGEN (26-03-2026 17:00):
-// - Velden handmatig_gecategoriseerd en originele_datum toegevoegd aan Transactie interface
+// WIJZIGINGEN (31-03-2026 20:00):
+// - Aanpassingsvelden verwijderd uit Transactie (status, categorie_id, handmatig_gecategoriseerd, originele_datum, fout_geboekt, toelichting)
+// - TransactieAanpassing interface toegevoegd
 
 export type TransactieType = 'normaal-af' | 'normaal-bij' | 'omboeking-af' | 'omboeking-bij';
 export type TransactieStatus = 'nieuw' | 'verwerkt';
+
+export interface TransactieAanpassing {
+  transactie_id: number;
+  datum_aanpassing: string | null;
+  categorie_id: number | null;
+  categorie: string | null;
+  subcategorie: string | null;
+  status: TransactieStatus;
+  handmatig_gecategoriseerd: number;
+  fout_geboekt: number;
+  toelichting: string | null;
+}
 
 export interface Import {
   id: number;
@@ -51,10 +61,6 @@ export interface Transactie {
   oorspr_munt: string | null;
   koers: number | null;
 
-  // App-velden
+  // App-veld (afgeleid tijdens import)
   type: TransactieType;
-  status: TransactieStatus;
-  categorie_id: number | null;
-  handmatig_gecategoriseerd: number;
-  originele_datum: string | null;
 }

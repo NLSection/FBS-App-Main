@@ -220,18 +220,18 @@ export default function CategorieenBeheer() {
       reden_retour: null, oorspr_bedrag: null, oorspr_munt: null, koers: null,
       type: r.type === 'alle' ? 'normaal-af' : r.type as TransactieMetCategorie['type'],
       status: 'verwerkt', categorie_id: r.id, handmatig_gecategoriseerd: 0,
-      originele_datum: null, fout_geboekt: 0, rekening_naam: null, tegenrekening_naam: null,
+      datum_aanpassing: null, fout_geboekt: 0, rekening_naam: null, tegenrekening_naam: null,
       categorie: r.categorie, subcategorie: r.subcategorie, toelichting: r.toelichting,
     };
     openCategoriePopup(dummy);
   }
 
-  async function handleDatumWijzig(nieuweDatum: string, origineelDatum: string | null) {
+  async function handleDatumWijzig(datum: string | null) {
     const tr = patronModal!.transactie;
     await fetch(`/api/transacties/${tr.id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ datum: nieuweDatum, originele_datum: origineelDatum }),
+      body: JSON.stringify({ datum_aanpassing: datum }),
     });
   }
 

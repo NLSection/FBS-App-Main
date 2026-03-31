@@ -1,8 +1,11 @@
 // FILE: categorisatie.ts
 // AANGEMAAKT: 25-03-2026 17:30
 // VERSIE: 1
-// GEWIJZIGD: 30-03-2026 21:00
+// GEWIJZIGD: 31-03-2026 20:00
 //
+// WIJZIGINGEN (31-03-2026 20:00):
+// - categoriseerTransacties: schrijft naar transactie_aanpassingen (UPSERT) i.p.v. transacties
+// - handmatig_gecategoriseerd filter via JOIN op transactie_aanpassingen
 // WIJZIGINGEN (30-03-2026 21:00):
 // - CategorieRegel: toelichting veld toegevoegd
 // - categoriseerTransacties: toelichting van matchende regel overnemen naar transactie
@@ -125,14 +128,25 @@ export function categoriseerTransacties(
   const regels          = db.prepare('SELECT * FROM categorieen').all() as CategorieRegel[];
   const budgettenPotjes = db.prepare('SELECT naam FROM budgetten_potjes').all() as { naam: string }[];
   const transacties     = importId !== undefined
-    ? db.prepare('SELECT * FROM transacties WHERE import_id = ? AND (handmatig_gecategoriseerd IS NULL OR handmatig_gecategoriseerd = 0)').all(importId) as Transactie[]
-    : db.prepare('SELECT * FROM transacties WHERE handmatig_gecategoriseerd IS NULL OR handmatig_gecategoriseerd = 0').all() as Transactie[];
+    ? db.prepare(`
+        SELECT t.* FROM transacties t
+        LEFT JOIN transactie_aanpassingen a ON t.id = a.transactie_id
+        WHERE t.import_id = ? AND COALESCE(a.handmatig_gecategoriseerd, 0) = 0
+      `).all(importId) as Transactie[]
+    : db.prepare(`
+        SELECT t.* FROM transacties t
+        LEFT JOIN transactie_aanpassingen a ON t.id = a.transactie_id
+        WHERE COALESCE(a.handmatig_gecategoriseerd, 0) = 0
+      `).all() as Transactie[];
 
+  const zorgDatRijBestaat = db.prepare(
+    "INSERT OR IGNORE INTO transactie_aanpassingen (transactie_id) VALUES (?)"
+  );
   const updTransactie = db.prepare(
-    'UPDATE transacties SET categorie_id = ?, status = ?, toelichting = ? WHERE id = ?'
+    'UPDATE transactie_aanpassingen SET categorie_id = ?, categorie = NULL, subcategorie = NULL, status = ?, toelichting = ? WHERE transactie_id = ?'
   );
   const updOmboeking = db.prepare(
-    'UPDATE transacties SET categorie_id = NULL, categorie = ?, subcategorie = ?, status = ? WHERE id = ?'
+    'UPDATE transactie_aanpassingen SET categorie_id = NULL, categorie = ?, subcategorie = ?, status = ? WHERE transactie_id = ?'
   );
   const updLaatsteGebruik = db.prepare(
     "UPDATE categorieen SET laatste_gebruik = date('now') WHERE id = ?"
@@ -143,6 +157,7 @@ export function categoriseerTransacties(
 
   db.transaction(() => {
     for (const t of transacties) {
+      zorgDatRijBestaat.run(t.id);
       if (t.type === 'omboeking-af' || t.type === 'omboeking-bij') {
         const match = matchCategorie(t, regels);
         if (match) {

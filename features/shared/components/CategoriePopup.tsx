@@ -1,18 +1,12 @@
 // FILE: CategoriePopup.tsx
 // AANGEMAAKT: 31-03-2026 00:00
 // VERSIE: 1
-// GEWIJZIGD: 31-03-2026 18:00
+// GEWIJZIGD: 31-03-2026 20:00
 //
-// WIJZIGINGEN (31-03-2026 18:00):
-// - Herstel originele datum: undefined-sentinel voor tijdelijkeOrigineleDatum zodat null ?? t.originele_datum niet meer vals positief is
-// - Herstel originele datum: altijd direct naar t.originele_datum (niet tussentijds naar t.datum bij gecombineerde lokaal+DB wijziging)
-// - Tandwiel: kader (border) gelijk aan Boeken-in knoppen, alignSelf stretch zodat hoogte de knoppen-kolom volgt
-// - Vrije keuze maand/jaar: klapt uit naar rechts binnen het kader van het tandwiel (geen aparte rij meer)
-// - Jaarkeuze: > knop zichtbaarder, jaren beperkt tot beschikbareJaren (afgeleid uit periodes)
-// WIJZIGINGEN (31-03-2026 17:00):
-// - Datum: lokale tijdelijkeDatum state; PATCH pas bij Opslaan via handleBevestig
-// - Datum: vrije maandkeuze met tandwiel, maand-dropdown en jaar-navigatie
-// - onDatumWijzig signature: (nieuweDatum, origineelDatum: string | null)
+// WIJZIGINGEN (31-03-2026 20:00):
+// - datum_aanpassing i.p.v. originele_datum; t.datum is altijd de originele importdatum
+// - onDatumWijzig vereenvoudigd: (datum: string | null) → null wist datum_aanpassing
+// - tijdelijkeOrigineleDatum state verwijderd; undefined/null/string sentinel op tijdelijkeDatum
 // WIJZIGINGEN (31-03-2026 02:00):
 // - Woordfrequentie analyse: onAnalyseer prop, Analyseer/Verberg knop, tellers in omschrijving chips
 // WIJZIGINGEN (31-03-2026 00:00):
@@ -51,7 +45,7 @@ interface CategoriePopupProps {
   onBevestig: () => void;
   onSluiten: () => void;
   onAnalyseer: () => Promise<Record<string, number>>;
-  onDatumWijzig: (nieuweDatum: string, origineelDatum: string | null) => Promise<void>;
+  onDatumWijzig: (datum: string | null) => Promise<void>;
   onVoegRekeningToe: (iban: string, naam: string) => void;
   budgettenPotjes: BudgetPotjeNaam[];
   rekeningen: Rekening[];
@@ -85,8 +79,8 @@ export default function CategoriePopup({
   const [tooltipOmschr, setTooltipOmschr]   = useState(false);
   const [woordTellers, setWoordTellers]     = useState<Record<string, number> | null>(null);
   const [tellerLaden, setTellerLaden]       = useState(false);
-  const [tijdelijkeDatum, setTijdelijkeDatum]                   = useState<string | null>(null);
-  const [tijdelijkeOrigineleDatum, setTijdelijkeOrigineleDatum] = useState<string | null | undefined>(undefined);
+  // undefined = geen lokale wijziging, null = herstel (wis datum_aanpassing), string = nieuwe datum
+  const [tijdelijkeDatum, setTijdelijkeDatum] = useState<string | null | undefined>(undefined);
   const [vrijeKeuzeOpen, setVrijeKeuzeOpen]       = useState(false);
   const [vrijeKeuzeJaarOpen, setVrijeKeuzeJaarOpen] = useState(false);
   const [vrijeKeuzeJaar, setVrijeKeuzeJaar]       = useState<number>(new Date().getFullYear());
@@ -97,9 +91,9 @@ export default function CategoriePopup({
   const isEigenTegenrekening = !t.tegenrekening_iban_bban || rekeningen.some(r => r.iban === t.tegenrekening_iban_bban);
   const eigenRekening = rekeningen.find(r => r.iban === t.iban_bban);
 
-  const effectieveDatum       = tijdelijkeDatum ?? t.datum;
-  const effectieveOrigineleDatum = tijdelijkeOrigineleDatum !== undefined ? tijdelijkeOrigineleDatum : t.originele_datum;
-  const heeftDatumWijziging   = !!effectieveOrigineleDatum && effectieveDatum !== effectieveOrigineleDatum;
+  // Effectieve datum: lokale keuze heeft voorrang, anders DB-aanpassing, anders importdatum
+  const effectieveDatum     = tijdelijkeDatum !== undefined ? (tijdelijkeDatum ?? t.datum) : (t.datum_aanpassing ?? t.datum);
+  const heeftDatumWijziging = tijdelijkeDatum !== undefined ? tijdelijkeDatum !== null : !!t.datum_aanpassing;
 
   const maandStartDag = periodes.length > 0 ? parseInt(periodes[0].start.slice(8, 10), 10) : 1;
 
@@ -116,9 +110,6 @@ export default function CategoriePopup({
   const beschikbareJaren = [...new Set(periodes.map(p => p.jaar))].sort((a, b) => a - b);
 
   function stelDatumIn(nieuweDatum: string) {
-    if (!t.originele_datum && tijdelijkeDatum === null) {
-      setTijdelijkeOrigineleDatum(t.datum);
-    }
     setTijdelijkeDatum(nieuweDatum);
     setVrijeKeuzeOpen(false);
     setVrijeKeuzeJaarOpen(false);
@@ -131,8 +122,8 @@ export default function CategoriePopup({
   }
 
   async function handleBevestig() {
-    if (tijdelijkeDatum !== null) {
-      await onDatumWijzig(tijdelijkeDatum!, tijdelijkeOrigineleDatum !== undefined ? tijdelijkeOrigineleDatum : null);
+    if (tijdelijkeDatum !== undefined) {
+      await onDatumWijzig(tijdelijkeDatum); // null = wis datum_aanpassing, string = stel in
     }
     onBevestig();
   }
@@ -170,7 +161,7 @@ export default function CategoriePopup({
               {heeftDatumWijziging ? (
                 <>
                   <div style={{ display: 'flex', alignItems: 'center' }}>
-                    <span style={{ fontSize: 13, color: 'var(--text-dim)' }}>{formatDatum(effectieveOrigineleDatum)}</span>
+                    <span style={{ fontSize: 13, color: 'var(--text-dim)' }}>{formatDatum(t.datum)}</span>
                     <ArrowRight size={13} style={{ color: 'var(--text-dim)', margin: '0 6px' }} />
                     <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--accent)' }}>{formatDatum(effectieveDatum)}</span>
                   </div>
@@ -186,14 +177,12 @@ export default function CategoriePopup({
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flexShrink: 0 }}>
               {heeftDatumWijziging ? (
                 <button style={subtielKnop} onClick={() => {
-                  if (t.originele_datum) {
-                    // Herstel naar échte originele datum (DB), wis originele_datum
-                    setTijdelijkeDatum(t.originele_datum);
-                    setTijdelijkeOrigineleDatum(null);
+                  if (tijdelijkeDatum !== undefined && tijdelijkeDatum !== null) {
+                    // Undo lokale wijziging → terug naar DB-staat
+                    setTijdelijkeDatum(undefined);
                   } else {
-                    // Alleen lokale wijziging: reset naar ongewijzigd
+                    // Herstel importdatum → wis datum_aanpassing bij Opslaan
                     setTijdelijkeDatum(null);
-                    setTijdelijkeOrigineleDatum(undefined);
                   }
                 }}>
                   Herstel originele datum

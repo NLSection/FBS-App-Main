@@ -1,16 +1,11 @@
 // FILE: route.ts (api/transacties/[id])
 // AANGEMAAKT: 25-03-2026 17:30
 // VERSIE: 1
-// GEWIJZIGD: 31-03-2026 14:30
+// GEWIJZIGD: 31-03-2026 20:00
 //
-// WIJZIGINGEN (31-03-2026 14:30):
-// - PATCH: datum en originele_datum velden toegevoegd
-// WIJZIGINGEN (29-03-2026 05:30):
-// - PATCH: categorie (string) → altijd categorie+subcategorie tekstvelden opslaan + categorie_id lookup
-// WIJZIGINGEN (26-03-2026 19:00):
-// - PATCH uitgebreid met fout_geboekt
-// WIJZIGINGEN (26-03-2026 17:00):
-// - PATCH dynamisch gemaakt: ondersteunt nu categorie_id, status én handmatig_gecategoriseerd
+// WIJZIGINGEN (31-03-2026 20:00):
+// - PATCH schrijft naar transactie_aanpassingen (UPSERT) i.p.v. transacties
+// - datum_aanpassing vervangt datum + originele_datum
 
 import { NextRequest, NextResponse } from 'next/server';
 import getDb from '@/lib/db';
@@ -32,9 +27,15 @@ export async function PATCH(request: NextRequest, { params }: { params: Params }
   const setClauses: string[] = [];
   const vals: unknown[] = [];
 
+  if (body.datum_aanpassing !== undefined) {
+    setClauses.push('datum_aanpassing = ?');
+    vals.push(body.datum_aanpassing !== null ? String(body.datum_aanpassing) : null);
+  }
   if (body.categorie_id !== undefined) {
     setClauses.push('categorie_id = ?');
     vals.push(body.categorie_id !== null ? Number(body.categorie_id) : null);
+    setClauses.push('categorie = NULL');
+    setClauses.push('subcategorie = NULL');
   } else if (typeof body.categorie === 'string') {
     const subcat = typeof body.subcategorie === 'string' ? body.subcategorie : null;
     setClauses.push('categorie = ?');
@@ -44,10 +45,8 @@ export async function PATCH(request: NextRequest, { params }: { params: Params }
     const row = getDb()
       .prepare('SELECT id FROM categorieen WHERE categorie = ? AND subcategorie IS ? LIMIT 1')
       .get(body.categorie, subcat) as { id: number } | undefined;
-    if (row) {
-      setClauses.push('categorie_id = ?');
-      vals.push(row.id);
-    }
+    setClauses.push('categorie_id = ?');
+    vals.push(row ? row.id : null);
   }
   if (body.status !== undefined) {
     setClauses.push('status = ?');
@@ -65,25 +64,17 @@ export async function PATCH(request: NextRequest, { params }: { params: Params }
     setClauses.push('toelichting = ?');
     vals.push(body.toelichting !== null && body.toelichting !== '' ? String(body.toelichting) : null);
   }
-  if (body.datum !== undefined) {
-    setClauses.push('datum = ?');
-    vals.push(String(body.datum));
-  }
-  if (body.originele_datum !== undefined) {
-    setClauses.push('originele_datum = ?');
-    vals.push(body.originele_datum !== null ? String(body.originele_datum) : null);
-  }
 
   if (setClauses.length === 0) {
     return NextResponse.json({ error: 'Geen velden opgegeven.' }, { status: 400 });
   }
 
-  vals.push(numId);
-
   try {
-    getDb()
-      .prepare(`UPDATE transacties SET ${setClauses.join(', ')} WHERE id = ?`)
-      .run(...vals);
+    const db = getDb();
+    // Zorg dat de aanpassingen-rij bestaat (INSERT OR IGNORE gebruikt tabel-defaults)
+    db.prepare('INSERT OR IGNORE INTO transactie_aanpassingen (transactie_id) VALUES (?)').run(numId);
+    db.prepare(`UPDATE transactie_aanpassingen SET ${setClauses.join(', ')} WHERE transactie_id = ?`)
+      .run(...vals, numId);
     return NextResponse.json({ ok: true });
   } catch (err) {
     const bericht = err instanceof Error ? err.message : 'Databasefout.';

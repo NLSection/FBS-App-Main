@@ -148,7 +148,7 @@ const ALLE_KOLOMMEN = [
   { id: 'omschrijving_1',          label: 'Omschrijving',         standaard: true  },
   { id: 'rentedatum',              label: 'Rentedatum',           standaard: false },
   { id: 'saldo_na_trn',            label: 'Saldo na transactie',  standaard: false },
-  { id: 'originele_datum',         label: 'Originele datum',      standaard: false },
+  { id: 'datum_aanpassing',        label: 'Aangepaste datum',     standaard: false },
   { id: 'transactiereferentie',    label: 'Transactiereferentie', standaard: false },
   { id: 'omschrijving_2',          label: 'Omschrijving-2',       standaard: false },
   { id: 'omschrijving_3',          label: 'Omschrijving-3',       standaard: false },
@@ -598,12 +598,12 @@ const [patronModal, setPatronModal]                   = useState<PatronModalData
     setGeselecteerdJaar(jaar);
   }
 
-  async function handleDatumWijzig(nieuweDatum: string, origineelDatum: string | null) {
+  async function handleDatumWijzig(datum: string | null) {
     const tr = patronModal!.transactie;
     await fetch(`/api/transacties/${tr.id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ datum: nieuweDatum, originele_datum: origineelDatum }),
+      body: JSON.stringify({ datum_aanpassing: datum }),
     });
   }
 
@@ -967,11 +967,11 @@ const [patronModal, setPatronModal]                   = useState<PatronModalData
                       <tr onClick={() => openCategoriePopup(t)} style={{ cursor: 'pointer' }}>
                         {zk.has('datum') && (
                           <td
-                            style={{ color: t.originele_datum ? 'var(--accent)' : 'var(--text-dim)', fontSize: 12, whiteSpace: 'nowrap' }}
-                            title={t.originele_datum ? `Origineel geboekt op ${formatDatum(t.originele_datum)}` : undefined}
+                            style={{ color: t.datum_aanpassing ? 'var(--accent)' : 'var(--text-dim)', fontSize: 12, whiteSpace: 'nowrap' }}
+                            title={t.datum_aanpassing ? `Origineel geboekt op ${formatDatum(t.datum)}` : undefined}
                           >
-                            {t.originele_datum && <Calendar size={11} style={{ marginRight: 3, verticalAlign: 'middle' }} />}
-                            {formatDatum(t.datum)}
+                            {t.datum_aanpassing && <Calendar size={11} style={{ marginRight: 3, verticalAlign: 'middle' }} />}
+                            {formatDatum(t.datum_aanpassing ?? t.datum)}
                           </td>
                         )}
                         {zk.has('iban_bban') && (
@@ -1065,8 +1065,8 @@ const [patronModal, setPatronModal]                   = useState<PatronModalData
                         {zk.has('saldo_na_trn') && (
                           <td style={{ textAlign: 'right', fontSize: 12, color: 'var(--text-dim)' }}>{formatBedrag(t.saldo_na_trn)}</td>
                         )}
-                        {zk.has('originele_datum') && (
-                          <td style={{ color: t.originele_datum ? '#f76707' : 'var(--text-dim)', fontSize: 12 }}>{formatDatum(t.originele_datum)}</td>
+                        {zk.has('datum_aanpassing') && (
+                          <td style={{ color: t.datum_aanpassing ? '#f76707' : 'var(--text-dim)', fontSize: 12 }}>{formatDatum(t.datum_aanpassing)}</td>
                         )}
                         {zk.has('transactiereferentie') && (
                           <td style={{ color: 'var(--text-dim)', fontSize: 11 }}>{t.transactiereferentie ?? '—'}</td>

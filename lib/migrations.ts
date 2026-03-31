@@ -1,10 +1,10 @@
 // FILE: migrations.ts
 // AANGEMAAKT: 25-03-2026 10:00
 // VERSIE: 1
-// GEWIJZIGD: 30-03-2026 23:45
+// GEWIJZIGD: 31-03-2026 20:00
 //
-// WIJZIGINGEN (30-03-2026 23:45):
-// - Stap 11: "Aangepast" als beschermd systeemitem in budgetten_potjes (kleur #e8590c)
+// WIJZIGINGEN (31-03-2026 20:00):
+// - Stap 12: tabel transactie_aanpassingen aangemaakt; bestaande aanpassingen gemigreerd uit transacties
 // WIJZIGINGEN (30-03-2026 21:00):
 // - Stap 3: kolom toelichting TEXT toegevoegd aan categorieen
 // WIJZIGINGEN (30-03-2026 19:00):
@@ -270,6 +270,53 @@ export function runMigrations(): void {
     db.prepare("INSERT INTO budgetten_potjes (naam, rekening_id, beschermd, kleur) VALUES ('Aangepast', NULL, 1, '#e8590c')").run();
   } else {
     db.prepare("UPDATE budgetten_potjes SET beschermd = 1 WHERE naam = 'Aangepast'").run();
+  }
+
+  // ── Stap 12: transactie_aanpassingen tabel + migratie ───────────────────
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS transactie_aanpassingen (
+      transactie_id             INTEGER PRIMARY KEY REFERENCES transacties(id) ON DELETE CASCADE,
+      datum_aanpassing          TEXT,
+      categorie_id              INTEGER REFERENCES categorieen(id),
+      categorie                 TEXT,
+      subcategorie              TEXT,
+      status                    TEXT NOT NULL DEFAULT 'nieuw',
+      handmatig_gecategoriseerd INTEGER NOT NULL DEFAULT 0,
+      fout_geboekt              INTEGER NOT NULL DEFAULT 0,
+      toelichting               TEXT
+    )
+  `);
+
+  // Eenmalige datamisgratie: kopieer bestaande aanpassingen uit transacties
+  const aanpassingenLeeg = db.prepare('SELECT COUNT(*) AS n FROM transactie_aanpassingen').get() as { n: number };
+  if (aanpassingenLeeg.n === 0) {
+    db.transaction(() => {
+      db.prepare(`
+        INSERT OR IGNORE INTO transactie_aanpassingen
+          (transactie_id, datum_aanpassing, categorie_id, categorie, subcategorie,
+           status, handmatig_gecategoriseerd, fout_geboekt, toelichting)
+        SELECT
+          id,
+          CASE WHEN originele_datum IS NOT NULL THEN datum ELSE NULL END,
+          categorie_id,
+          categorie,
+          subcategorie,
+          COALESCE(status, 'nieuw'),
+          COALESCE(handmatig_gecategoriseerd, 0),
+          COALESCE(fout_geboekt, 0),
+          toelichting
+        FROM transacties
+        WHERE categorie_id IS NOT NULL
+           OR categorie IS NOT NULL
+           OR originele_datum IS NOT NULL
+           OR status = 'verwerkt'
+           OR COALESCE(handmatig_gecategoriseerd, 0) = 1
+           OR COALESCE(fout_geboekt, 0) = 1
+           OR toelichting IS NOT NULL
+      `).run();
+      // Herstel originele importdatum voor verplaatste transacties
+      db.prepare('UPDATE transacties SET datum = originele_datum WHERE originele_datum IS NOT NULL').run();
+    })();
   }
 
   // ── Stap 7: Cleanup pre-fix imports zonder volgnummer ────────────────────
