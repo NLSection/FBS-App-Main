@@ -1,11 +1,10 @@
 // FILE: CategoriePopup.tsx
 // AANGEMAAKT: 31-03-2026 00:00
 // VERSIE: 1
-// GEWIJZIGD: 31-03-2026 16:00
+// GEWIJZIGD: 31-03-2026 16:30
 //
-// WIJZIGINGEN (31-03-2026 16:00):
-// - Datum: "Boekdatum" label als sectiekop buiten kaartje (niet erin)
-// - Datum: guard originele_datum !== datum voorkomt dubbele weergave van zelfde waarde
+// WIJZIGINGEN (31-03-2026 16:30):
+// - Datum: horizontale weergave [originele_datum] → [huidige datum] op één regel
 // WIJZIGINGEN (31-03-2026 02:00):
 // - Woordfrequentie analyse: onAnalyseer prop, Analyseer/Verberg knop, tellers in omschrijving chips
 // WIJZIGINGEN (31-03-2026 00:00):
@@ -113,9 +112,12 @@ export default function CategoriePopup({
             <div>
               {t.originele_datum && t.originele_datum !== t.datum ? (
                 <>
-                  <div style={{ fontSize: 12, color: 'var(--text-dim)', textDecoration: 'line-through' }}>{formatDatum(t.originele_datum)}</div>
-                  <div style={{ fontSize: 15, color: 'var(--accent)', fontWeight: 600 }}>{formatDatum(t.datum)}</div>
-                  <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 2 }}>
+                  <div style={{ display: 'flex', alignItems: 'center' }}>
+                    <span style={{ fontSize: 13, color: 'var(--text-dim)' }}>{formatDatum(t.originele_datum)}</span>
+                    <ArrowRight size={13} style={{ color: 'var(--text-dim)', margin: '0 6px' }} />
+                    <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--accent)' }}>{formatDatum(t.datum)}</span>
+                  </div>
+                  <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 4 }}>
                     Geboekt in: {currentPeriodeIdx >= 0 ? `${MAAND_NAMEN[periodes[currentPeriodeIdx].maand - 1]} ${periodes[currentPeriodeIdx].jaar}` : '—'}
                   </div>
                 </>
