@@ -8,6 +8,7 @@
 // - Herstel originele datum: altijd direct naar t.originele_datum (niet tussentijds naar t.datum bij gecombineerde lokaal+DB wijziging)
 // - Tandwiel: kader (border) gelijk aan Boeken-in knoppen, alignSelf stretch zodat hoogte de knoppen-kolom volgt
 // - Vrije keuze maand/jaar: klapt uit naar rechts binnen het kader van het tandwiel (geen aparte rij meer)
+// - Jaarkeuze: > knop zichtbaarder, jaren beperkt tot beschikbareJaren (afgeleid uit periodes)
 // WIJZIGINGEN (31-03-2026 17:00):
 // - Datum: lokale tijdelijkeDatum state; PATCH pas bij Opslaan via handleBevestig
 // - Datum: vrije maandkeuze met tandwiel, maand-dropdown en jaar-navigatie
@@ -111,6 +112,8 @@ export default function CategoriePopup({
   const vorigePeriode = currentPeriodeIdx > 0
     ? periodes[currentPeriodeIdx - 1]
     : null;
+
+  const beschikbareJaren = [...new Set(periodes.map(p => p.jaar))].sort((a, b) => a - b);
 
   function stelDatumIn(nieuweDatum: string) {
     if (!t.originele_datum && tijdelijkeDatum === null) {
@@ -237,14 +240,28 @@ export default function CategoriePopup({
                           {MAAND_NAMEN.map((naam, i) => <option key={i} value={i + 1}>{naam}</option>)}
                         </select>
                         {!vrijeKeuzeJaarOpen ? (
-                          <ChevronRight size={12} style={{ color: 'var(--text-dim)', cursor: 'pointer', flexShrink: 0 }} onClick={() => setVrijeKeuzeJaarOpen(true)} />
-                        ) : (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 2, borderLeft: '1px solid var(--border)', paddingLeft: 4 }}>
-                            <ChevronLeft size={12} style={{ color: 'var(--text-dim)', cursor: 'pointer' }} onClick={() => setVrijeKeuzeJaar(y => y - 1)} />
-                            <span style={{ fontSize: 12, color: 'var(--text-dim)', minWidth: 30, textAlign: 'center' }}>{vrijeKeuzeJaar}</span>
-                            <ChevronRight size={12} style={{ color: 'var(--text-dim)', cursor: 'pointer' }} onClick={() => setVrijeKeuzeJaar(y => y + 1)} />
-                          </div>
-                        )}
+                          <button
+                            style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 3, color: 'var(--text-dim)', cursor: 'pointer', padding: '1px 5px', display: 'flex', alignItems: 'center', flexShrink: 0 }}
+                            onClick={() => {
+                              setVrijeKeuzeJaarOpen(true);
+                              const jaar = effectieveDatum ? parseInt(effectieveDatum.slice(0, 4), 10) : beschikbareJaren[beschikbareJaren.length - 1] ?? new Date().getFullYear();
+                              setVrijeKeuzeJaar(beschikbareJaren.includes(jaar) ? jaar : beschikbareJaren[beschikbareJaren.length - 1] ?? jaar);
+                            }}
+                          >
+                            <ChevronRight size={13} />
+                          </button>
+                        ) : (() => {
+                          const jaarIdx = beschikbareJaren.indexOf(vrijeKeuzeJaar);
+                          const prevJaar = jaarIdx > 0 ? beschikbareJaren[jaarIdx - 1] : null;
+                          const nextJaar = jaarIdx < beschikbareJaren.length - 1 ? beschikbareJaren[jaarIdx + 1] : null;
+                          return (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 2, borderLeft: '1px solid var(--border)', paddingLeft: 4 }}>
+                              <ChevronLeft size={12} style={{ color: prevJaar !== null ? 'var(--text-dim)' : 'var(--border)', cursor: prevJaar !== null ? 'pointer' : 'default' }} onClick={() => prevJaar !== null && setVrijeKeuzeJaar(prevJaar)} />
+                              <span style={{ fontSize: 12, color: 'var(--text-dim)', minWidth: 30, textAlign: 'center' }}>{vrijeKeuzeJaar}</span>
+                              <ChevronRight size={12} style={{ color: nextJaar !== null ? 'var(--text-dim)' : 'var(--border)', cursor: nextJaar !== null ? 'pointer' : 'default' }} onClick={() => nextJaar !== null && setVrijeKeuzeJaar(nextJaar)} />
+                            </div>
+                          );
+                        })()}
                         <ArrowRight size={13} style={{ color: 'var(--accent)', cursor: 'pointer', marginLeft: 2, flexShrink: 0 }} onClick={handleVrijeKeuzeBevestig} />
                       </div>
                     )}
