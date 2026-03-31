@@ -1,181 +1,293 @@
 // FILE: page.tsx
 // AANGEMAAKT: 25-03-2026 14:00
 // VERSIE: 1
-// GEWIJZIGD: 25-03-2026 18:30
+// GEWIJZIGD: 31-03-2026 21:00
 //
-// WIJZIGINGEN (25-03-2026 18:30):
-// - Initiële aanmaak: dashboard met samenvatting, vaste lasten nog te gaan en laatste transacties
-// - formatType gebruikt voor type-badge weergave in laatste transacties tabel
+// WIJZIGINGEN (31-03-2026 21:00):
+// - Volledige herbouw: periodenavigatie, BLS-tabel, categorieoverzicht
 
 'use client';
 
-import { useEffect, useState } from 'react';
-import { formatType } from '@/lib/formatType';
+import { useEffect, useState, useCallback } from 'react';
+import type { Periode } from '@/lib/maandperiodes';
 
-interface Samenvatting {
-  inkomsten: number;
-  uitgaven: number;
-  vrij_te_besteden: number;
+const MAAND_NAMEN = ['jan','feb','mrt','apr','mei','jun','jul','aug','sep','okt','nov','dec'];
+
+interface SubcategorieRegel {
+  naam: string;
+  bedrag: number;
 }
 
-interface VasteLastNogTeGaan {
-  id: number;
-  label: string;
-  verwachte_dag: number;
-  verwacht_bedrag: number | null;
-}
-
-interface Transactie {
-  id: number;
-  datum: string | null;
-  naam_tegenpartij: string | null;
-  bedrag: number | null;
-  type: string;
+interface BlsRegel {
+  categorie: string;
+  uitgegeven: number;
+  gecorrigeerd: number;
+  saldo: number;
+  subcategorieen: SubcategorieRegel[];
 }
 
 function formatBedrag(bedrag: number) {
   return new Intl.NumberFormat('nl-NL', { style: 'currency', currency: 'EUR' }).format(bedrag);
 }
 
-function formatDatum(datum: string | null) {
-  if (!datum) return '—';
-  return new Date(datum).toLocaleDateString('nl-NL', { day: '2-digit', month: 'short', year: 'numeric' });
-}
-
-function dagNaam(dag: number): string {
-  const now = new Date();
-  const datum = new Date(now.getFullYear(), now.getMonth(), dag);
-  return datum.toLocaleDateString('nl-NL', { day: '2-digit', month: 'short' });
-}
+const filterKnop = (actief: boolean): React.CSSProperties => ({
+  padding: '4px 10px', borderRadius: 6, fontSize: 12, cursor: 'pointer',
+  fontWeight: actief ? 600 : 400,
+  background: actief ? 'var(--accent)' : 'var(--bg-card)',
+  color: actief ? '#fff' : 'var(--text-dim)',
+  border: actief ? '1px solid transparent' : '1px solid var(--border)',
+});
 
 export default function DashboardPage() {
-  const [samenvatting, setSamenvatting]     = useState<Samenvatting | null>(null);
-  const [vasteLasten, setVasteLasten]       = useState<VasteLastNogTeGaan[]>([]);
-  const [transacties, setTransacties]       = useState<Transactie[]>([]);
-  const [laadtSamenvatting, setLaadtSamenvatting] = useState(true);
-  const [laadtVasteLasten, setLaadtVasteLasten]   = useState(true);
-  const [laadtTransacties, setLaadtTransacties]   = useState(true);
-  const [foutSamenvatting, setFoutSamenvatting]   = useState('');
-  const [foutVasteLasten, setFoutVasteLasten]     = useState('');
-  const [foutTransacties, setFoutTransacties]     = useState('');
+  const [periodes, setPeriodes]                   = useState<Periode[]>([]);
+  const [geselecteerdePeriode, setGeselecteerdePeriode] = useState<Periode | null>(null);
+  const [geselecteerdJaar, setGeselecteerdJaar]   = useState<number>(new Date().getFullYear());
+  const [cumulatief, setCumulatief]               = useState(false);
+  const [blsData, setBlsData]                     = useState<BlsRegel[]>([]);
+  const [uitgeklapt, setUitgeklapt]               = useState<Set<string>>(new Set());
+  const [laadtPeriodes, setLaadtPeriodes]         = useState(true);
+  const [laadtBls, setLaadtBls]                   = useState(false);
+  const [fout, setFout]                           = useState('');
 
+  // Periodes laden
   useEffect(() => {
-    fetch('/api/dashboard/samenvatting')
+    fetch('/api/periodes')
       .then(r => r.ok ? r.json() : Promise.reject(r.statusText))
-      .then(setSamenvatting)
-      .catch(() => setFoutSamenvatting('Kon samenvatting niet ophalen.'))
-      .finally(() => setLaadtSamenvatting(false));
+      .then((data: Periode[]) => {
+        setPeriodes(data);
+        const actueel = data.find(p => p.status === 'actueel') ?? data[data.length - 1] ?? null;
+        if (actueel) {
+          setGeselecteerdePeriode(actueel);
+          setGeselecteerdJaar(actueel.jaar);
+        }
+      })
+      .catch(() => setFout('Kon periodes niet ophalen.'))
+      .finally(() => setLaadtPeriodes(false));
+  }, []);
+
+  // BLS data laden
+  const laadBls = useCallback((periode: Periode | null, cum: boolean, allesPeriodes: Periode[]) => {
+    if (!periode) return;
+    setLaadtBls(true);
+    setFout('');
+
+    let datumVan = periode.start;
+    if (cum) {
+      const janPeriode = allesPeriodes.find(p => p.jaar === periode.jaar && p.maand === 1);
+      datumVan = janPeriode ? janPeriode.start : `${periode.jaar}-01-01`;
+    }
+    const datumTot = periode.eind;
+
+    fetch(`/api/dashboard/bls?datum_van=${datumVan}&datum_tot=${datumTot}`)
+      .then(r => r.ok ? r.json() : Promise.reject(r.statusText))
+      .then(setBlsData)
+      .catch(() => setFout('Kon BLS-data niet ophalen.'))
+      .finally(() => setLaadtBls(false));
   }, []);
 
   useEffect(() => {
-    fetch('/api/dashboard/vaste-lasten-nog-te-gaan')
-      .then(r => r.ok ? r.json() : Promise.reject(r.statusText))
-      .then(setVasteLasten)
-      .catch(() => setFoutVasteLasten('Kon vaste lasten niet ophalen.'))
-      .finally(() => setLaadtVasteLasten(false));
-  }, []);
+    if (geselecteerdePeriode) laadBls(geselecteerdePeriode, cumulatief, periodes);
+  }, [geselecteerdePeriode, cumulatief, periodes, laadBls]);
 
-  useEffect(() => {
-    fetch('/api/transacties')
-      .then(r => r.ok ? r.json() : Promise.reject(r.statusText))
-      .then((data) => setTransacties(Array.isArray(data) ? data.slice(0, 10) : []))
-      .catch(() => setFoutTransacties('Kon transacties niet ophalen.'))
-      .finally(() => setLaadtTransacties(false));
-  }, []);
+  function handleJaar(jaar: number) {
+    setGeselecteerdJaar(jaar);
+    const periodesVoorJaar = periodes.filter(p => p.jaar === jaar);
+    // Probeer zelfde maand te behouden
+    const huidigeMaand = geselecteerdePeriode?.maand;
+    const gevonden = huidigeMaand ? periodesVoorJaar.find(p => p.maand === huidigeMaand) : null;
+    const nieuw = gevonden
+      ?? periodesVoorJaar.filter(p => p.status !== 'toekomstig').slice(-1)[0]
+      ?? periodesVoorJaar[0]
+      ?? null;
+    setGeselecteerdePeriode(nieuw);
+  }
+
+  function toggleUitgeklapt(cat: string) {
+    setUitgeklapt(prev => {
+      const next = new Set(prev);
+      next.has(cat) ? next.delete(cat) : next.add(cat);
+      return next;
+    });
+  }
+
+  const jaarOpties = [...new Set(periodes.map(p => p.jaar))].sort((a, b) => a - b);
+  const periodesVoorJaar = periodes.filter(p => p.jaar === geselecteerdJaar);
+
+  const totaalUitgegeven   = blsData.reduce((s, r) => s + r.uitgegeven, 0);
+  const totaalGecorrigeerd = blsData.reduce((s, r) => s + r.gecorrigeerd, 0);
+  const totaalSaldo        = blsData.reduce((s, r) => s + r.saldo, 0);
+
+  const tdNum: React.CSSProperties = { textAlign: 'right', fontVariantNumeric: 'tabular-nums' };
+  const trHover: React.CSSProperties = { cursor: 'pointer' };
 
   return (
     <>
       <div className="page-header">
         <h1>Dashboard</h1>
-        <p>Financieel overzicht huidige maand</p>
+        {geselecteerdePeriode && (
+          <p>{cumulatief ? `jan t/m ` : ''}{MAAND_NAMEN[geselecteerdePeriode.maand - 1]} {geselecteerdePeriode.jaar}</p>
+        )}
       </div>
 
-      {/* ── Samenvatting ── */}
-      <p className="section-title">Deze maand</p>
-      {foutSamenvatting && <div className="error-melding">{foutSamenvatting}</div>}
-      {laadtSamenvatting ? (
-        <div className="loading">Samenvatting wordt geladen…</div>
-      ) : samenvatting && (
-        <div className="cards-grid">
-          <div className="summary-card">
-            <div className="card-label">Totale inkomsten</div>
-            <div className="card-bedrag positief">{formatBedrag(samenvatting.inkomsten)}</div>
+      {fout && <div className="error-melding">{fout}</div>}
+
+      {/* Periodenavigatie */}
+      {!laadtPeriodes && (
+        <div style={{ marginBottom: 20 }}>
+          {/* Jaarknoppen */}
+          <div style={{ display: 'flex', gap: 6, marginBottom: 8, flexWrap: 'wrap' }}>
+            {jaarOpties.map(jaar => (
+              <button key={jaar} onClick={() => handleJaar(jaar)} style={filterKnop(geselecteerdJaar === jaar)}>
+                {jaar}
+              </button>
+            ))}
           </div>
-          <div className="summary-card">
-            <div className="card-label">Totale uitgaven</div>
-            <div className="card-bedrag negatief">{formatBedrag(samenvatting.uitgaven)}</div>
-          </div>
-          <div className="summary-card">
-            <div className="card-label">Vrij te besteden</div>
-            <div className={`card-bedrag ${samenvatting.vrij_te_besteden >= 0 ? 'positief' : 'negatief'}`}>
-              {formatBedrag(samenvatting.vrij_te_besteden)}
+
+          {/* Maandknoppen + cumulatief toggle */}
+          <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(12, 1fr)', gap: 6, flex: 1, minWidth: 0 }}>
+              {periodesVoorJaar.map(p => {
+                const geselecteerd = geselecteerdePeriode?.jaar === p.jaar && geselecteerdePeriode?.maand === p.maand;
+                const toekomstig   = p.status === 'toekomstig';
+                const actueel      = p.status === 'actueel';
+
+                let bg: string, kleur: string, border: string, cursor: string, opacity: number;
+                if (geselecteerd) {
+                  bg = 'var(--accent)'; kleur = '#fff';
+                  border = '1px solid transparent'; cursor = 'pointer'; opacity = 1;
+                } else if (toekomstig) {
+                  bg = 'var(--bg-card)'; kleur = 'var(--text-dim)';
+                  border = '1px solid var(--border)'; cursor = 'not-allowed'; opacity = 0.3;
+                } else if (actueel) {
+                  bg = 'transparent'; kleur = 'var(--accent)';
+                  border = '1px solid var(--accent)'; cursor = 'pointer'; opacity = 1;
+                } else {
+                  bg = 'var(--bg-card)'; kleur = 'var(--text-dim)';
+                  border = '1px solid var(--border)'; cursor = 'pointer'; opacity = 1;
+                }
+
+                return (
+                  <button
+                    key={`${p.jaar}-${p.maand}`}
+                    onClick={() => !toekomstig && setGeselecteerdePeriode(p)}
+                    style={{
+                      padding: '4px 0', borderRadius: 6, fontSize: 12, textAlign: 'center',
+                      fontWeight: geselecteerd ? 600 : 400,
+                      background: bg, color: kleur, border, cursor, opacity,
+                      pointerEvents: toekomstig ? 'none' : 'auto',
+                    }}
+                  >
+                    {MAAND_NAMEN[p.maand - 1]}
+                  </button>
+                );
+              })}
             </div>
+            <button
+              onClick={() => setCumulatief(v => !v)}
+              style={{
+                ...filterKnop(cumulatief),
+                whiteSpace: 'nowrap',
+                flexShrink: 0,
+              }}
+            >
+              Cumulatief
+            </button>
           </div>
         </div>
       )}
 
-      {/* ── Vaste lasten nog te gaan ── */}
-      <p className="section-title">Vaste lasten nog te gaan</p>
-      {foutVasteLasten && <div className="error-melding">{foutVasteLasten}</div>}
-      {laadtVasteLasten ? (
-        <div className="loading">Vaste lasten worden geladen…</div>
+      {/* BLS Sectie */}
+      <p className="section-title">Balans Budgetten en Potjes</p>
+      {laadtBls ? (
+        <div className="loading">BLS-data wordt geladen…</div>
+      ) : blsData.length === 0 && !fout ? (
+        <div className="empty">Geen data voor deze periode.</div>
       ) : (
-        <div className="vaste-lasten-lijst" style={{ marginBottom: 36 }}>
-          {vasteLasten.length === 0 && !foutVasteLasten ? (
-            <div className="empty">Geen vaste lasten meer te gaan deze maand.</div>
-          ) : vasteLasten.map(vl => (
-            <div className="vaste-last-rij" key={vl.id}>
-              <span className="vaste-last-naam">{vl.label}</span>
-              <div className="vaste-last-meta">
-                <span className="vaste-last-datum">{dagNaam(vl.verwachte_dag)}</span>
-                <span className="vaste-last-bedrag">
-                  {vl.verwacht_bedrag !== null ? formatBedrag(-Math.abs(vl.verwacht_bedrag)) : '—'}
-                </span>
-              </div>
-            </div>
-          ))}
+        <div className="table-wrapper" style={{ marginBottom: 36 }}>
+          <table>
+            <thead>
+              <tr>
+                <th>Categorie</th>
+                <th style={{ textAlign: 'right' }}>Uitgegeven</th>
+                <th style={{ textAlign: 'right' }}>Gecorrigeerd</th>
+                <th style={{ textAlign: 'right' }}>Saldo</th>
+              </tr>
+            </thead>
+            <tbody>
+              {blsData.map(rij => {
+                const open = uitgeklapt.has(rij.categorie);
+                const saldoKleur = rij.saldo >= 0 ? 'var(--green)' : 'var(--red)';
+                return (
+                  <>
+                    <tr key={rij.categorie} onClick={() => toggleUitgeklapt(rij.categorie)} style={trHover}>
+                      <td style={{ userSelect: 'none' }}>
+                        <span style={{ marginRight: 6, fontSize: 10, color: 'var(--text-dim)' }}>{open ? '▼' : '▶'}</span>
+                        {rij.categorie}
+                      </td>
+                      <td style={tdNum}>{formatBedrag(rij.uitgegeven)}</td>
+                      <td style={tdNum}>{rij.gecorrigeerd !== 0 ? formatBedrag(rij.gecorrigeerd) : <span style={{ color: 'var(--text-dim)' }}>—</span>}</td>
+                      <td style={{ ...tdNum, color: saldoKleur, fontWeight: 600 }}>{formatBedrag(rij.saldo)}</td>
+                    </tr>
+                    {open && rij.subcategorieen.map(sub => (
+                      <tr key={`${rij.categorie}-${sub.naam}`} style={{ background: 'var(--bg-surface)' }}>
+                        <td style={{ paddingLeft: 28, color: 'var(--text-dim)', fontSize: 12 }}>{sub.naam}</td>
+                        <td style={{ ...tdNum, color: 'var(--text-dim)', fontSize: 12 }}>{formatBedrag(sub.bedrag)}</td>
+                        <td />
+                        <td />
+                      </tr>
+                    ))}
+                  </>
+                );
+              })}
+            </tbody>
+            <tfoot>
+              <tr style={{ fontWeight: 700, borderTop: '2px solid var(--border)' }}>
+                <td>Totaal</td>
+                <td style={tdNum}>{formatBedrag(totaalUitgegeven)}</td>
+                <td style={tdNum}>{formatBedrag(totaalGecorrigeerd)}</td>
+                <td style={{ ...tdNum, color: totaalSaldo >= 0 ? 'var(--green)' : 'var(--red)' }}>{formatBedrag(totaalSaldo)}</td>
+              </tr>
+            </tfoot>
+          </table>
         </div>
       )}
 
-      {/* ── Laatste transacties ── */}
-      <p className="section-title">Laatste transacties</p>
-      {foutTransacties && <div className="error-melding">{foutTransacties}</div>}
-      {laadtTransacties ? (
-        <div className="loading">Transacties worden geladen…</div>
+      {/* Categorieoverzicht Sectie */}
+      <p className="section-title">Categorieoverzicht</p>
+      {laadtBls ? (
+        <div className="loading">Categorieoverzicht wordt geladen…</div>
+      ) : blsData.length === 0 && !fout ? (
+        <div className="empty">Geen data voor deze periode.</div>
       ) : (
         <div className="table-wrapper">
-          {transacties.length === 0 && !foutTransacties ? (
-            <div className="empty">Geen transacties gevonden.</div>
-          ) : (
-            <table>
-              <thead>
-                <tr>
-                  <th>Datum</th>
-                  <th>Naam tegenpartij</th>
-                  <th>Type</th>
-                  <th style={{ textAlign: 'right' }}>Bedrag</th>
-                </tr>
-              </thead>
-              <tbody>
-                {transacties.map(t => (
-                  <tr key={t.id}>
-                    <td>{formatDatum(t.datum)}</td>
-                    <td>{t.naam_tegenpartij ?? <span style={{ color: 'var(--text-dim)' }}>—</span>}</td>
-                    <td>
-                      <span className="badge">{formatType(t.type)}</span>
-                    </td>
-                    <td style={{ textAlign: 'right' }}>
-                      {t.bedrag !== null ? (
-                        <span className={t.bedrag >= 0 ? 'bedrag-positief' : 'bedrag-negatief'}>
-                          {formatBedrag(t.bedrag)}
-                        </span>
-                      ) : <span style={{ color: 'var(--text-dim)' }}>—</span>}
+          <table>
+            <thead>
+              <tr>
+                <th>Categorie / Subcategorie</th>
+                <th style={{ textAlign: 'right' }}>Bedrag</th>
+              </tr>
+            </thead>
+            <tbody>
+              {blsData.map(rij => (
+                <>
+                  <tr key={rij.categorie} style={{ background: 'var(--bg-surface)' }}>
+                    <td style={{ fontWeight: 700 }}>{rij.categorie}</td>
+                    <td style={{ ...tdNum, fontWeight: 700, color: rij.saldo >= 0 ? 'var(--green)' : 'var(--red)' }}>
+                      {formatBedrag(rij.saldo)}
                     </td>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
+                  {rij.subcategorieen.map(sub => (
+                    <tr key={`cat-${rij.categorie}-${sub.naam}`}>
+                      <td style={{ paddingLeft: 24, fontSize: 13, color: 'var(--text-dim)' }}>{sub.naam}</td>
+                      <td style={{ ...tdNum, fontSize: 13, color: sub.bedrag >= 0 ? 'var(--green)' : 'var(--red)' }}>
+                        {formatBedrag(sub.bedrag)}
+                      </td>
+                    </tr>
+                  ))}
+                </>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
     </>
