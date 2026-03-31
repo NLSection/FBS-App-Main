@@ -115,7 +115,7 @@ import { formatType } from '@/lib/formatType';
 import CategoriePopup from '@/features/shared/components/CategoriePopup';
 import type { PatronModalData } from '@/features/shared/components/CategoriePopup';
 
-interface BudgetPotjeNaam { id: number; naam: string; kleur: string | null; rekening_id: number | null; }
+interface BudgetPotjeNaam { id: number; naam: string; kleur: string | null; rekening_ids: number[]; }
 interface Rekening { id: number; naam: string; iban: string; beheerd: number; }
 
 interface EditingCell {
@@ -523,7 +523,7 @@ const [patronModal, setPatronModal]                   = useState<PatronModalData
         await fetch('/api/budgetten-potjes', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ naam: nieuweCat.trim(), rekening_id: nieuweCatRekeningId ? parseInt(nieuweCatRekeningId, 10) : null }),
+          body: JSON.stringify({ naam: nieuweCat.trim(), rekening_ids: nieuweCatRekeningId ? [parseInt(nieuweCatRekeningId, 10)] : [] }),
         });
       }
       await fetch(`/api/transacties/${t.id}`, {
@@ -541,7 +541,7 @@ const [patronModal, setPatronModal]                   = useState<PatronModalData
       await fetch('/api/budgetten-potjes', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ naam: nieuweCat.trim(), rekening_id: nieuweCatRekeningId ? parseInt(nieuweCatRekeningId, 10) : null }),
+        body: JSON.stringify({ naam: nieuweCat.trim(), rekening_ids: nieuweCatRekeningId ? [parseInt(nieuweCatRekeningId, 10)] : [] }),
       });
       const regelId = await vindMatchendeRegelId(t, gekozenNaamChip || null, gekozenWoord || null);
       if (regelId !== null) {

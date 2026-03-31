@@ -162,7 +162,10 @@ export default function BudgettenPotjesBeheer() {
               </tr>
             </thead>
             <tbody>
-              {items.map(item => (
+              {[...items].sort((a, b) => {
+                if (a.beschermd !== b.beschermd) return b.beschermd - a.beschermd;
+                return a.naam.localeCompare(b.naam, 'nl');
+              }).map(item => (
                 <Fragment key={item.id}>
                   <tr>
                     <td style={{ color: 'var(--text-h)', fontWeight: 500 }}>

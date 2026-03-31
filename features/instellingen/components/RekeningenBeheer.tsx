@@ -240,7 +240,7 @@ export default function RekeningenBeheer() {
               </tr>
             </thead>
             <tbody>
-              {rekeningen.map(r => (
+              {[...rekeningen].sort((a, b) => a.naam.localeCompare(b.naam, 'nl')).map(r => (
                 <Fragment key={r.id}>
                   <tr>
                     <td style={{ fontFamily: 'monospace', fontSize: 12 }}>{r.iban}</td>

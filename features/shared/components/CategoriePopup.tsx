@@ -36,7 +36,7 @@ export interface PatronModalData {
   scope: 'enkel' | 'alle';
 }
 
-interface BudgetPotjeNaam { id: number; naam: string; kleur: string | null; rekening_id: number | null; }
+interface BudgetPotjeNaam { id: number; naam: string; kleur: string | null; rekening_ids: number[]; }
 interface Rekening { id: number; naam: string; iban: string; beheerd: number; }
 
 interface CategoriePopupProps {
@@ -248,7 +248,7 @@ export default function CategoriePopup({
                             {beschikbareJaren.map(j => <option key={j} value={j}>{j}</option>)}
                           </select>
                         )}
-                        <ArrowRight size={13} style={{ color: 'var(--accent)', cursor: 'pointer', marginLeft: 2, flexShrink: 0 }} onClick={handleVrijeKeuzeBevestig} />
+                        <button onClick={handleVrijeKeuzeBevestig} style={{ fontSize: 11, background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 4, padding: '2px 8px', cursor: 'pointer', flexShrink: 0, fontWeight: 600 }}>OK</button>
                       </div>
                     )}
                   </div>
