@@ -1,11 +1,11 @@
 // FILE: CategoriePopup.tsx
 // AANGEMAAKT: 31-03-2026 00:00
 // VERSIE: 1
-// GEWIJZIGD: 31-03-2026 15:30
+// GEWIJZIGD: 31-03-2026 16:00
 //
-// WIJZIGINGEN (31-03-2026 15:30):
-// - Datum: kaartje layout, label in kaartje, subtiele knoppen, herstel-knop als originele_datum gevuld
-// - onDatumWijzig: boolean | null (null = wis originele_datum)
+// WIJZIGINGEN (31-03-2026 16:00):
+// - Datum: "Boekdatum" label als sectiekop buiten kaartje (niet erin)
+// - Datum: guard originele_datum !== datum voorkomt dubbele weergave van zelfde waarde
 // WIJZIGINGEN (31-03-2026 02:00):
 // - Woordfrequentie analyse: onAnalyseer prop, Analyseer/Verberg knop, tellers in omschrijving chips
 // WIJZIGINGEN (31-03-2026 00:00):
@@ -108,12 +108,10 @@ export default function CategoriePopup({
 
         {/* Sectie 1: Datum */}
         <div style={{ marginBottom: 16, paddingBottom: 16, borderBottom: '1px solid var(--border)' }}>
+          <div style={sectionLabel}>Boekdatum</div>
           <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 6, padding: '10px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
             <div>
-              <div style={{ fontSize: 10, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>Boekdatum</div>
-              {!t.originele_datum ? (
-                <div style={{ fontSize: 15, color: 'var(--text-h)', fontWeight: 600 }}>{formatDatum(t.datum)}</div>
-              ) : (
+              {t.originele_datum && t.originele_datum !== t.datum ? (
                 <>
                   <div style={{ fontSize: 12, color: 'var(--text-dim)', textDecoration: 'line-through' }}>{formatDatum(t.originele_datum)}</div>
                   <div style={{ fontSize: 15, color: 'var(--accent)', fontWeight: 600 }}>{formatDatum(t.datum)}</div>
@@ -121,10 +119,16 @@ export default function CategoriePopup({
                     Geboekt in: {currentPeriodeIdx >= 0 ? `${MAAND_NAMEN[periodes[currentPeriodeIdx].maand - 1]} ${periodes[currentPeriodeIdx].jaar}` : '—'}
                   </div>
                 </>
+              ) : (
+                <div style={{ fontSize: 15, color: 'var(--text-h)', fontWeight: 600 }}>{formatDatum(t.datum)}</div>
               )}
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flexShrink: 0 }}>
-              {!t.originele_datum ? (
+              {t.originele_datum && t.originele_datum !== t.datum ? (
+                <button style={subtielKnop} onClick={() => onDatumWijzig(t.originele_datum!, null)}>
+                  Herstel originele datum
+                </button>
+              ) : (
                 <>
                   {volgendePeriode && (
                     <button style={subtielKnop} onClick={() => onDatumWijzig(volgendePeriode.start, false)}>
@@ -139,10 +143,6 @@ export default function CategoriePopup({
                     </button>
                   )}
                 </>
-              ) : (
-                <button style={subtielKnop} onClick={() => onDatumWijzig(t.originele_datum!, null)}>
-                  Herstel originele datum
-                </button>
               )}
             </div>
           </div>
