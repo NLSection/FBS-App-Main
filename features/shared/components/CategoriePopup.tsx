@@ -7,6 +7,7 @@
 // - Herstel originele datum: undefined-sentinel voor tijdelijkeOrigineleDatum zodat null ?? t.originele_datum niet meer vals positief is
 // - Herstel originele datum: altijd direct naar t.originele_datum (niet tussentijds naar t.datum bij gecombineerde lokaal+DB wijziging)
 // - Tandwiel: kader (border) gelijk aan Boeken-in knoppen, alignSelf stretch zodat hoogte de knoppen-kolom volgt
+// - Vrije keuze maand/jaar: klapt uit naar rechts binnen het kader van het tandwiel (geen aparte rij meer)
 // WIJZIGINGEN (31-03-2026 17:00):
 // - Datum: lokale tijdelijkeDatum state; PATCH pas bij Opslaan via handleBevestig
 // - Datum: vrije maandkeuze met tandwiel, maand-dropdown en jaar-navigatie
@@ -195,56 +196,60 @@ export default function CategoriePopup({
                   Herstel originele datum
                 </button>
               ) : (
-                <>
-                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 6 }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                      {volgendePeriode && (
-                        <button style={subtielKnop} onClick={() => stelDatumIn(volgendePeriode.start)}>
-                          Boeken in {MAAND_NAMEN[volgendePeriode.maand - 1]} {volgendePeriode.jaar}
-                          <ChevronsRight size={13} />
-                        </button>
-                      )}
-                      {vorigePeriode && (
-                        <button style={subtielKnop} onClick={() => stelDatumIn(vorigePeriode.eind)}>
-                          <ChevronsLeft size={13} />
-                          Boeken in {MAAND_NAMEN[vorigePeriode.maand - 1]} {vorigePeriode.jaar}
-                        </button>
-                      )}
-                    </div>
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 6 }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                    {volgendePeriode && (
+                      <button style={subtielKnop} onClick={() => stelDatumIn(volgendePeriode.start)}>
+                        Boeken in {MAAND_NAMEN[volgendePeriode.maand - 1]} {volgendePeriode.jaar}
+                        <ChevronsRight size={13} />
+                      </button>
+                    )}
+                    {vorigePeriode && (
+                      <button style={subtielKnop} onClick={() => stelDatumIn(vorigePeriode.eind)}>
+                        <ChevronsLeft size={13} />
+                        Boeken in {MAAND_NAMEN[vorigePeriode.maand - 1]} {vorigePeriode.jaar}
+                      </button>
+                    )}
+                  </div>
+                  {/* Tandwiel + uitklapbare maand/jaar keuze in één uitbreidend kader */}
+                  <div style={{
+                    alignSelf: 'stretch', border: '1px solid var(--border)', borderRadius: 4,
+                    display: 'flex', alignItems: 'stretch', flexShrink: 0, overflow: 'hidden',
+                  }}>
                     <div
                       style={{
-                        alignSelf: 'stretch', border: '1px solid var(--border)', borderRadius: 4,
-                        display: 'flex', alignItems: 'center', padding: '0 5px', cursor: 'pointer',
+                        display: 'flex', alignItems: 'center', padding: '0 5px', cursor: 'pointer', flexShrink: 0,
                         color: vrijeKeuzeOpen ? 'var(--accent)' : 'var(--text-dim)',
-                        background: vrijeKeuzeOpen ? 'var(--accent-dim)' : 'none', flexShrink: 0,
+                        background: vrijeKeuzeOpen ? 'var(--accent-dim)' : 'none',
+                        borderRight: vrijeKeuzeOpen ? '1px solid var(--border)' : 'none',
                       }}
                       onClick={() => { setVrijeKeuzeOpen(v => !v); setVrijeKeuzeJaarOpen(false); }}
                     >
                       <Settings size={14} />
                     </div>
+                    {vrijeKeuzeOpen && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '0 6px' }}>
+                        <select
+                          value={vrijeKeuzeMaand}
+                          onChange={e => setVrijeKeuzeMaand(Number(e.target.value))}
+                          style={{ fontSize: 11, background: 'var(--bg-base)', border: '1px solid var(--border)', borderRadius: 4, color: 'var(--text-h)', padding: '2px 4px' }}
+                        >
+                          {MAAND_NAMEN.map((naam, i) => <option key={i} value={i + 1}>{naam}</option>)}
+                        </select>
+                        {!vrijeKeuzeJaarOpen ? (
+                          <ChevronRight size={12} style={{ color: 'var(--text-dim)', cursor: 'pointer', flexShrink: 0 }} onClick={() => setVrijeKeuzeJaarOpen(true)} />
+                        ) : (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 2, borderLeft: '1px solid var(--border)', paddingLeft: 4 }}>
+                            <ChevronLeft size={12} style={{ color: 'var(--text-dim)', cursor: 'pointer' }} onClick={() => setVrijeKeuzeJaar(y => y - 1)} />
+                            <span style={{ fontSize: 12, color: 'var(--text-dim)', minWidth: 30, textAlign: 'center' }}>{vrijeKeuzeJaar}</span>
+                            <ChevronRight size={12} style={{ color: 'var(--text-dim)', cursor: 'pointer' }} onClick={() => setVrijeKeuzeJaar(y => y + 1)} />
+                          </div>
+                        )}
+                        <ArrowRight size={13} style={{ color: 'var(--accent)', cursor: 'pointer', marginLeft: 2, flexShrink: 0 }} onClick={handleVrijeKeuzeBevestig} />
+                      </div>
+                    )}
                   </div>
-                  {vrijeKeuzeOpen && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                      <select
-                        value={vrijeKeuzeMaand}
-                        onChange={e => setVrijeKeuzeMaand(Number(e.target.value))}
-                        style={{ fontSize: 11, background: 'var(--bg-base)', border: '1px solid var(--border)', borderRadius: 4, color: 'var(--text-h)', padding: '2px 4px' }}
-                      >
-                        {MAAND_NAMEN.map((naam, i) => <option key={i} value={i + 1}>{naam}</option>)}
-                      </select>
-                      {!vrijeKeuzeJaarOpen ? (
-                        <ChevronRight size={12} style={{ color: 'var(--text-dim)', cursor: 'pointer', flexShrink: 0 }} onClick={() => setVrijeKeuzeJaarOpen(true)} />
-                      ) : (
-                        <>
-                          <ChevronLeft size={12} style={{ color: 'var(--text-dim)', cursor: 'pointer', flexShrink: 0 }} onClick={() => setVrijeKeuzeJaar(y => y - 1)} />
-                          <span style={{ fontSize: 12, color: 'var(--text-dim)', minWidth: 30, textAlign: 'center' }}>{vrijeKeuzeJaar}</span>
-                          <ChevronRight size={12} style={{ color: 'var(--text-dim)', cursor: 'pointer', flexShrink: 0 }} onClick={() => setVrijeKeuzeJaar(y => y + 1)} />
-                        </>
-                      )}
-                      <ArrowRight size={13} style={{ color: 'var(--accent)', cursor: 'pointer', marginLeft: 2, flexShrink: 0 }} onClick={handleVrijeKeuzeBevestig} />
-                    </div>
-                  )}
-                </>
+                </div>
               )}
             </div>
           </div>
