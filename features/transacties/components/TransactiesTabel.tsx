@@ -502,7 +502,7 @@ const [patronModal, setPatronModal]                   = useState<PatronModalData
     // Geen categorie
     if (nieuweCat === '__geen__') {
       if (scope === 'alle') {
-        const regelId = await vindMatchendeRegelId(t, gekozenNaamChip || null, gekozenWoord || null);
+        const regelId = t.categorie_id ?? await vindMatchendeRegelId(t, gekozenNaamChip || null, gekozenWoord || null);
         if (regelId !== null) await fetch(`/api/categorieen/${regelId}`, { method: 'DELETE' });
         await triggerHermatch();
       } else {
@@ -562,6 +562,22 @@ const [patronModal, setPatronModal]                   = useState<PatronModalData
       } else {
         finalRegelId = await maakCategorieregel(t, nieuweCat.trim(), subcatWaarde, gekozenWoord || null, true, gekozenNaamChip || null, gekozenNaamLabel, toelichting || null);
       }
+    } else if (t.categorie_id !== null) {
+      // Bestaande categorieregel updaten via PUT — voorkomt dat de oude regel blijft bestaan en na hermatch wint
+      await fetch(`/api/categorieen/${t.categorie_id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          categorie:          nieuweCat,
+          subcategorie:       subcatWaarde || null,
+          toelichting:        toelichting || null,
+          naam_origineel:     gekozenNaamLabel,
+          naam_zoekwoord_raw: gekozenNaamChip || null,
+          type:               t.type,
+          ...(t.tegenrekening_iban_bban ? { iban: t.tegenrekening_iban_bban } : {}),
+        }),
+      });
+      finalRegelId = t.categorie_id;
     } else {
       finalRegelId = await maakCategorieregel(t, nieuweCat, subcatWaarde, gekozenWoord || null, true, gekozenNaamChip || null, gekozenNaamLabel, toelichting || null);
     }
