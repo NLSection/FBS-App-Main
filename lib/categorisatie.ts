@@ -1,8 +1,10 @@
 // FILE: categorisatie.ts
 // AANGEMAAKT: 25-03-2026 17:30
 // VERSIE: 1
-// GEWIJZIGD: 01-04-2026 00:15
+// GEWIJZIGD: 01-04-2026 10:00
 //
+// WIJZIGINGEN (01-04-2026 10:00):
+// - matchCategorie: IBAN+naam_zoekwoord nieuw als P2; naam_zoekwoord blijft P3; IBAN-only gedegradeerd naar P4
 // WIJZIGINGEN (01-04-2026 00:15):
 // - categoriseerOmboeking: vroegste positie in omschrijving bepaalt match ipv volgorde potjes-array
 // WIJZIGINGEN (31-03-2026 23:45):
@@ -84,11 +86,17 @@ export function matchCategorie(
     )[0];
   }
 
-  // Prioriteit 2: IBAN alleen (geen omschrijving_zoekwoord in de regel)
+  // Prioriteit 2: IBAN + naam_zoekwoord (beide matchen)
   const p2 = van.filter(r =>
-    r.iban && !r.omschrijving_zoekwoord && r.iban === tegenIban
+    r.iban && r.naam_zoekwoord &&
+    r.iban === tegenIban &&
+    naamSchoon.includes(r.naam_zoekwoord)
   );
-  if (p2.length > 0) return p2[0];
+  if (p2.length > 0) {
+    return p2.sort((a, b) =>
+      (b.naam_zoekwoord?.length ?? 0) - (a.naam_zoekwoord?.length ?? 0)
+    )[0];
+  }
 
   // Prioriteit 3: naam_zoekwoord substring (geen iban in de regel) — langste match wint
   const p3 = van.filter(r =>
@@ -100,6 +108,12 @@ export function matchCategorie(
       (b.naam_zoekwoord?.length ?? 0) - (a.naam_zoekwoord?.length ?? 0)
     )[0];
   }
+
+  // Prioriteit 4: IBAN alleen — laatste redmiddel
+  const p4 = van.filter(r =>
+    r.iban && !r.naam_zoekwoord && !r.omschrijving_zoekwoord && r.iban === tegenIban
+  );
+  if (p4.length > 0) return p4[0];
 
   return null;
 }
