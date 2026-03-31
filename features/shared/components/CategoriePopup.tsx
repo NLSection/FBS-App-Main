@@ -1,8 +1,10 @@
 // FILE: CategoriePopup.tsx
 // AANGEMAAKT: 31-03-2026 00:00
 // VERSIE: 1
-// GEWIJZIGD: 31-03-2026 17:00
+// GEWIJZIGD: 31-03-2026 18:00
 //
+// WIJZIGINGEN (31-03-2026 18:00):
+// - Herstel originele datum: undefined-sentinel voor tijdelijkeOrigineleDatum zodat null ?? t.originele_datum niet meer vals positief is
 // WIJZIGINGEN (31-03-2026 17:00):
 // - Datum: lokale tijdelijkeDatum state; PATCH pas bij Opslaan via handleBevestig
 // - Datum: vrije maandkeuze met tandwiel, maand-dropdown en jaar-navigatie
@@ -80,7 +82,7 @@ export default function CategoriePopup({
   const [woordTellers, setWoordTellers]     = useState<Record<string, number> | null>(null);
   const [tellerLaden, setTellerLaden]       = useState(false);
   const [tijdelijkeDatum, setTijdelijkeDatum]                   = useState<string | null>(null);
-  const [tijdelijkeOrigineleDatum, setTijdelijkeOrigineleDatum] = useState<string | null>(null);
+  const [tijdelijkeOrigineleDatum, setTijdelijkeOrigineleDatum] = useState<string | null | undefined>(undefined);
   const [vrijeKeuzeOpen, setVrijeKeuzeOpen]       = useState(false);
   const [vrijeKeuzeJaarOpen, setVrijeKeuzeJaarOpen] = useState(false);
   const [vrijeKeuzeJaar, setVrijeKeuzeJaar]       = useState<number>(new Date().getFullYear());
@@ -92,7 +94,7 @@ export default function CategoriePopup({
   const eigenRekening = rekeningen.find(r => r.iban === t.iban_bban);
 
   const effectieveDatum       = tijdelijkeDatum ?? t.datum;
-  const effectieveOrigineleDatum = tijdelijkeOrigineleDatum ?? t.originele_datum;
+  const effectieveOrigineleDatum = tijdelijkeOrigineleDatum !== undefined ? tijdelijkeOrigineleDatum : t.originele_datum;
   const heeftDatumWijziging   = !!effectieveOrigineleDatum && effectieveDatum !== effectieveOrigineleDatum;
 
   const maandStartDag = periodes.length > 0 ? parseInt(periodes[0].start.slice(8, 10), 10) : 1;
@@ -123,8 +125,8 @@ export default function CategoriePopup({
   }
 
   async function handleBevestig() {
-    if (tijdelijkeDatum) {
-      await onDatumWijzig(tijdelijkeDatum, tijdelijkeOrigineleDatum);
+    if (tijdelijkeDatum !== null) {
+      await onDatumWijzig(tijdelijkeDatum!, tijdelijkeOrigineleDatum !== undefined ? tijdelijkeOrigineleDatum : null);
     }
     onBevestig();
   }
@@ -177,7 +179,17 @@ export default function CategoriePopup({
             {/* Rechts: knoppen */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flexShrink: 0 }}>
               {heeftDatumWijziging ? (
-                <button style={subtielKnop} onClick={() => { setTijdelijkeDatum(null); setTijdelijkeOrigineleDatum(null); }}>
+                <button style={subtielKnop} onClick={() => {
+                  if (tijdelijkeDatum !== null) {
+                    // Lokale wijziging in deze sessie: reset naar ongewijzigd
+                    setTijdelijkeDatum(null);
+                    setTijdelijkeOrigineleDatum(undefined);
+                  } else {
+                    // DB-opgeslagen originele_datum: herstel naar origineel, wis originele_datum
+                    setTijdelijkeDatum(t.originele_datum);
+                    setTijdelijkeOrigineleDatum(null);
+                  }
+                }}>
                   Herstel originele datum
                 </button>
               ) : (
