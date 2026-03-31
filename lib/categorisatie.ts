@@ -1,8 +1,10 @@
 // FILE: categorisatie.ts
 // AANGEMAAKT: 25-03-2026 17:30
 // VERSIE: 1
-// GEWIJZIGD: 31-03-2026 23:45
+// GEWIJZIGD: 01-04-2026 00:15
 //
+// WIJZIGINGEN (01-04-2026 00:15):
+// - categoriseerOmboeking: vroegste positie in omschrijving bepaalt match ipv volgorde potjes-array
 // WIJZIGINGEN (31-03-2026 23:45):
 // - deleteCategorieRegel: FK in transactie_aanpassingen genulld voor delete (voorkomt FK constraint fout)
 // WIJZIGINGEN (31-03-2026 20:00):
@@ -111,9 +113,15 @@ export function categoriseerOmboeking(
   const omschr = [t.omschrijving_1, t.omschrijving_2, t.omschrijving_3]
     .filter(Boolean).join(' ').toLowerCase();
 
-  const gevonden = budgettenPotjes.find(bp =>
-    omschr.includes(bp.naam.toLowerCase())
-  );
+  let gevonden: { naam: string } | undefined;
+  let vroegstePositie = Infinity;
+  for (const bp of budgettenPotjes) {
+    const pos = omschr.indexOf(bp.naam.toLowerCase());
+    if (pos !== -1 && pos < vroegstePositie) {
+      vroegstePositie = pos;
+      gevonden = bp;
+    }
+  }
 
   return {
     categorie:    'Omboekingen',
