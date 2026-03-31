@@ -1,12 +1,12 @@
 // FILE: CategoriePopup.tsx
 // AANGEMAAKT: 31-03-2026 00:00
 // VERSIE: 1
-// GEWIJZIGD: 31-03-2026 14:30
+// GEWIJZIGD: 31-03-2026 15:00
 //
-// WIJZIGINGEN (31-03-2026 14:30):
-// - Sectie 1: datum met knoppen voor vorige/volgende periode (ChevronsLeft/Right)
-// - Sectie 2: rekeningen tegenover elkaar met ArrowRight/ArrowLeftRight en + knop voor nieuwe rekening
-// - Props toegevoegd: periodes, onDatumWijzig, onVoegRekeningToe
+// WIJZIGINGEN (31-03-2026 15:00):
+// - Datum sectie: kop "BOEKDATUM", outline knopstijl, geen tijd in datumweergave
+// - Rekeningen sectie: kop "REKENINGEN", alleen tonen als tegenrekening gevuld, kaartjes layout
+// - ArrowLeft toegevoegd voor normaal-bij richting
 // WIJZIGINGEN (31-03-2026 02:00):
 // - Woordfrequentie analyse: onAnalyseer prop, Analyseer/Verberg knop, tellers in omschrijving chips
 // WIJZIGINGEN (31-03-2026 00:00):
@@ -16,7 +16,7 @@
 'use client';
 
 import { useState } from 'react';
-import { ChevronsLeft, ChevronsRight, ArrowRight, ArrowLeftRight } from 'lucide-react';
+import { ChevronsLeft, ChevronsRight, ArrowLeft, ArrowRight, ArrowLeftRight } from 'lucide-react';
 import type { TransactieMetCategorie } from '@/lib/transacties';
 import type { Periode } from '@/lib/maandperiodes';
 
@@ -71,6 +71,7 @@ export default function CategoriePopup({
   const t = patronModal.transactie;
   const isOmboeking = t.type === 'omboeking-af' || t.type === 'omboeking-bij';
   const isEigenTegenrekening = !t.tegenrekening_iban_bban || rekeningen.some(r => r.iban === t.tegenrekening_iban_bban);
+  const eigenRekening = rekeningen.find(r => r.iban === t.iban_bban);
 
   const currentPeriodeIdx = t.datum
     ? periodes.findIndex(p => t.datum! >= p.start && t.datum! <= p.eind)
@@ -82,10 +83,16 @@ export default function CategoriePopup({
     ? periodes[currentPeriodeIdx - 1]
     : null;
 
+  const sectionLabel: React.CSSProperties = {
+    fontSize: 11, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 8,
+  };
   const knopStijl: React.CSSProperties = {
-    display: 'flex', alignItems: 'center', gap: 6,
-    background: 'var(--accent)', border: 'none', color: '#fff',
-    borderRadius: 4, padding: '4px 10px', fontSize: 12, cursor: 'pointer',
+    display: 'flex', alignItems: 'center', gap: 5,
+    background: 'none', border: '1px solid var(--accent)', color: 'var(--accent)',
+    borderRadius: 4, padding: '3px 8px', fontSize: 11, cursor: 'pointer',
+  };
+  const kaartStijl: React.CSSProperties = {
+    background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 6, padding: '8px 12px', flex: 1,
   };
 
   return (
@@ -100,6 +107,7 @@ export default function CategoriePopup({
 
         {/* Sectie 1: Datum */}
         <div style={{ marginBottom: 16, paddingBottom: 16, borderBottom: '1px solid var(--border)' }}>
+          <div style={sectionLabel}>Boekdatum</div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16 }}>
             <div>
               <div style={{ fontSize: 13, color: 'var(--text-h)', fontWeight: 500 }}>{formatDatum(t.datum)}</div>
@@ -127,32 +135,40 @@ export default function CategoriePopup({
         </div>
 
         {/* Sectie 2: Rekeningen */}
-        <div style={{ marginBottom: 16, paddingBottom: 16, borderBottom: '1px solid var(--border)' }}>
-          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 11, color: 'var(--text-dim)', marginBottom: 2 }}>Eigen rekening</div>
-              <div style={{ fontSize: 12, color: 'var(--text-h)' }}>{t.rekening_naam ?? '—'}</div>
-              <div style={{ fontSize: 11, color: 'var(--text-dim)' }}>{t.iban_bban ?? ''}</div>
-            </div>
-            <div style={{ color: 'var(--text-dim)', paddingTop: 14 }}>
-              {isOmboeking ? <ArrowLeftRight size={16} /> : <ArrowRight size={16} />}
-            </div>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 11, color: 'var(--text-dim)', marginBottom: 2 }}>Tegenrekening</div>
-              <div style={{ fontSize: 12, color: 'var(--text-h)', display: 'flex', alignItems: 'center', gap: 4 }}>
-                {t.naam_tegenpartij ?? '—'}
-                {!isEigenTegenrekening && t.tegenrekening_iban_bban && (
-                  <button
-                    title="Toevoegen als eigen rekening"
-                    onClick={() => onVoegRekeningToe(t.tegenrekening_iban_bban!, t.naam_tegenpartij ?? '')}
-                    style={{ background: 'var(--accent)', border: 'none', color: '#fff', borderRadius: 3, width: 18, height: 18, cursor: 'pointer', fontSize: 13, lineHeight: '18px', padding: 0, flexShrink: 0 }}
-                  >+</button>
+        {t.tegenrekening_iban_bban && (
+          <div style={{ marginBottom: 16, paddingBottom: 16, borderBottom: '1px solid var(--border)' }}>
+            <div style={sectionLabel}>Rekeningen</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div style={kaartStijl}>
+                <div style={{ fontSize: 10, color: 'var(--text-dim)', marginBottom: 3 }}>Eigen rekening</div>
+                <div style={{ fontSize: 13, color: 'var(--text-h)', fontWeight: 600 }}>{t.rekening_naam ?? '—'}</div>
+                <div style={{ fontSize: 11, color: 'var(--text-dim)' }}>{t.iban_bban ?? ''}</div>
+                {eigenRekening?.beheerd === 1 && (
+                  <div style={{ fontSize: 10, color: 'var(--text-dim)', marginTop: 2 }}>Beheerd</div>
                 )}
               </div>
-              <div style={{ fontSize: 11, color: 'var(--text-dim)' }}>{t.tegenrekening_iban_bban ?? ''}</div>
+              <div style={{ color: 'var(--text-dim)', flexShrink: 0 }}>
+                {isOmboeking
+                  ? <ArrowLeftRight size={16} />
+                  : t.type === 'normaal-bij'
+                    ? <ArrowLeft size={16} />
+                    : <ArrowRight size={16} />
+                }
+              </div>
+              <div style={kaartStijl}>
+                <div style={{ fontSize: 10, color: 'var(--text-dim)', marginBottom: 3 }}>Tegenrekening</div>
+                <div style={{ fontSize: 13, color: 'var(--text-h)', fontWeight: 600 }}>{t.naam_tegenpartij ?? '—'}</div>
+                <div style={{ fontSize: 11, color: 'var(--text-dim)' }}>{t.tegenrekening_iban_bban}</div>
+                {!isEigenTegenrekening && (
+                  <button
+                    onClick={() => onVoegRekeningToe(t.tegenrekening_iban_bban!, t.naam_tegenpartij ?? '')}
+                    style={{ marginTop: 4, border: '1px solid var(--accent)', background: 'none', color: 'var(--accent)', fontSize: 10, borderRadius: 4, padding: '2px 8px', cursor: 'pointer' }}
+                  >+ Eigen rekening</button>
+                )}
+              </div>
             </div>
           </div>
-        </div>
+        )}
 
         {/* Categorie */}
         <div style={{ marginBottom: 16 }}>
