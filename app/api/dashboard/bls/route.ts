@@ -1,12 +1,14 @@
 // FILE: route.ts (api/dashboard/bls)
 // AANGEMAAKT: 31-03-2026 21:00
 // VERSIE: 1
-// GEWIJZIGD: 31-03-2026 22:00
+// GEWIJZIGD: 01-04-2026 01:15
 //
 // WIJZIGINGEN (31-03-2026 21:00):
 // - Initiële aanmaak: GET /api/dashboard/bls — BLS-berekening per categorie
 // WIJZIGINGEN (31-03-2026 21:30):
 // - BLS filter op eigen rekening; isOmboeking check op type
+// WIJZIGINGEN (01-04-2026 01:15):
+// - bedrag/gecorrigeerd/saldo afgekapt richting 0 op 2 decimalen (Math.trunc) tegen float-drift
 // WIJZIGINGEN (31-03-2026 22:00):
 // - Volledig herschreven: BLS = verkeerde boekingen per {categorie, transactierekening, gekoppelde rekening}
 // - Gecorrigeerd via omboekingen die exact matchen op {subcategorie, iban_bban}
@@ -99,15 +101,18 @@ export function GET(request: NextRequest) {
     }
 
     // Stap 4 — Response opmaken
+    const trunc2 = (n: number) => Math.trunc(n * 100) / 100;
     const resultaat: BlsRegel[] = [];
     for (const g of groepMap.values()) {
+      const bedrag      = trunc2(g.bedrag);
+      const gecorrigeerd = trunc2(g.gecorrigeerd);
       resultaat.push({
         categorie:        g.categorie,
         gedaanOpRekening: rekeningNaamByIban.get(g.iban_bban)         ?? g.iban_bban,
         hoortOpRekening:  rekeningNaamById.get(g.gekoppeldeRekeningId) ?? String(g.gekoppeldeRekeningId),
-        bedrag:           g.bedrag,
-        gecorrigeerd:     g.gecorrigeerd,
-        saldo:            g.bedrag + g.gecorrigeerd,
+        bedrag,
+        gecorrigeerd,
+        saldo:            trunc2(bedrag + gecorrigeerd),
       });
     }
 
