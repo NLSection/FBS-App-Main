@@ -226,18 +226,13 @@ export default function CategorieenBeheer() {
     openCategoriePopup(dummy);
   }
 
-  async function handleDatumWijzig(nieuweDatum: string, origineelBehouden: boolean | null) {
+  async function handleDatumWijzig(nieuweDatum: string, origineelDatum: string | null) {
     const tr = patronModal!.transactie;
-    const body: Record<string, unknown> = { datum: nieuweDatum };
-    if (origineelBehouden === false) body.originele_datum = tr.datum;
-    if (origineelBehouden === null)  body.originele_datum = null;
     await fetch(`/api/transacties/${tr.id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
+      body: JSON.stringify({ datum: nieuweDatum, originele_datum: origineelDatum }),
     });
-    setPatronModal(null);
-    setReloadTrigger(n => n + 1);
   }
 
   function handleVoegRekeningToe(iban: string, naam: string) {

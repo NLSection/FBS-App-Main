@@ -1,10 +1,12 @@
 // FILE: CategoriePopup.tsx
 // AANGEMAAKT: 31-03-2026 00:00
 // VERSIE: 1
-// GEWIJZIGD: 31-03-2026 16:30
+// GEWIJZIGD: 31-03-2026 17:00
 //
-// WIJZIGINGEN (31-03-2026 16:30):
-// - Datum: horizontale weergave [originele_datum] → [huidige datum] op één regel
+// WIJZIGINGEN (31-03-2026 17:00):
+// - Datum: lokale tijdelijkeDatum state; PATCH pas bij Opslaan via handleBevestig
+// - Datum: vrije maandkeuze met tandwiel, maand-dropdown en jaar-navigatie
+// - onDatumWijzig signature: (nieuweDatum, origineelDatum: string | null)
 // WIJZIGINGEN (31-03-2026 02:00):
 // - Woordfrequentie analyse: onAnalyseer prop, Analyseer/Verberg knop, tellers in omschrijving chips
 // WIJZIGINGEN (31-03-2026 00:00):
@@ -14,7 +16,7 @@
 'use client';
 
 import { useState } from 'react';
-import { ChevronsLeft, ChevronsRight, ArrowLeft, ArrowRight, ArrowLeftRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ArrowLeft, ArrowRight, ArrowLeftRight, Settings } from 'lucide-react';
 import type { TransactieMetCategorie } from '@/lib/transacties';
 import type { Periode } from '@/lib/maandperiodes';
 
@@ -43,7 +45,7 @@ interface CategoriePopupProps {
   onBevestig: () => void;
   onSluiten: () => void;
   onAnalyseer: () => Promise<Record<string, number>>;
-  onDatumWijzig: (nieuweDatum: string, origineelBehouden: boolean | null) => Promise<void>;
+  onDatumWijzig: (nieuweDatum: string, origineelDatum: string | null) => Promise<void>;
   onVoegRekeningToe: (iban: string, naam: string) => void;
   budgettenPotjes: BudgetPotjeNaam[];
   rekeningen: Rekening[];
@@ -57,6 +59,18 @@ function formatDatum(d: string | null): string {
   return p.length === 3 ? `${p[2]}-${p[1]}-${p[0]}` : d;
 }
 
+function berekeningPeriodeBereik(jaar: number, maand: number, maandStartDag: number): { start: string } {
+  function toISO(d: Date): string {
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  }
+  const prevMaand0 = maand === 1 ? 11 : maand - 2;
+  const prevJaar   = maand === 1 ? jaar - 1 : jaar;
+  const start = maandStartDag === 1
+    ? new Date(jaar, maand - 1, 1)
+    : new Date(prevJaar, prevMaand0, maandStartDag);
+  return { start: toISO(start) };
+}
+
 export default function CategoriePopup({
   patronModal, setPatronModal, onBevestig, onSluiten, onAnalyseer, onDatumWijzig, onVoegRekeningToe,
   budgettenPotjes, rekeningen, periodes, uniekeCategorieenDropdown,
@@ -65,14 +79,26 @@ export default function CategoriePopup({
   const [tooltipOmschr, setTooltipOmschr]   = useState(false);
   const [woordTellers, setWoordTellers]     = useState<Record<string, number> | null>(null);
   const [tellerLaden, setTellerLaden]       = useState(false);
+  const [tijdelijkeDatum, setTijdelijkeDatum]                   = useState<string | null>(null);
+  const [tijdelijkeOrigineleDatum, setTijdelijkeOrigineleDatum] = useState<string | null>(null);
+  const [vrijeKeuzeOpen, setVrijeKeuzeOpen]       = useState(false);
+  const [vrijeKeuzeJaarOpen, setVrijeKeuzeJaarOpen] = useState(false);
+  const [vrijeKeuzeJaar, setVrijeKeuzeJaar]       = useState<number>(new Date().getFullYear());
+  const [vrijeKeuzeMaand, setVrijeKeuzeMaand]     = useState<number>(new Date().getMonth() + 1);
 
   const t = patronModal.transactie;
   const isOmboeking = t.type === 'omboeking-af' || t.type === 'omboeking-bij';
   const isEigenTegenrekening = !t.tegenrekening_iban_bban || rekeningen.some(r => r.iban === t.tegenrekening_iban_bban);
   const eigenRekening = rekeningen.find(r => r.iban === t.iban_bban);
 
-  const currentPeriodeIdx = t.datum
-    ? periodes.findIndex(p => t.datum! >= p.start && t.datum! <= p.eind)
+  const effectieveDatum       = tijdelijkeDatum ?? t.datum;
+  const effectieveOrigineleDatum = tijdelijkeOrigineleDatum ?? t.originele_datum;
+  const heeftDatumWijziging   = !!effectieveOrigineleDatum && effectieveDatum !== effectieveOrigineleDatum;
+
+  const maandStartDag = periodes.length > 0 ? parseInt(periodes[0].start.slice(8, 10), 10) : 1;
+
+  const currentPeriodeIdx = effectieveDatum
+    ? periodes.findIndex(p => effectieveDatum >= p.start && effectieveDatum <= p.eind)
     : -1;
   const volgendePeriode = currentPeriodeIdx >= 0 && currentPeriodeIdx < periodes.length - 1
     ? periodes[currentPeriodeIdx + 1]
@@ -80,6 +106,28 @@ export default function CategoriePopup({
   const vorigePeriode = currentPeriodeIdx > 0
     ? periodes[currentPeriodeIdx - 1]
     : null;
+
+  function stelDatumIn(nieuweDatum: string) {
+    if (!t.originele_datum && tijdelijkeDatum === null) {
+      setTijdelijkeOrigineleDatum(t.datum);
+    }
+    setTijdelijkeDatum(nieuweDatum);
+    setVrijeKeuzeOpen(false);
+    setVrijeKeuzeJaarOpen(false);
+  }
+
+  function handleVrijeKeuzeBevestig() {
+    const periode = periodes.find(p => p.jaar === vrijeKeuzeJaar && p.maand === vrijeKeuzeMaand);
+    const start = periode?.start ?? berekeningPeriodeBereik(vrijeKeuzeJaar, vrijeKeuzeMaand, maandStartDag).start;
+    stelDatumIn(start);
+  }
+
+  async function handleBevestig() {
+    if (tijdelijkeDatum) {
+      await onDatumWijzig(tijdelijkeDatum, tijdelijkeOrigineleDatum);
+    }
+    onBevestig();
+  }
 
   const MAAND_NAMEN = ['Januari','Februari','Maart','April','Mei','Juni','Juli','Augustus','September','Oktober','November','December'];
 
@@ -109,40 +157,72 @@ export default function CategoriePopup({
         <div style={{ marginBottom: 16, paddingBottom: 16, borderBottom: '1px solid var(--border)' }}>
           <div style={sectionLabel}>Boekdatum</div>
           <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 6, padding: '10px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
+            {/* Links: datum weergave */}
             <div>
-              {t.originele_datum && t.originele_datum !== t.datum ? (
+              {heeftDatumWijziging ? (
                 <>
                   <div style={{ display: 'flex', alignItems: 'center' }}>
-                    <span style={{ fontSize: 13, color: 'var(--text-dim)' }}>{formatDatum(t.originele_datum)}</span>
+                    <span style={{ fontSize: 13, color: 'var(--text-dim)' }}>{formatDatum(effectieveOrigineleDatum)}</span>
                     <ArrowRight size={13} style={{ color: 'var(--text-dim)', margin: '0 6px' }} />
-                    <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--accent)' }}>{formatDatum(t.datum)}</span>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--accent)' }}>{formatDatum(effectieveDatum)}</span>
                   </div>
                   <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 4 }}>
                     Geboekt in: {currentPeriodeIdx >= 0 ? `${MAAND_NAMEN[periodes[currentPeriodeIdx].maand - 1]} ${periodes[currentPeriodeIdx].jaar}` : '—'}
                   </div>
                 </>
               ) : (
-                <div style={{ fontSize: 15, color: 'var(--text-h)', fontWeight: 600 }}>{formatDatum(t.datum)}</div>
+                <div style={{ fontSize: 15, color: 'var(--text-h)', fontWeight: 600 }}>{formatDatum(effectieveDatum)}</div>
               )}
             </div>
+            {/* Rechts: knoppen */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flexShrink: 0 }}>
-              {t.originele_datum && t.originele_datum !== t.datum ? (
-                <button style={subtielKnop} onClick={() => onDatumWijzig(t.originele_datum!, null)}>
+              {heeftDatumWijziging ? (
+                <button style={subtielKnop} onClick={() => { setTijdelijkeDatum(null); setTijdelijkeOrigineleDatum(null); }}>
                   Herstel originele datum
                 </button>
               ) : (
                 <>
-                  {volgendePeriode && (
-                    <button style={subtielKnop} onClick={() => onDatumWijzig(volgendePeriode.start, false)}>
-                      Boeken in {MAAND_NAMEN[volgendePeriode.maand - 1]} {volgendePeriode.jaar}
-                      <ChevronsRight size={13} />
-                    </button>
-                  )}
-                  {vorigePeriode && (
-                    <button style={subtielKnop} onClick={() => onDatumWijzig(vorigePeriode.eind, false)}>
-                      <ChevronsLeft size={13} />
-                      Boeken in {MAAND_NAMEN[vorigePeriode.maand - 1]} {vorigePeriode.jaar}
-                    </button>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 6 }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                      {volgendePeriode && (
+                        <button style={subtielKnop} onClick={() => stelDatumIn(volgendePeriode.start)}>
+                          Boeken in {MAAND_NAMEN[volgendePeriode.maand - 1]} {volgendePeriode.jaar}
+                          <ChevronsRight size={13} />
+                        </button>
+                      )}
+                      {vorigePeriode && (
+                        <button style={subtielKnop} onClick={() => stelDatumIn(vorigePeriode.eind)}>
+                          <ChevronsLeft size={13} />
+                          Boeken in {MAAND_NAMEN[vorigePeriode.maand - 1]} {vorigePeriode.jaar}
+                        </button>
+                      )}
+                    </div>
+                    <Settings
+                      size={14}
+                      style={{ color: vrijeKeuzeOpen ? 'var(--accent)' : 'var(--text-dim)', cursor: 'pointer', marginTop: 5, flexShrink: 0 }}
+                      onClick={() => { setVrijeKeuzeOpen(v => !v); setVrijeKeuzeJaarOpen(false); }}
+                    />
+                  </div>
+                  {vrijeKeuzeOpen && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <select
+                        value={vrijeKeuzeMaand}
+                        onChange={e => setVrijeKeuzeMaand(Number(e.target.value))}
+                        style={{ fontSize: 11, background: 'var(--bg-base)', border: '1px solid var(--border)', borderRadius: 4, color: 'var(--text-h)', padding: '2px 4px' }}
+                      >
+                        {MAAND_NAMEN.map((naam, i) => <option key={i} value={i + 1}>{naam}</option>)}
+                      </select>
+                      {!vrijeKeuzeJaarOpen ? (
+                        <ChevronRight size={12} style={{ color: 'var(--text-dim)', cursor: 'pointer', flexShrink: 0 }} onClick={() => setVrijeKeuzeJaarOpen(true)} />
+                      ) : (
+                        <>
+                          <ChevronLeft size={12} style={{ color: 'var(--text-dim)', cursor: 'pointer', flexShrink: 0 }} onClick={() => setVrijeKeuzeJaar(y => y - 1)} />
+                          <span style={{ fontSize: 12, color: 'var(--text-dim)', minWidth: 30, textAlign: 'center' }}>{vrijeKeuzeJaar}</span>
+                          <ChevronRight size={12} style={{ color: 'var(--text-dim)', cursor: 'pointer', flexShrink: 0 }} onClick={() => setVrijeKeuzeJaar(y => y + 1)} />
+                        </>
+                      )}
+                      <ArrowRight size={13} style={{ color: 'var(--accent)', cursor: 'pointer', marginLeft: 2, flexShrink: 0 }} onClick={handleVrijeKeuzeBevestig} />
+                    </div>
                   )}
                 </>
               )}
@@ -431,7 +511,7 @@ export default function CategoriePopup({
         <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
           <button onClick={onSluiten} style={{ background: 'none', border: '1px solid var(--border)', color: 'var(--text)', borderRadius: 6, padding: '6px 14px', fontSize: 13, cursor: 'pointer' }}>Annuleer</button>
           <button
-            onClick={onBevestig}
+            onClick={handleBevestig}
             disabled={!patronModal.nieuweCat || (patronModal.catNieuw && !patronModal.nieuweCat.trim())}
             style={{ background: 'var(--accent)', border: 'none', color: '#fff', borderRadius: 6, padding: '6px 14px', fontSize: 13, cursor: patronModal.nieuweCat ? 'pointer' : 'not-allowed', fontWeight: 600, opacity: patronModal.nieuweCat ? 1 : 0.5 }}
           >Opslaan</button>
