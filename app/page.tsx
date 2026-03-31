@@ -1,7 +1,7 @@
 // FILE: page.tsx
 // AANGEMAAKT: 25-03-2026 14:00
 // VERSIE: 1
-// GEWIJZIGD: 31-03-2026 23:59
+// GEWIJZIGD: 01-04-2026 00:30
 //
 // WIJZIGINGEN (31-03-2026 21:00):
 // - Volledige herbouw: periodenavigatie, BLS-tabel, categorieoverzicht
@@ -13,6 +13,10 @@
 // - Cumulatief toggle vervangen door Alle knop; layout gelijkgetrokken met TransactiesTabel
 // - Alle modus: BLS laadt over heel geselecteerd jaar ipv één maand
 // - Categorieoverzicht sectie verwijderd (niet meer beschikbaar in nieuw formaat)
+// WIJZIGINGEN (01-04-2026 00:30):
+// - BLS: totaalrij verwijderd
+// - BLS: badges compacter (font 10px, padding 0/4px), pijl → ipv ──→, rij minder hoog
+// - BLS: groen ✓ naast categorienaam bij saldo = 0
 // WIJZIGINGEN (31-03-2026 23:59):
 // - BLS tabel: twee-laags rijen (categorienaam + badge-pijlvisualisatie)
 // - Saldo kleur: groen >0, rood <0, grijs =0
@@ -118,10 +122,6 @@ export default function DashboardPage() {
   const periodesVoorJaar = periodes.filter(p => p.jaar === geselecteerdJaar);
 
   const tdNum: React.CSSProperties = { textAlign: 'right', fontVariantNumeric: 'tabular-nums' };
-
-  const totaalBedrag       = blsData.reduce((s, r) => s + r.bedrag, 0);
-  const totaalGecorrigeerd = blsData.reduce((s, r) => s + r.gecorrigeerd, 0);
-  const totaalSaldo        = blsData.reduce((s, r) => s + r.saldo, 0);
 
   function saldoKleur(saldo: number) {
     return saldo > 0 ? 'var(--green)' : saldo < 0 ? 'var(--red)' : 'var(--text-dim)';
@@ -232,15 +232,18 @@ export default function DashboardPage() {
             <tbody>
               {blsData.map(rij => {
                 const sleutel = `${rij.categorie}::${rij.gedaanOpRekening}`;
-                const badgeBase: React.CSSProperties = { fontSize: 11, borderRadius: 4, padding: '1px 6px', fontWeight: 500 };
+                const badge: React.CSSProperties = { fontSize: 10, borderRadius: 3, padding: '0px 4px', fontWeight: 500 };
                 return (
                   <tr key={sleutel}>
-                    <td style={{ borderLeft: `2px solid ${borderKleur(rij.saldo)}`, paddingLeft: 10 }}>
-                      <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--text-h)' }}>{rij.categorie}</div>
-                      <div style={{ marginTop: 4, display: 'flex', alignItems: 'center', gap: 5 }}>
-                        <span style={{ ...badgeBase, background: 'var(--bg-base)', border: '1px solid var(--border)', color: 'var(--text-dim)' }}>{rij.gedaanOpRekening}</span>
-                        <span style={{ fontSize: 12, color: 'var(--text-dim)' }}>──→</span>
-                        <span style={{ ...badgeBase, background: 'var(--bg-base)', border: '1px solid var(--accent)', color: 'var(--accent)' }}>{rij.hoortOpRekening}</span>
+                    <td style={{ borderLeft: `2px solid ${borderKleur(rij.saldo)}`, paddingLeft: 10, paddingTop: 6, paddingBottom: 6 }}>
+                      <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--text-h)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                        {rij.categorie}
+                        {rij.saldo === 0 && <span style={{ color: 'var(--green)', fontSize: 12, fontWeight: 700 }}>✓</span>}
+                      </div>
+                      <div style={{ marginTop: 2, display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <span style={{ ...badge, background: 'var(--bg-base)', border: '1px solid var(--border)', color: 'var(--text-dim)' }}>{rij.gedaanOpRekening}</span>
+                        <span style={{ fontSize: 11, color: 'var(--text-dim)' }}>→</span>
+                        <span style={{ ...badge, background: 'var(--bg-base)', border: '1px solid var(--accent)', color: 'var(--accent)' }}>{rij.hoortOpRekening}</span>
                       </div>
                     </td>
                     <td style={tdNum}>{formatBedrag(rij.bedrag)}</td>
@@ -250,14 +253,6 @@ export default function DashboardPage() {
                 );
               })}
             </tbody>
-            <tfoot>
-              <tr style={{ fontWeight: 700, borderTop: '2px solid var(--border)' }}>
-                <td style={{ borderLeft: `2px solid ${borderKleur(totaalSaldo)}`, paddingLeft: 10 }}>Totaal</td>
-                <td style={tdNum}>{formatBedrag(totaalBedrag)}</td>
-                <td style={tdNum}>{formatBedrag(totaalGecorrigeerd)}</td>
-                <td style={{ ...tdNum, color: saldoKleur(totaalSaldo), fontWeight: 700 }}>{formatBedrag(totaalSaldo)}</td>
-              </tr>
-            </tfoot>
           </table>
         </div>
       )}
