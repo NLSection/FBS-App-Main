@@ -6,6 +6,7 @@
 // WIJZIGINGEN (31-03-2026 18:00):
 // - Herstel originele datum: undefined-sentinel voor tijdelijkeOrigineleDatum zodat null ?? t.originele_datum niet meer vals positief is
 // - Herstel originele datum: altijd direct naar t.originele_datum (niet tussentijds naar t.datum bij gecombineerde lokaal+DB wijziging)
+// - Tandwiel: kader (border) gelijk aan Boeken-in knoppen, alignSelf stretch zodat hoogte de knoppen-kolom volgt
 // WIJZIGINGEN (31-03-2026 17:00):
 // - Datum: lokale tijdelijkeDatum state; PATCH pas bij Opslaan via handleBevestig
 // - Datum: vrije maandkeuze met tandwiel, maand-dropdown en jaar-navigatie
@@ -210,11 +211,17 @@ export default function CategoriePopup({
                         </button>
                       )}
                     </div>
-                    <Settings
-                      size={14}
-                      style={{ color: vrijeKeuzeOpen ? 'var(--accent)' : 'var(--text-dim)', cursor: 'pointer', marginTop: 5, flexShrink: 0 }}
+                    <div
+                      style={{
+                        alignSelf: 'stretch', border: '1px solid var(--border)', borderRadius: 4,
+                        display: 'flex', alignItems: 'center', padding: '0 5px', cursor: 'pointer',
+                        color: vrijeKeuzeOpen ? 'var(--accent)' : 'var(--text-dim)',
+                        background: vrijeKeuzeOpen ? 'var(--accent-dim)' : 'none', flexShrink: 0,
+                      }}
                       onClick={() => { setVrijeKeuzeOpen(v => !v); setVrijeKeuzeJaarOpen(false); }}
-                    />
+                    >
+                      <Settings size={14} />
+                    </div>
                   </div>
                   {vrijeKeuzeOpen && (
                     <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
