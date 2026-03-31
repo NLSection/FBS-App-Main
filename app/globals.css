@@ -407,21 +407,4 @@ button {
   .maand-kort { display: inline; }
 }
 
-/* ── Sticky acties kolom ─────────────────────────────────────── */
-
-.sticky-acties {
-  position: sticky;
-  right: 0;
-  z-index: 1;
-  background: var(--bg-card);
-}
-
-.table-wrapper thead th.sticky-acties {
-  background: var(--bg-surface);
-  z-index: 2;
-}
-
-.table-wrapper tbody tr:hover td.sticky-acties {
-  background: var(--bg-hover);
-}
 

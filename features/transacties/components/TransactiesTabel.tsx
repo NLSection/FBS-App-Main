@@ -1,10 +1,11 @@
 // FILE: TransactiesTabel.tsx
 // AANGEMAAKT: 25-03-2026 12:00
 // VERSIE: 1
-// GEWIJZIGD: 31-03-2026 11:00
+// GEWIJZIGD: 31-03-2026 14:00
 //
-// WIJZIGINGEN (31-03-2026 11:00):
-// - scope bij openen popup bepaald op basis van categorie_id: 'alle' bij regel, 'enkel' bij handmatig
+// WIJZIGINGEN (31-03-2026 14:00):
+// - Hamburgermenu volledig verwijderd: handlers, state, JSX, sticky-acties <th>/<td>, vaste-last formulier
+// - aantalKolommen: +1 voor actieskolom verwijderd
 // WIJZIGINGEN (31-03-2026 02:30):
 // - onAnalyseer fix: alle omschrijvingsvelden (1+2+3) meenemen in woordfrequentie telling
 // WIJZIGINGEN (31-03-2026 02:00):
@@ -180,13 +181,6 @@ const filterKnopStijl = (actief: boolean): React.CSSProperties => ({
   fontWeight: actief ? 600 : 400,
 });
 
-const menuItemStijl: React.CSSProperties = {
-  display: 'block', width: '100%', textAlign: 'left', padding: '8px 14px',
-  background: 'none', border: 'none', color: 'var(--text)', fontSize: 13,
-  cursor: 'pointer',
-};
-
-
 function maakNaamChips(naam: string | null): { label: string; waarde: string }[] {
   if (!naam) return [];
   return naam
@@ -225,8 +219,6 @@ export default function TransactiesTabel() {
   const [subcatOpties, setSubcatOpties]                 = useState<string[]>([]);
   const [editingCell, setEditingCell]                   = useState<EditingCell | null>(null);
   const [reloadTrigger, setReloadTrigger]               = useState(0);
-  const [openMenu, setOpenMenu]                         = useState<number | null>(null);
-  const [vastLastForm, setVastLastForm]                 = useState<{ id: number; label: string } | null>(null);
   const [zichtbareKolommen, setZichtbareKolommen]       = useState<Set<string>>(DEFAULT_KOLOMMEN);
   const [kolomMenuOpen, setKolomMenuOpen]               = useState(false);
   const [zoekterm, setZoekterm]                         = useState('');
@@ -329,14 +321,6 @@ const [patronModal, setPatronModal]                   = useState<PatronModalData
       } catch { /* ignore */ }
     }
   }, []);
-
-  // Sluit hamburgermenu bij klik buiten de tabel
-  useEffect(() => {
-    if (openMenu === null) return;
-    function handleClick() { setOpenMenu(null); }
-    document.addEventListener('click', handleClick);
-    return () => document.removeEventListener('click', handleClick);
-  }, [openMenu]);
 
   // Sluit kolommenmenu bij klik buiten
   useEffect(() => {
@@ -582,62 +566,6 @@ const [patronModal, setPatronModal]                   = useState<PatronModalData
     setReloadTrigger(n => n + 1);
   }
 
-  async function handleNaarVorigeMaand(t: TransactieMetCategorie) {
-    setOpenMenu(null);
-    await fetch(`/api/transacties/${t.id}/verplaats-naar-vorige-maand`, { method: 'PATCH' });
-    setReloadTrigger(n => n + 1);
-  }
-
-  async function handleVergrendel(t: TransactieMetCategorie) {
-    setOpenMenu(null);
-    await fetch(`/api/transacties/${t.id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ handmatig_gecategoriseerd: 1 }),
-    });
-    setReloadTrigger(n => n + 1);
-  }
-
-  async function handleOntgrendel(t: TransactieMetCategorie) {
-    setOpenMenu(null);
-    await fetch(`/api/transacties/${t.id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ handmatig_gecategoriseerd: 0, categorie_id: null, status: 'nieuw' }),
-    });
-    await fetch('/api/categoriseer', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({}),
-    });
-    setReloadTrigger(n => n + 1);
-  }
-
-  async function handleFoutGeboekt(t: TransactieMetCategorie) {
-    setOpenMenu(null);
-    await fetch(`/api/transacties/${t.id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ fout_geboekt: t.fout_geboekt ? 0 : 1 }),
-    });
-    setReloadTrigger(n => n + 1);
-  }
-
-  async function handleVasteLastOpslaan(t: TransactieMetCategorie) {
-    if (!vastLastForm || vastLastForm.id !== t.id) return;
-    if (!t.tegenrekening_iban_bban || !t.naam_tegenpartij) return;
-    await fetch('/api/vaste-lasten-config', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        iban:  t.tegenrekening_iban_bban,
-        naam:  t.naam_tegenpartij,
-        label: vastLastForm.label,
-      }),
-    });
-    setVastLastForm(null);
-  }
-
   function syncScroll(source: 'top' | 'table') {
     if (syncingRef.current) return;
     syncingRef.current = true;
@@ -679,7 +607,7 @@ const [patronModal, setPatronModal]                   = useState<PatronModalData
   const aangepastTeller = tabTransacties.filter(t => t.handmatig_gecategoriseerd === 1).length;
 
   // Aantal zichtbare kolommen (data + actie + lege buffer)
-  const aantalKolommen = ALLE_KOLOMMEN.filter(k => zichtbareKolommen.has(k.id)).length + 1;
+  const aantalKolommen = ALLE_KOLOMMEN.filter(k => zichtbareKolommen.has(k.id)).length;
   const tabelMinWidth  = 1200;
 
   // Kolommen toggle helper
@@ -1006,7 +934,6 @@ const [patronModal, setPatronModal]                   = useState<PatronModalData
                       </span>
                     </th>
                   ))}
-                  <th className="sticky-acties" style={{ width: 60 }}></th>
                 </tr>
               </thead>
               <tbody>
@@ -1134,64 +1061,7 @@ const [patronModal, setPatronModal]                   = useState<PatronModalData
                           <td style={{ color: 'var(--text-dim)', fontSize: 12 }}>{t.omschrijving_3 ?? '—'}</td>
                         )}
 
-                        {/* Acties: hamburgermenu */}
-                        <td className="sticky-acties" style={{ whiteSpace: 'nowrap', textAlign: 'right', position: 'relative' }}>
-                          <button
-                            onClick={e => { e.stopPropagation(); setOpenMenu(openMenu === t.id ? null : t.id); }}
-                            style={{ background: 'none', border: '1px solid var(--border)', color: 'var(--text)', borderRadius: 4, padding: '2px 8px', fontSize: 13, cursor: 'pointer' }}
-                          >
-                            ☰
-                          </button>
-                          {openMenu === t.id && (
-                            <div
-                              onClick={e => e.stopPropagation()}
-                              style={{ position: 'absolute', right: 0, top: '100%', zIndex: 100, background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 6, minWidth: 200, padding: '4px 0', boxShadow: '0 4px 16px rgba(0,0,0,0.4)' }}
-                            >
-                              <button onClick={() => handleNaarVorigeMaand(t)} style={menuItemStijl}>{'<<< Naar '}{MAAND_NAMEN[parseInt(t.datum!.slice(5, 7), 10) - 1].toLowerCase()}</button>
-                              {t.handmatig_gecategoriseerd === 1
-                                ? <button onClick={() => handleOntgrendel(t)} style={menuItemStijl}>Ontgrendel categorisatie</button>
-                                : <button onClick={() => handleVergrendel(t)} style={menuItemStijl}>Vergrendel categorisatie</button>
-                              }
-                              <button onClick={() => handleFoutGeboekt(t)} style={menuItemStijl}>
-                                {t.fout_geboekt ? 'Verwijder fout markering' : 'Markeer als fout geboekt'}
-                              </button>
-                              {t.tegenrekening_iban_bban && (
-                                <button onClick={() => { setOpenMenu(null); setVastLastForm({ id: t.id, label: '' }); }} style={menuItemStijl}>
-                                  Markeer als vaste last
-                                </button>
-                              )}
-                            </div>
-                          )}
-                        </td>
                       </tr>
-
-                      {/* Inline vaste-last formulier */}
-                      {vastLastForm?.id === t.id && (
-                        <tr key={`vl-${t.id}`}>
-                          <td colSpan={aantalKolommen} style={{ padding: '12px 16px', background: 'var(--bg-card)', borderTop: '1px solid var(--border)' }}>
-                            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                              <span style={{ fontSize: 12, color: 'var(--text-dim)' }}>Label vaste last:</span>
-                              <input
-                                autoFocus
-                                value={vastLastForm.label}
-                                onChange={e => setVastLastForm(f => f ? { ...f, label: e.target.value } : f)}
-                                onKeyDown={e => {
-                                  if (e.key === 'Enter') handleVasteLastOpslaan(t);
-                                  if (e.key === 'Escape') setVastLastForm(null);
-                                }}
-                                placeholder="bijv. Netflix"
-                                style={{ background: 'var(--bg-base)', border: '1px solid var(--accent)', borderRadius: 4, padding: '4px 8px', fontSize: 12, color: 'var(--text-h)', outline: 'none', width: 200 }}
-                              />
-                              <button onClick={() => handleVasteLastOpslaan(t)} style={{ background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 4, padding: '4px 12px', fontSize: 12, cursor: 'pointer' }}>
-                                Opslaan
-                              </button>
-                              <button onClick={() => setVastLastForm(null)} style={{ background: 'none', border: '1px solid var(--border)', color: 'var(--text)', borderRadius: 4, padding: '4px 12px', fontSize: 12, cursor: 'pointer' }}>
-                                Annuleer
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      )}
                     </Fragment>
                   );
                 })}
