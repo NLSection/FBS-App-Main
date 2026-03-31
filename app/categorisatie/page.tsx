@@ -14,7 +14,7 @@ export default function CategorisatiePage() {
   return (
     <div className="main">
       <div className="page-header">
-        <h1>Categorisatie</h1>
+        <h1>Categorisatie Database</h1>
         <p>Transacties categoriseren en matchregels beheren</p>
       </div>
 

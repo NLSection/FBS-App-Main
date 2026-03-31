@@ -472,7 +472,7 @@ export default function CategorieenBeheer() {
         <button onClick={() => setFilter('alle')} style={filterKnopStijl(actieveFilter === 'alle')}>
           Alle categorieën ({items.length})
         </button>
-        {uniekeCats.map(cat => {
+        {[...uniekeCats].sort((a, b) => a.localeCompare(b, 'nl')).map(cat => {
           const kleur = budgettenPotjes.find(bp => bp.naam === cat)?.kleur ?? undefined;
           const actief = actieveFilter === cat;
           return (

@@ -614,7 +614,7 @@ const [patronModal, setPatronModal]                   = useState<PatronModalData
   // Unieke categorieën uit huidige gefilterde transacties (voor categorie-filterrij)
   const uniekeCategorieën = Array.from(
     new Set(tabTransacties.map(t => t.categorie).filter((c): c is string => c !== null))
-  );
+  ).sort((a, b) => a.localeCompare(b, 'nl'));
   const categorieTellers: Record<string, number> = {};
   for (const t of tabTransacties) {
     if (t.categorie) categorieTellers[t.categorie] = (categorieTellers[t.categorie] ?? 0) + 1;
@@ -726,17 +726,6 @@ const [patronModal, setPatronModal]                   = useState<PatronModalData
         <button onClick={() => setCategorieFilter('alle')} style={filterKnopStijl(categorieFilter === 'alle')}>
           Alle categorieën ({tabTransacties.length})
         </button>
-        <button
-          onClick={() => setCategorieFilter('ongecategoriseerd')}
-          style={{
-            ...filterKnopStijl(categorieFilter === 'ongecategoriseerd'),
-            background: categorieFilter === 'ongecategoriseerd' ? 'var(--red)' : 'var(--bg-card)',
-            borderColor: 'var(--red)',
-            color: categorieFilter === 'ongecategoriseerd' ? '#fff' : 'var(--red)',
-          }}
-        >
-          Ongecategoriseerd ({ongecategoriseerdTeller})
-        </button>
         {uniekeCategorieën.map(cat => {
           const kleur = budgettenPotjes.find(bp => bp.naam === cat)?.kleur ?? undefined;
           const actief = categorieFilter === cat;
@@ -755,6 +744,17 @@ const [patronModal, setPatronModal]                   = useState<PatronModalData
             </button>
           );
         })}
+        <button
+          onClick={() => setCategorieFilter('ongecategoriseerd')}
+          style={{
+            ...filterKnopStijl(categorieFilter === 'ongecategoriseerd'),
+            background: categorieFilter === 'ongecategoriseerd' ? 'var(--red)' : 'var(--bg-card)',
+            borderColor: 'var(--red)',
+            color: categorieFilter === 'ongecategoriseerd' ? '#fff' : 'var(--red)',
+          }}
+        >
+          Ongecategoriseerd ({ongecategoriseerdTeller})
+        </button>
         {(() => {
           const aangepastKleur = budgettenPotjes.find(bp => bp.naam === 'Aangepast')?.kleur ?? '#e8590c';
           return (

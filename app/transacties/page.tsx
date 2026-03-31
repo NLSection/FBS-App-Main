@@ -10,8 +10,11 @@ import TransactiesTabel from '@/features/transacties/components/TransactiesTabel
 
 export default function TransactiesPage() {
   return (
-    <div className="space-y-6">
-      <h1 className="text-xl font-semibold">Transacties</h1>
+    <div className="main">
+      <div className="page-header">
+        <h1>Transacties</h1>
+        <p>Bekijk en beheer alle geïmporteerde transacties</p>
+      </div>
       <TransactiesTabel />
     </div>
   );
