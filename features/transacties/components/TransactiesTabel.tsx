@@ -1,10 +1,11 @@
 // FILE: TransactiesTabel.tsx
 // AANGEMAAKT: 25-03-2026 12:00
 // VERSIE: 1
-// GEWIJZIGD: 01-04-2026 00:45
+// GEWIJZIGD: 01-04-2026 01:00
 //
-// WIJZIGINGEN (01-04-2026 00:45):
-// - Standaard sortering op volgnummer descending (nieuwste bovenaan per CSV-volgorde)
+// WIJZIGINGEN (01-04-2026 01:00):
+// - Twee-laags sortering: primair op geselecteerde kolom, secundair datum↔volgnummer
+// - Standaard: datum desc, bij gelijke datum secundair op volgnummer desc
 // WIJZIGINGEN (31-03-2026 23:30):
 // - Standaard sortering op datum descending (nieuwste bovenaan)
 // WIJZIGINGEN (31-03-2026 14:30):
@@ -213,7 +214,7 @@ export default function TransactiesTabel() {
   const [filter, setFilter]                             = useState<TransactieType | 'alle'>('alle');
   const [categorieFilter, setCategorieFilter]           = useState<string | 'alle'>('alle');
   const [vergrendeldFilter, setVergrendeldFilter]       = useState(false);
-  const [sortCol, setSortCol]                           = useState<string>('volgnummer');
+  const [sortCol, setSortCol]                           = useState<string>('datum');
   const [sortDir, setSortDir]                           = useState<'asc' | 'desc'>('desc');
   const [periodes, setPeriodes]                         = useState<Periode[]>([]);
   const [geselecteerdePeriode, setGeselecteerdePeriode] = useState<Periode | null>(null);
@@ -686,7 +687,16 @@ const [patronModal, setPatronModal]                   = useState<PatronModalData
     const cmp = typeof av === 'number' && typeof bv === 'number'
       ? av - bv
       : String(av).localeCompare(String(bv), 'nl');
-    return sortDir === 'asc' ? cmp : -cmp;
+    if (cmp !== 0) return sortDir === 'asc' ? cmp : -cmp;
+    // Tweede laag: bij datum-sortering op volgnummer, bij overige op datum
+    if (sortCol === 'datum') {
+      const va = String((a as unknown as Record<string, unknown>)['volgnummer'] ?? '');
+      const vb = String((b as unknown as Record<string, unknown>)['volgnummer'] ?? '');
+      return sortDir === 'asc' ? va.localeCompare(vb, 'nl') : vb.localeCompare(va, 'nl');
+    }
+    const da = String((a as unknown as Record<string, unknown>)['datum'] ?? '');
+    const db2 = String((b as unknown as Record<string, unknown>)['datum'] ?? '');
+    return sortDir === 'asc' ? da.localeCompare(db2, 'nl') : db2.localeCompare(da, 'nl');
   });
 
   return (
