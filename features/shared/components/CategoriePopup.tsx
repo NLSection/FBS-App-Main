@@ -22,7 +22,7 @@
 'use client';
 
 import { useState } from 'react';
-import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ArrowLeft, ArrowRight, ArrowLeftRight, Settings } from 'lucide-react';
+import { ChevronRight, ChevronsLeft, ChevronsRight, ArrowLeft, ArrowRight, ArrowLeftRight, Settings } from 'lucide-react';
 import type { TransactieMetCategorie } from '@/lib/transacties';
 import type { Periode } from '@/lib/maandperiodes';
 
@@ -250,18 +250,15 @@ export default function CategoriePopup({
                           >
                             <ChevronRight size={13} />
                           </button>
-                        ) : (() => {
-                          const jaarIdx = beschikbareJaren.indexOf(vrijeKeuzeJaar);
-                          const prevJaar = jaarIdx > 0 ? beschikbareJaren[jaarIdx - 1] : null;
-                          const nextJaar = jaarIdx < beschikbareJaren.length - 1 ? beschikbareJaren[jaarIdx + 1] : null;
-                          return (
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 2, borderLeft: '1px solid var(--border)', paddingLeft: 4 }}>
-                              <ChevronLeft size={12} style={{ color: prevJaar !== null ? 'var(--text-dim)' : 'var(--border)', cursor: prevJaar !== null ? 'pointer' : 'default' }} onClick={() => prevJaar !== null && setVrijeKeuzeJaar(prevJaar)} />
-                              <span style={{ fontSize: 12, color: 'var(--text-dim)', minWidth: 30, textAlign: 'center' }}>{vrijeKeuzeJaar}</span>
-                              <ChevronRight size={12} style={{ color: nextJaar !== null ? 'var(--text-dim)' : 'var(--border)', cursor: nextJaar !== null ? 'pointer' : 'default' }} onClick={() => nextJaar !== null && setVrijeKeuzeJaar(nextJaar)} />
-                            </div>
-                          );
-                        })()}
+                        ) : (
+                          <select
+                            value={vrijeKeuzeJaar}
+                            onChange={e => setVrijeKeuzeJaar(Number(e.target.value))}
+                            style={{ fontSize: 11, background: 'var(--bg-base)', border: '1px solid var(--border)', borderRadius: 4, color: 'var(--text-h)', padding: '2px 4px' }}
+                          >
+                            {beschikbareJaren.map(j => <option key={j} value={j}>{j}</option>)}
+                          </select>
+                        )}
                         <ArrowRight size={13} style={{ color: 'var(--accent)', cursor: 'pointer', marginLeft: 2, flexShrink: 0 }} onClick={handleVrijeKeuzeBevestig} />
                       </div>
                     )}
