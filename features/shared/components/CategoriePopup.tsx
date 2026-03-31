@@ -5,6 +5,7 @@
 //
 // WIJZIGINGEN (31-03-2026 18:00):
 // - Herstel originele datum: undefined-sentinel voor tijdelijkeOrigineleDatum zodat null ?? t.originele_datum niet meer vals positief is
+// - Herstel originele datum: altijd direct naar t.originele_datum (niet tussentijds naar t.datum bij gecombineerde lokaal+DB wijziging)
 // WIJZIGINGEN (31-03-2026 17:00):
 // - Datum: lokale tijdelijkeDatum state; PATCH pas bij Opslaan via handleBevestig
 // - Datum: vrije maandkeuze met tandwiel, maand-dropdown en jaar-navigatie
@@ -180,14 +181,14 @@ export default function CategoriePopup({
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flexShrink: 0 }}>
               {heeftDatumWijziging ? (
                 <button style={subtielKnop} onClick={() => {
-                  if (tijdelijkeDatum !== null) {
-                    // Lokale wijziging in deze sessie: reset naar ongewijzigd
-                    setTijdelijkeDatum(null);
-                    setTijdelijkeOrigineleDatum(undefined);
-                  } else {
-                    // DB-opgeslagen originele_datum: herstel naar origineel, wis originele_datum
+                  if (t.originele_datum) {
+                    // Herstel naar échte originele datum (DB), wis originele_datum
                     setTijdelijkeDatum(t.originele_datum);
                     setTijdelijkeOrigineleDatum(null);
+                  } else {
+                    // Alleen lokale wijziging: reset naar ongewijzigd
+                    setTijdelijkeDatum(null);
+                    setTijdelijkeOrigineleDatum(undefined);
                   }
                 }}>
                   Herstel originele datum
