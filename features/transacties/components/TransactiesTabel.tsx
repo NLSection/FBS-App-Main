@@ -598,10 +598,11 @@ const [patronModal, setPatronModal]                   = useState<PatronModalData
     setGeselecteerdJaar(jaar);
   }
 
-  async function handleDatumWijzig(nieuweDatum: string, origineelBehouden: boolean) {
+  async function handleDatumWijzig(nieuweDatum: string, origineelBehouden: boolean | null) {
     const tr = patronModal!.transactie;
     const body: Record<string, unknown> = { datum: nieuweDatum };
-    if (!origineelBehouden) body.originele_datum = tr.datum;
+    if (origineelBehouden === false) body.originele_datum = tr.datum;
+    if (origineelBehouden === null)  body.originele_datum = null;
     await fetch(`/api/transacties/${tr.id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },

@@ -1,12 +1,11 @@
 // FILE: CategoriePopup.tsx
 // AANGEMAAKT: 31-03-2026 00:00
 // VERSIE: 1
-// GEWIJZIGD: 31-03-2026 15:00
+// GEWIJZIGD: 31-03-2026 15:30
 //
-// WIJZIGINGEN (31-03-2026 15:00):
-// - Datum sectie: kop "BOEKDATUM", outline knopstijl, geen tijd in datumweergave
-// - Rekeningen sectie: kop "REKENINGEN", alleen tonen als tegenrekening gevuld, kaartjes layout
-// - ArrowLeft toegevoegd voor normaal-bij richting
+// WIJZIGINGEN (31-03-2026 15:30):
+// - Datum: kaartje layout, label in kaartje, subtiele knoppen, herstel-knop als originele_datum gevuld
+// - onDatumWijzig: boolean | null (null = wis originele_datum)
 // WIJZIGINGEN (31-03-2026 02:00):
 // - Woordfrequentie analyse: onAnalyseer prop, Analyseer/Verberg knop, tellers in omschrijving chips
 // WIJZIGINGEN (31-03-2026 00:00):
@@ -45,7 +44,7 @@ interface CategoriePopupProps {
   onBevestig: () => void;
   onSluiten: () => void;
   onAnalyseer: () => Promise<Record<string, number>>;
-  onDatumWijzig: (nieuweDatum: string, origineelBehouden: boolean) => Promise<void>;
+  onDatumWijzig: (nieuweDatum: string, origineelBehouden: boolean | null) => Promise<void>;
   onVoegRekeningToe: (iban: string, naam: string) => void;
   budgettenPotjes: BudgetPotjeNaam[];
   rekeningen: Rekening[];
@@ -83,13 +82,15 @@ export default function CategoriePopup({
     ? periodes[currentPeriodeIdx - 1]
     : null;
 
+  const MAAND_NAMEN = ['Januari','Februari','Maart','April','Mei','Juni','Juli','Augustus','September','Oktober','November','December'];
+
   const sectionLabel: React.CSSProperties = {
     fontSize: 11, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 8,
   };
-  const knopStijl: React.CSSProperties = {
-    display: 'flex', alignItems: 'center', gap: 5,
-    background: 'none', border: '1px solid var(--accent)', color: 'var(--accent)',
-    borderRadius: 4, padding: '3px 8px', fontSize: 11, cursor: 'pointer',
+  const subtielKnop: React.CSSProperties = {
+    border: '1px solid var(--border)', background: 'none', color: 'var(--text-dim)',
+    fontSize: 11, borderRadius: 4, padding: '3px 10px', cursor: 'pointer',
+    display: 'flex', alignItems: 'center', gap: 4,
   };
   const kaartStijl: React.CSSProperties = {
     background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 6, padding: '8px 12px', flex: 1,
@@ -107,27 +108,40 @@ export default function CategoriePopup({
 
         {/* Sectie 1: Datum */}
         <div style={{ marginBottom: 16, paddingBottom: 16, borderBottom: '1px solid var(--border)' }}>
-          <div style={sectionLabel}>Boekdatum</div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16 }}>
+          <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 6, padding: '10px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
             <div>
-              <div style={{ fontSize: 13, color: 'var(--text-h)', fontWeight: 500 }}>{formatDatum(t.datum)}</div>
-              {t.originele_datum && (
-                <div style={{ fontSize: 11, color: 'var(--text-dim)', textDecoration: 'line-through', marginTop: 2 }}>
-                  {formatDatum(t.originele_datum)}
-                </div>
+              <div style={{ fontSize: 10, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>Boekdatum</div>
+              {!t.originele_datum ? (
+                <div style={{ fontSize: 15, color: 'var(--text-h)', fontWeight: 600 }}>{formatDatum(t.datum)}</div>
+              ) : (
+                <>
+                  <div style={{ fontSize: 12, color: 'var(--text-dim)', textDecoration: 'line-through' }}>{formatDatum(t.originele_datum)}</div>
+                  <div style={{ fontSize: 15, color: 'var(--accent)', fontWeight: 600 }}>{formatDatum(t.datum)}</div>
+                  <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 2 }}>
+                    Geboekt in: {currentPeriodeIdx >= 0 ? `${MAAND_NAMEN[periodes[currentPeriodeIdx].maand - 1]} ${periodes[currentPeriodeIdx].jaar}` : '—'}
+                  </div>
+                </>
               )}
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              {volgendePeriode && (
-                <button style={knopStijl} onClick={() => onDatumWijzig(volgendePeriode.start, !!t.originele_datum)}>
-                  <ChevronsRight size={13} />
-                  Boeken in {volgendePeriode.label}
-                </button>
-              )}
-              {vorigePeriode && (
-                <button style={knopStijl} onClick={() => onDatumWijzig(vorigePeriode.eind, !!t.originele_datum)}>
-                  <ChevronsLeft size={13} />
-                  Boeken in {vorigePeriode.label}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flexShrink: 0 }}>
+              {!t.originele_datum ? (
+                <>
+                  {volgendePeriode && (
+                    <button style={subtielKnop} onClick={() => onDatumWijzig(volgendePeriode.start, false)}>
+                      Boeken in {MAAND_NAMEN[volgendePeriode.maand - 1]} {volgendePeriode.jaar}
+                      <ChevronsRight size={13} />
+                    </button>
+                  )}
+                  {vorigePeriode && (
+                    <button style={subtielKnop} onClick={() => onDatumWijzig(vorigePeriode.eind, false)}>
+                      <ChevronsLeft size={13} />
+                      Boeken in {MAAND_NAMEN[vorigePeriode.maand - 1]} {vorigePeriode.jaar}
+                    </button>
+                  )}
+                </>
+              ) : (
+                <button style={subtielKnop} onClick={() => onDatumWijzig(t.originele_datum!, null)}>
+                  Herstel originele datum
                 </button>
               )}
             </div>
