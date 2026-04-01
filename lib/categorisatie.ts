@@ -1,10 +1,11 @@
 // FILE: categorisatie.ts
 // AANGEMAAKT: 25-03-2026 17:30
 // VERSIE: 1
-// GEWIJZIGD: 01-04-2026 22:00
+// GEWIJZIGD: 01-04-2026 22:30
 //
-// WIJZIGINGEN (01-04-2026 22:00):
-// - updateCategorieRegel: naam_zoekwoord_raw fallback naar naam_origineel als schoonMaken() leeg oplevert
+// WIJZIGINGEN (01-04-2026 22:30):
+// - naam_zoekwoord per woord geschoond in insert en update (schoonMakenPerWoord helper)
+// - P2 en P3 matching via woordVolgordeMatch regex i.p.v. includes
 // WIJZIGINGEN (01-04-2026 21:30):
 // - updateCategorieRegel: naam_zoekwoord en omschrijving_zoekwoord behouden bestaande DB-waarde als niet expliciet meegestuurd
 // WIJZIGINGEN (01-04-2026 21:00):
@@ -66,6 +67,18 @@ function schoonMaken(s: string | null | undefined): string {
   return s.toLowerCase().replace(/[^a-z0-9&-]/g, '');
 }
 
+function schoonMakenPerWoord(s: string | null | undefined): string {
+  if (!s) return '';
+  return s.trim().split(/\s+/).map(w => schoonMaken(w)).filter(Boolean).join(' ');
+}
+
+function woordVolgordeMatch(zoekwoord: string, tekst: string): boolean {
+  const words = zoekwoord.split(' ').filter(Boolean);
+  if (words.length === 0) return false;
+  const regex = new RegExp(words.map(w => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('.*'));
+  return regex.test(tekst);
+}
+
 function typeMatch(t: Transactie, regelType: CategorieType): boolean {
   if (regelType === 'alle') return true;
   return t.type === regelType;
@@ -86,23 +99,22 @@ export function matchCategorie(
   const van = regels.filter(r => typeMatch(t, r.type));
 
   // Prioriteit 1: IBAN + omschrijving_zoekwoord (woorden in volgorde, willekeurige tekens ertussen)
-  const p1 = van.filter(r => {
-    if (!r.iban || !r.omschrijving_zoekwoord || r.iban !== tegenIban) return false;
-    const words = r.omschrijving_zoekwoord.split(' ').filter(Boolean);
-    const regex = new RegExp(words.map(w => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('.*'));
-    return regex.test(omschrSchoon);
-  });
+  const p1 = van.filter(r =>
+    r.iban && r.omschrijving_zoekwoord &&
+    r.iban === tegenIban &&
+    woordVolgordeMatch(r.omschrijving_zoekwoord, omschrSchoon)
+  );
   if (p1.length > 0) {
     return p1.sort((a, b) =>
       (b.omschrijving_zoekwoord?.length ?? 0) - (a.omschrijving_zoekwoord?.length ?? 0)
     )[0];
   }
 
-  // Prioriteit 2: IBAN + naam_zoekwoord (beide matchen)
+  // Prioriteit 2: IBAN + naam_zoekwoord (beide matchen, woorden in volgorde)
   const p2 = van.filter(r =>
     r.iban && r.naam_zoekwoord && !r.omschrijving_zoekwoord &&
     r.iban === tegenIban &&
-    naamSchoon.includes(r.naam_zoekwoord)
+    woordVolgordeMatch(r.naam_zoekwoord, naamSchoon)
   );
   if (p2.length > 0) {
     return p2.sort((a, b) =>
@@ -110,10 +122,10 @@ export function matchCategorie(
     )[0];
   }
 
-  // Prioriteit 3: naam_zoekwoord substring (geen iban in de regel) — langste match wint
+  // Prioriteit 3: naam_zoekwoord (geen iban in de regel, woorden in volgorde) — langste match wint
   const p3 = van.filter(r =>
     r.naam_zoekwoord && !r.iban &&
-    naamSchoon.includes(r.naam_zoekwoord)
+    woordVolgordeMatch(r.naam_zoekwoord, naamSchoon)
   );
   if (p3.length > 0) {
     return p3.sort((a, b) =>
@@ -240,10 +252,10 @@ export function insertCategorieRegel(data: {
   type?: CategorieType;
 }): number {
   const naam_zoekwoord         = data.naam_zoekwoord_raw !== undefined
-    ? (schoonMaken(data.naam_zoekwoord_raw) || null)
-    : (schoonMaken(data.naam_origineel) || null);
+    ? (schoonMakenPerWoord(data.naam_zoekwoord_raw) || null)
+    : (schoonMakenPerWoord(data.naam_origineel) || null);
   const omschrijving_zoekwoord = data.omschrijving_raw
-    ? (data.omschrijving_raw.trim().split(/\s+/).map(w => schoonMaken(w)).filter(Boolean).join(' ') || null)
+    ? (schoonMakenPerWoord(data.omschrijving_raw) || null)
     : null;
 
   const db = getDb();
@@ -298,14 +310,14 @@ export function updateCategorieRegel(
     { naam_zoekwoord: string | null; omschrijving_zoekwoord: string | null } | undefined;
 
   const naam_zoekwoord = data.naam_zoekwoord_raw !== undefined
-    ? (schoonMaken(data.naam_zoekwoord_raw) || schoonMaken(data.naam_origineel) || null)
+    ? (schoonMakenPerWoord(data.naam_zoekwoord_raw) || schoonMakenPerWoord(data.naam_origineel) || null)
     : data.naam_origineel !== undefined
-      ? (schoonMaken(data.naam_origineel) || null)
+      ? (schoonMakenPerWoord(data.naam_origineel) || null)
       : (bestaand?.naam_zoekwoord ?? null);
 
   const omschrijving_zoekwoord = data.omschrijving_raw !== undefined
     ? (data.omschrijving_raw
-        ? (data.omschrijving_raw.trim().split(/\s+/).map(w => schoonMaken(w)).filter(Boolean).join(' ') || null)
+        ? (schoonMakenPerWoord(data.omschrijving_raw) || null)
         : null)
     : (bestaand?.omschrijving_zoekwoord ?? null);
 
