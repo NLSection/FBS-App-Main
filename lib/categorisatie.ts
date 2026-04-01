@@ -1,8 +1,10 @@
 // FILE: categorisatie.ts
 // AANGEMAAKT: 25-03-2026 17:30
 // VERSIE: 1
-// GEWIJZIGD: 01-04-2026 14:00
+// GEWIJZIGD: 01-04-2026 20:30
 //
+// WIJZIGINGEN (01-04-2026 20:30):
+// - matchCategorie P1: omschrijving_zoekwoord regex-match (woorden in volgorde met willekeurige tekens ertussen)
 // WIJZIGINGEN (01-04-2026 14:00):
 // - matchCategorie P1: omschrijving_zoekwoord gesplitst op spaties; elk woord afzonderlijk gecheckt in omschrSchoon
 // - insertCategorieRegel/updateCategorieRegel: omschrijving_zoekwoord per woord geschoond en joined met spatie
@@ -77,12 +79,13 @@ export function matchCategorie(
 
   const van = regels.filter(r => typeMatch(t, r.type));
 
-  // Prioriteit 1: IBAN + omschrijving_zoekwoord
-  const p1 = van.filter(r =>
-    r.iban && r.omschrijving_zoekwoord &&
-    r.iban === tegenIban &&
-    r.omschrijving_zoekwoord.split(' ').every(w => omschrSchoon.includes(w))
-  );
+  // Prioriteit 1: IBAN + omschrijving_zoekwoord (woorden in volgorde, willekeurige tekens ertussen)
+  const p1 = van.filter(r => {
+    if (!r.iban || !r.omschrijving_zoekwoord || r.iban !== tegenIban) return false;
+    const words = r.omschrijving_zoekwoord.split(' ').filter(Boolean);
+    const regex = new RegExp(words.map(w => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('.*'));
+    return regex.test(omschrSchoon);
+  });
   if (p1.length > 0) {
     return p1.sort((a, b) =>
       (b.omschrijving_zoekwoord?.length ?? 0) - (a.omschrijving_zoekwoord?.length ?? 0)
