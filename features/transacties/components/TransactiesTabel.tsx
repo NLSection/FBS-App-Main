@@ -1,8 +1,10 @@
 // FILE: TransactiesTabel.tsx
 // AANGEMAAKT: 25-03-2026 12:00
 // VERSIE: 1
-// GEWIJZIGD: 01-04-2026 22:00
+// GEWIJZIGD: 01-04-2026 23:15
 //
+// WIJZIGINGEN (01-04-2026 23:15):
+// - maakNaamChips en analyseerOmschrijvingen: minimale woordlengte verwijderd (alle woorden als chip)
 // WIJZIGINGEN (01-04-2026 22:00):
 // - naam_zoekwoord_raw: fallback naar t.naam_tegenpartij als geen naam-chip geselecteerd
 // WIJZIGINGEN (01-04-2026 15:30):
@@ -201,7 +203,7 @@ function maakNaamChips(naam: string | null): { label: string; waarde: string }[]
   if (!naam) return [];
   return naam
     .split(/[\s.,/()\[\]{}'"!?:;]+/)
-    .filter(w => w.length >= 3)
+    .filter(w => w.length >= 1)
     .map(w => ({ label: w, waarde: w.toLowerCase().replace(/[^a-z0-9&-]/g, '') }))
     .filter(c => c.waarde.length > 0);
 }
@@ -212,7 +214,7 @@ function analyseerOmschrijvingen(t: TransactieMetCategorie): { label: string; wa
   if (!omschr) return [];
   return omschr
     .split(/[\s.,/()\[\]{}'"!?:;]+/)
-    .filter(w => w.length >= 3)
+    .filter(w => w.length >= 1)
     .map(w => ({ label: w, waarde: w.toLowerCase().replace(/[^a-z0-9&-]/g, '') }))
     .filter(c => c.waarde.length > 0);
 }
@@ -1155,7 +1157,7 @@ const [patronModal, setPatronModal]                   = useState<PatronModalData
               const omschr = [t.omschrijving_1, t.omschrijving_2, t.omschrijving_3].filter(Boolean).join(' ');
               const woorden = new Set(
                 omschr.split(/[\s.,/()\[\]{}'"!?:;]+/)
-                  .filter(w => w.length >= 3)
+                  .filter(w => w.length >= 1)
                   .map(w => w.toLowerCase().replace(/[^a-z0-9&-]/g, ''))
                   .filter(w => w.length > 0)
               );

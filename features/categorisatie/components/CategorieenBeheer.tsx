@@ -1,8 +1,10 @@
 // FILE: CategorieenBeheer.tsx
 // AANGEMAAKT: 25-03-2026 17:30
 // VERSIE: 1
-// GEWIJZIGD: 01-04-2026 23:00
+// GEWIJZIGD: 01-04-2026 23:15
 //
+// WIJZIGINGEN (01-04-2026 23:15):
+// - maakNaamChips en analyseerOmschrijvingen: minimale woordlengte verwijderd (alle woorden als chip)
 // WIJZIGINGEN (01-04-2026 23:00):
 // - Categorieregels tab: inline bewerking per cel voor naam_zoekwoord, omschrijving_zoekwoord, toelichting, categorie, subcategorie
 // - openRegelPopup niet meer aangeroepen vanuit Categorieregels tab
@@ -82,7 +84,7 @@ function maakNaamChips(naam: string | null): { label: string; waarde: string }[]
   if (!naam) return [];
   return naam
     .split(/[\s.,/()\[\]{}'"!?:;]+/)
-    .filter(w => w.length >= 3)
+    .filter(w => w.length >= 1)
     .map(w => ({ label: w, waarde: w.toLowerCase().replace(/[^a-z0-9&-]/g, '') }))
     .filter(c => c.waarde.length > 0);
 }
@@ -93,7 +95,7 @@ function analyseerOmschrijvingen(t: TransactieMetCategorie): { label: string; wa
   if (!omschr) return [];
   return omschr
     .split(/[\s.,/()\[\]{}'"!?:;]+/)
-    .filter(w => w.length >= 3)
+    .filter(w => w.length >= 1)
     .map(w => ({ label: w, waarde: w.toLowerCase().replace(/[^a-z0-9&-]/g, '') }))
     .filter(c => c.waarde.length > 0);
 }
@@ -790,7 +792,7 @@ export default function CategorieenBeheer() {
               const omschr = [t.omschrijving_1, t.omschrijving_2, t.omschrijving_3].filter(Boolean).join(' ');
               const woorden = new Set(
                 omschr.split(/[\s.,/()\[\]{}'"!?:;]+/)
-                  .filter(w => w.length >= 3)
+                  .filter(w => w.length >= 1)
                   .map(w => w.toLowerCase().replace(/[^a-z0-9&-]/g, ''))
                   .filter(w => w.length > 0)
               );
