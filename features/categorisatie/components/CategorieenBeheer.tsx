@@ -1,8 +1,11 @@
 // FILE: CategorieenBeheer.tsx
 // AANGEMAAKT: 25-03-2026 17:30
 // VERSIE: 1
-// GEWIJZIGD: 01-04-2026 23:15
+// GEWIJZIGD: 01-04-2026 23:30
 //
+// WIJZIGINGEN (01-04-2026 23:30):
+// - Scrollbar sync: tab dependency toegevoegd aan ResizeObserver effects
+// - Categorie/subcategorie: badge-weergave met dropdown bij klik i.p.v. permanente dropdown
 // WIJZIGINGEN (01-04-2026 23:15):
 // - maakNaamChips en analyseerOmschrijvingen: minimale woordlengte verwijderd (alle woorden als chip)
 // WIJZIGINGEN (01-04-2026 23:00):
@@ -180,7 +183,7 @@ export default function CategorieenBeheer() {
     const obs = new ResizeObserver(() => { setContainerWidth1(el.scrollWidth); });
     obs.observe(el);
     return () => obs.disconnect();
-  }, [regels]);
+  }, [regels, tab]);
 
   useEffect(() => {
     if (!tableWrapperRef2.current) return;
@@ -188,7 +191,7 @@ export default function CategorieenBeheer() {
     const obs = new ResizeObserver(() => { setContainerWidth2(el.scrollWidth); });
     obs.observe(el);
     return () => obs.disconnect();
-  }, [transacties]);
+  }, [transacties, tab]);
 
   function syncScroll1(source: 'top' | 'table') {
     if (syncingRef1.current) return;
@@ -672,24 +675,36 @@ export default function CategorieenBeheer() {
                               />
                             ) : (r.toelichting || <em style={{ color: 'var(--text-dim)' }}>—</em>)}
                           </td>
-                          {/* Categorie — dropdown */}
-                          <td>
-                            <select style={selectStijl} value={r.categorie}
-                              onChange={e => saveRegelVeld(r.id, 'categorie', e.target.value, r)}>
-                              {[...regelsUniekeCats].sort((a, b) => a.localeCompare(b, 'nl')).map(cat => (
-                                <option key={cat} value={cat}>{cat}</option>
-                              ))}
-                            </select>
+                          {/* Categorie — badge → dropdown bij klik */}
+                          <td style={{ cursor: 'pointer' }} onClick={() => !isEditing('categorie') && setEditingRegelCell({ id: r.id, veld: 'categorie', waarde: r.categorie })}>
+                            {isEditing('categorie') ? (
+                              <select autoFocus style={selectStijl} value={editingRegelCell!.waarde}
+                                onChange={e => saveRegelVeld(r.id, 'categorie', e.target.value, r)}
+                                onBlur={() => setEditingRegelCell(null)}>
+                                {[...regelsUniekeCats].sort((a, b) => a.localeCompare(b, 'nl')).map(cat => (
+                                  <option key={cat} value={cat}>{cat}</option>
+                                ))}
+                              </select>
+                            ) : (
+                              <span className="badge" style={{ background: kleurBg(catKleur), border: `1px solid ${catKleur}`, color: catKleur }}>{r.categorie}</span>
+                            )}
                           </td>
-                          {/* Subcategorie — dropdown */}
-                          <td>
-                            <select style={selectStijl} value={r.subcategorie ?? ''}
-                              onChange={e => saveRegelVeld(r.id, 'subcategorie', e.target.value, r)}>
-                              <option value="">—</option>
-                              {(subcatsPerCat[r.categorie] ?? []).sort((a, b) => a.localeCompare(b, 'nl')).map(sub => (
-                                <option key={sub} value={sub}>{sub}</option>
-                              ))}
-                            </select>
+                          {/* Subcategorie — badge → dropdown bij klik */}
+                          <td style={{ cursor: 'pointer' }} onClick={() => !isEditing('subcategorie') && setEditingRegelCell({ id: r.id, veld: 'subcategorie', waarde: r.subcategorie ?? '' })}>
+                            {isEditing('subcategorie') ? (
+                              <select autoFocus style={selectStijl} value={editingRegelCell!.waarde}
+                                onChange={e => saveRegelVeld(r.id, 'subcategorie', e.target.value, r)}
+                                onBlur={() => setEditingRegelCell(null)}>
+                                <option value="">—</option>
+                                {(subcatsPerCat[r.categorie] ?? []).sort((a, b) => a.localeCompare(b, 'nl')).map(sub => (
+                                  <option key={sub} value={sub}>{sub}</option>
+                                ))}
+                              </select>
+                            ) : (
+                              r.subcategorie
+                                ? <span className="badge-outline" style={{ borderColor: catKleur, color: catKleur }}>{r.subcategorie}</span>
+                                : <span style={{ color: 'var(--text-dim)', fontSize: 12 }}>—</span>
+                            )}
                           </td>
                           {/* Type — read-only */}
                           <td><span className="badge">{formatType(r.type)}</span></td>
