@@ -1,8 +1,10 @@
 // FILE: TransactiesTabel.tsx
 // AANGEMAAKT: 25-03-2026 12:00
 // VERSIE: 1
-// GEWIJZIGD: 02-04-2026 00:15
+// GEWIJZIGD: 02-04-2026 00:30
 //
+// WIJZIGINGEN (02-04-2026 00:30):
+// - Herladen: tabel blijft zichtbaar (opacity 0.5) tijdens data-refresh i.p.v. laadbericht
 // WIJZIGINGEN (02-04-2026 00:15):
 // - Scrollherstel via onBevestigStart callback: positie opslaan vóór popup-sluiting en API calls
 // WIJZIGINGEN (01-04-2026 23:15):
@@ -280,9 +282,12 @@ const [patronModal, setPatronModal]                   = useState<PatronModalData
   }, [transacties]);
 
   // Stap 2: laad transacties zodra periodes gereed zijn, of bij filterwijziging
+  const isHerladen = useRef(false);
   useEffect(() => {
     if (!klaar) return;
-    setLaden(true);
+    const herladen = reloadTrigger > 0 && transacties.length > 0;
+    isHerladen.current = herladen;
+    if (!herladen) setLaden(true);
     setFout(null);
     const queryParts: string[] = [];
     if (filter !== 'alle') queryParts.push(`type=${filter}`);
@@ -301,8 +306,9 @@ const [patronModal, setPatronModal]                   = useState<PatronModalData
         if (!r.ok) throw new Error('Laden mislukt.');
         return r.json() as Promise<TransactieMetCategorie[]>;
       })
-      .then(data => { setTransacties(data); setLaden(false); })
-      .catch(err  => { setFout(err.message); setLaden(false); });
+      .then(data => { setTransacties(data); setLaden(false); isHerladen.current = false; })
+      .catch(err  => { setFout(err.message); setLaden(false); isHerladen.current = false; });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [klaar, filter, geselecteerdePeriode, geselecteerdJaar, reloadTrigger]);
 
   // Laad budgetten/potjes voor select-opties en kleurcodering
@@ -971,12 +977,12 @@ const [patronModal, setPatronModal]                   = useState<PatronModalData
 
       {fout && <div className="error-melding">{fout}</div>}
 
-      {!klaar || laden ? (
+      {!klaar || (laden && !isHerladen.current) ? (
         <p className="loading">Laden…</p>
-      ) : gefilterdeTransacties.length === 0 ? (
+      ) : gefilterdeTransacties.length === 0 && !isHerladen.current ? (
         <p className="empty">Geen transacties gevonden.</p>
       ) : (
-        <>
+        <div style={{ opacity: isHerladen.current ? 0.5 : 1, pointerEvents: isHerladen.current ? 'none' : 'auto', transition: 'opacity 0.15s' }}>
 
           {/* Scrollbalk bovenaan (gesynchroniseerd) */}
           <div
@@ -1143,7 +1149,7 @@ const [patronModal, setPatronModal]                   = useState<PatronModalData
               </tbody>
             </table>
           </div>
-        </>
+        </div>
       )}
 
       {/* Modal: Patroonherkenning omschrijving */}
