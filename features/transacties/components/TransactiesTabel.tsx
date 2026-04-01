@@ -1,8 +1,10 @@
 // FILE: TransactiesTabel.tsx
 // AANGEMAAKT: 25-03-2026 12:00
 // VERSIE: 1
-// GEWIJZIGD: 01-04-2026 01:00
+// GEWIJZIGD: 01-04-2026 14:30
 //
+// WIJZIGINGEN (01-04-2026 14:30):
+// - Scrollpositie-herstel na reloadTrigger: scrollPosRef opslaan voor fetch, window.scrollTo na setTransacties
 // WIJZIGINGEN (01-04-2026 01:00):
 // - Twee-laags sortering: primair op geselecteerde kolom, secundair datum↔volgnummer
 // - Standaard: datum desc, bij gelijke datum secundair op volgnummer desc
@@ -233,6 +235,7 @@ export default function TransactiesTabel() {
   const [actieveTab, setActieveTab]                     = useState<string>('beheerd');
 const [patronModal, setPatronModal]                   = useState<PatronModalData | null>(null);
   const [uniekeCategorieenDropdown, setUniekeCategorieenDropdown] = useState<string[]>([]);
+  const scrollPosRef                                     = useRef(0);
   const isSavingRef                                     = useRef(false);
   const cancelledRef                                    = useRef(false);
   const topScrollRef                                    = useRef<HTMLDivElement>(null);
@@ -254,9 +257,15 @@ const [patronModal, setPatronModal]                   = useState<PatronModalData
       });
   }, []);
 
+  // Herstel scrollpositie na reloadTrigger
+  useEffect(() => {
+    if (reloadTrigger > 0) window.scrollTo(0, scrollPosRef.current);
+  }, [transacties]);
+
   // Stap 2: laad transacties zodra periodes gereed zijn, of bij filterwijziging
   useEffect(() => {
     if (!klaar) return;
+    scrollPosRef.current = window.scrollY;
     setLaden(true);
     setFout(null);
     const queryParts: string[] = [];
