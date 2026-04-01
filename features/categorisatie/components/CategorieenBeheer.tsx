@@ -1,8 +1,10 @@
 // FILE: CategorieenBeheer.tsx
 // AANGEMAAKT: 25-03-2026 17:30
 // VERSIE: 1
-// GEWIJZIGD: 01-04-2026 23:30
+// GEWIJZIGD: 01-04-2026 23:45
 //
+// WIJZIGINGEN (01-04-2026 23:45):
+// - Naam tegenpartij (naam_origineel) bewerkbaar via inline klik-naar-input
 // WIJZIGINGEN (01-04-2026 23:30):
 // - Scrollbar sync: tab dependency toegevoegd aan ResizeObserver effects
 // - Categorie/subcategorie: badge-weergave met dropdown bij klik i.p.v. permanente dropdown
@@ -138,6 +140,7 @@ export default function CategorieenBeheer() {
       type: regel.type,
       ...(regel.iban ? { iban: regel.iban } : {}),
     };
+    if (veld === 'naam_origineel') body.naam_origineel = waarde || null;
     if (veld === 'naam_zoekwoord') body.naam_zoekwoord_raw = waarde || null;
     if (veld === 'omschrijving_zoekwoord') body.omschrijving_raw = waarde || null;
     if (veld === 'toelichting') body.toelichting = waarde || null;
@@ -643,8 +646,16 @@ export default function CategorieenBeheer() {
                         <tr key={r.id}>
                           {/* IBAN — read-only */}
                           <td style={{ fontSize: 11, fontFamily: 'monospace' }}>{r.iban || <em style={{ color: 'var(--text-dim)' }}>—</em>}</td>
-                          {/* Naam origineel — read-only */}
-                          <td style={{ color: 'var(--text-h)', fontWeight: 500 }}>{r.naam_origineel || <em style={{ color: 'var(--text-dim)' }}>—</em>}</td>
+                          {/* Naam origineel — editable */}
+                          <td style={{ color: 'var(--text-h)', fontWeight: 500, cursor: 'pointer' }} onClick={() => !isEditing('naam_origineel') && setEditingRegelCell({ id: r.id, veld: 'naam_origineel', waarde: r.naam_origineel ?? '' })}>
+                            {isEditing('naam_origineel') ? (
+                              <input autoFocus style={inputStijl} value={editingRegelCell!.waarde}
+                                onChange={e => setEditingRegelCell({ ...editingRegelCell!, waarde: e.target.value })}
+                                onBlur={() => saveRegelVeld(r.id, 'naam_origineel', editingRegelCell!.waarde, r)}
+                                onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); if (e.key === 'Escape') setEditingRegelCell(null); }}
+                              />
+                            ) : (r.naam_origineel || <em style={{ color: 'var(--text-dim)' }}>—</em>)}
+                          </td>
                           {/* Naam zoekwoord — editable */}
                           <td style={{ fontSize: 11, fontFamily: 'monospace', cursor: 'pointer' }} onClick={() => !isEditing('naam_zoekwoord') && setEditingRegelCell({ id: r.id, veld: 'naam_zoekwoord', waarde: r.naam_zoekwoord ?? '' })}>
                             {isEditing('naam_zoekwoord') ? (
