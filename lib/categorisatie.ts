@@ -1,8 +1,10 @@
 // FILE: categorisatie.ts
 // AANGEMAAKT: 25-03-2026 17:30
 // VERSIE: 1
-// GEWIJZIGD: 01-04-2026 21:30
+// GEWIJZIGD: 01-04-2026 22:00
 //
+// WIJZIGINGEN (01-04-2026 22:00):
+// - updateCategorieRegel: naam_zoekwoord_raw fallback naar naam_origineel als schoonMaken() leeg oplevert
 // WIJZIGINGEN (01-04-2026 21:30):
 // - updateCategorieRegel: naam_zoekwoord en omschrijving_zoekwoord behouden bestaande DB-waarde als niet expliciet meegestuurd
 // WIJZIGINGEN (01-04-2026 21:00):
@@ -296,7 +298,7 @@ export function updateCategorieRegel(
     { naam_zoekwoord: string | null; omschrijving_zoekwoord: string | null } | undefined;
 
   const naam_zoekwoord = data.naam_zoekwoord_raw !== undefined
-    ? (schoonMaken(data.naam_zoekwoord_raw) || null)
+    ? (schoonMaken(data.naam_zoekwoord_raw) || schoonMaken(data.naam_origineel) || null)
     : data.naam_origineel !== undefined
       ? (schoonMaken(data.naam_origineel) || null)
       : (bestaand?.naam_zoekwoord ?? null);

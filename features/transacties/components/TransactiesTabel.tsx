@@ -1,8 +1,10 @@
 // FILE: TransactiesTabel.tsx
 // AANGEMAAKT: 25-03-2026 12:00
 // VERSIE: 1
-// GEWIJZIGD: 01-04-2026 15:30
+// GEWIJZIGD: 01-04-2026 22:00
 //
+// WIJZIGINGEN (01-04-2026 22:00):
+// - naam_zoekwoord_raw: fallback naar t.naam_tegenpartij als geen naam-chip geselecteerd
 // WIJZIGINGEN (01-04-2026 15:30):
 // - Scrollherstel via requestAnimationFrame zodat DOM gerenderd is voor window.scrollTo
 // WIJZIGINGEN (01-04-2026 15:00):
@@ -436,7 +438,7 @@ const [patronModal, setPatronModal]                   = useState<PatronModalData
       subcategorie:       subcategorie || null,
       type:               t.type,
       naam_origineel:     naamOrigineel !== undefined ? naamOrigineel : (t.naam_tegenpartij ?? null),
-      naam_zoekwoord_raw: naamZoekWoord ?? null,
+      naam_zoekwoord_raw: naamZoekWoord || (t.naam_tegenpartij ?? null),
       toelichting:        toelichting ?? null,
     };
     if (inclusiefIban && t.tegenrekening_iban_bban) body.iban = t.tegenrekening_iban_bban;
@@ -578,14 +580,14 @@ const [patronModal, setPatronModal]                   = useState<PatronModalData
             subcategorie:       subcatWaarde || null,
             toelichting:        toelichting || null,
             naam_origineel:     gekozenNaamLabel,
-            naam_zoekwoord_raw: gekozenNaamChip || null,
+            naam_zoekwoord_raw: gekozenNaamChip || t.naam_tegenpartij,
             type:               t.type,
             ...(t.tegenrekening_iban_bban ? { iban: t.tegenrekening_iban_bban } : {}),
           }),
         });
         finalRegelId = regelId;
       } else {
-        finalRegelId = await maakCategorieregel(t, nieuweCat.trim(), subcatWaarde, gekozenWoord || null, true, gekozenNaamChip || null, gekozenNaamLabel, toelichting || null);
+        finalRegelId = await maakCategorieregel(t, nieuweCat.trim(), subcatWaarde, gekozenWoord || null, true, gekozenNaamChip || t.naam_tegenpartij, gekozenNaamLabel, toelichting || null);
       }
     } else if (t.categorie_id !== null) {
       // Bestaande categorieregel updaten via PUT — voorkomt dat de oude regel blijft bestaan en na hermatch wint
@@ -597,14 +599,14 @@ const [patronModal, setPatronModal]                   = useState<PatronModalData
           subcategorie:       subcatWaarde || null,
           toelichting:        toelichting || null,
           naam_origineel:     gekozenNaamLabel,
-          naam_zoekwoord_raw: gekozenNaamChip || null,
+          naam_zoekwoord_raw: gekozenNaamChip || t.naam_tegenpartij,
           type:               t.type,
           ...(t.tegenrekening_iban_bban ? { iban: t.tegenrekening_iban_bban } : {}),
         }),
       });
       finalRegelId = t.categorie_id;
     } else {
-      finalRegelId = await maakCategorieregel(t, nieuweCat, subcatWaarde, gekozenWoord || null, true, gekozenNaamChip || null, gekozenNaamLabel, toelichting || null);
+      finalRegelId = await maakCategorieregel(t, nieuweCat, subcatWaarde, gekozenWoord || null, true, gekozenNaamChip || t.naam_tegenpartij, gekozenNaamLabel, toelichting || null);
     }
     await triggerHermatch(toelichting || null, finalRegelId);
     setReloadTrigger(n => n + 1);
