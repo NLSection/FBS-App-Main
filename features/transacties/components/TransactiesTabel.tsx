@@ -1,10 +1,10 @@
 // FILE: TransactiesTabel.tsx
 // AANGEMAAKT: 25-03-2026 12:00
 // VERSIE: 1
-// GEWIJZIGD: 02-04-2026 00:00
+// GEWIJZIGD: 02-04-2026 00:15
 //
-// WIJZIGINGEN (02-04-2026 00:00):
-// - Scrollherstel: positie opslaan bij popup sluiten/bevestigen i.p.v. in fetch useEffect
+// WIJZIGINGEN (02-04-2026 00:15):
+// - Scrollherstel via onBevestigStart callback: positie opslaan vóór popup-sluiting en API calls
 // WIJZIGINGEN (01-04-2026 23:15):
 // - maakNaamChips en analyseerOmschrijvingen: minimale woordlengte verwijderd (alle woorden als chip)
 // WIJZIGINGEN (01-04-2026 22:00):
@@ -524,7 +524,6 @@ const [patronModal, setPatronModal]                   = useState<PatronModalData
 
   async function handlePatronModalBevestig() {
     if (!patronModal) return;
-    slaScrollOpVoorHerstel();
     const { transactie: t, toelichting, nieuweCat, catNieuw, nieuweCatRekeningId, subcategorie, gekozenWoorden, gekozenNaamChips, scope } = patronModal;
     const gekozenNaamChip  = gekozenNaamChips.join(' ');
     const gekozenWoord     = gekozenWoorden.join(' ');
@@ -1153,7 +1152,8 @@ const [patronModal, setPatronModal]                   = useState<PatronModalData
           patronModal={patronModal}
           setPatronModal={setPatronModal}
           onBevestig={handlePatronModalBevestig}
-          onSluiten={() => { slaScrollOpVoorHerstel(); setPatronModal(null); }}
+          onBevestigStart={slaScrollOpVoorHerstel}
+          onSluiten={() => setPatronModal(null)}
           onAnalyseer={async () => {
             const naam = patronModal.transactie.naam_tegenpartij;
             if (!naam) return {};

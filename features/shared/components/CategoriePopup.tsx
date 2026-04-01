@@ -1,8 +1,10 @@
 // FILE: CategoriePopup.tsx
 // AANGEMAAKT: 31-03-2026 00:00
 // VERSIE: 1
-// GEWIJZIGD: 31-03-2026 20:00
+// GEWIJZIGD: 02-04-2026 00:15
 //
+// WIJZIGINGEN (02-04-2026 00:15):
+// - onBevestigStart callback: wordt als eerste aangeroepen bij Opslaan, vóór state-updates en API calls
 // WIJZIGINGEN (31-03-2026 20:00):
 // - datum_aanpassing i.p.v. originele_datum; t.datum is altijd de originele importdatum
 // - onDatumWijzig vereenvoudigd: (datum: string | null) → null wist datum_aanpassing
@@ -43,6 +45,7 @@ interface CategoriePopupProps {
   patronModal: PatronModalData;
   setPatronModal: React.Dispatch<React.SetStateAction<PatronModalData | null>>;
   onBevestig: () => void;
+  onBevestigStart?: () => void;
   onSluiten: () => void;
   onAnalyseer: () => Promise<Record<string, number>>;
   onDatumWijzig: (datum: string | null) => Promise<void>;
@@ -72,7 +75,7 @@ function berekeningPeriodeBereik(jaar: number, maand: number, maandStartDag: num
 }
 
 export default function CategoriePopup({
-  patronModal, setPatronModal, onBevestig, onSluiten, onAnalyseer, onDatumWijzig, onVoegRekeningToe,
+  patronModal, setPatronModal, onBevestig, onBevestigStart, onSluiten, onAnalyseer, onDatumWijzig, onVoegRekeningToe,
   budgettenPotjes, rekeningen, periodes, uniekeCategorieenDropdown,
 }: CategoriePopupProps) {
   const [tooltipNaam, setTooltipNaam]       = useState(false);
@@ -122,6 +125,7 @@ export default function CategoriePopup({
   }
 
   async function handleBevestig() {
+    onBevestigStart?.();
     if (tijdelijkeDatum !== undefined) {
       await onDatumWijzig(tijdelijkeDatum); // null = wis datum_aanpassing, string = stel in
     }
