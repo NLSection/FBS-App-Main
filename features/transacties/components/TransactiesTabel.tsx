@@ -1,8 +1,10 @@
 // FILE: TransactiesTabel.tsx
 // AANGEMAAKT: 25-03-2026 12:00
 // VERSIE: 1
-// GEWIJZIGD: 01-04-2026 23:15
+// GEWIJZIGD: 02-04-2026 00:00
 //
+// WIJZIGINGEN (02-04-2026 00:00):
+// - Scrollherstel: positie opslaan bij popup sluiten/bevestigen i.p.v. in fetch useEffect
 // WIJZIGINGEN (01-04-2026 23:15):
 // - maakNaamChips en analyseerOmschrijvingen: minimale woordlengte verwijderd (alle woorden als chip)
 // WIJZIGINGEN (01-04-2026 22:00):
@@ -280,7 +282,6 @@ const [patronModal, setPatronModal]                   = useState<PatronModalData
   // Stap 2: laad transacties zodra periodes gereed zijn, of bij filterwijziging
   useEffect(() => {
     if (!klaar) return;
-    if (reloadTrigger > 0) { scrollPosRef.current = window.scrollY; isReloadRef.current = true; }
     setLaden(true);
     setFout(null);
     const queryParts: string[] = [];
@@ -516,8 +517,14 @@ const [patronModal, setPatronModal]                   = useState<PatronModalData
     return match?.id ?? null;
   }
 
+  function slaScrollOpVoorHerstel() {
+    scrollPosRef.current = window.scrollY;
+    isReloadRef.current = true;
+  }
+
   async function handlePatronModalBevestig() {
     if (!patronModal) return;
+    slaScrollOpVoorHerstel();
     const { transactie: t, toelichting, nieuweCat, catNieuw, nieuweCatRekeningId, subcategorie, gekozenWoorden, gekozenNaamChips, scope } = patronModal;
     const gekozenNaamChip  = gekozenNaamChips.join(' ');
     const gekozenWoord     = gekozenWoorden.join(' ');
@@ -1146,7 +1153,7 @@ const [patronModal, setPatronModal]                   = useState<PatronModalData
           patronModal={patronModal}
           setPatronModal={setPatronModal}
           onBevestig={handlePatronModalBevestig}
-          onSluiten={() => setPatronModal(null)}
+          onSluiten={() => { slaScrollOpVoorHerstel(); setPatronModal(null); }}
           onAnalyseer={async () => {
             const naam = patronModal.transactie.naam_tegenpartij;
             if (!naam) return {};
