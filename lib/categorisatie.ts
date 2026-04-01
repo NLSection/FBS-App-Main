@@ -1,8 +1,11 @@
 // FILE: categorisatie.ts
 // AANGEMAAKT: 25-03-2026 17:30
 // VERSIE: 1
-// GEWIJZIGD: 01-04-2026 10:00
+// GEWIJZIGD: 01-04-2026 14:00
 //
+// WIJZIGINGEN (01-04-2026 14:00):
+// - matchCategorie P1: omschrijving_zoekwoord gesplitst op spaties; elk woord afzonderlijk gecheckt in omschrSchoon
+// - insertCategorieRegel/updateCategorieRegel: omschrijving_zoekwoord per woord geschoond en joined met spatie
 // WIJZIGINGEN (01-04-2026 10:00):
 // - matchCategorie: IBAN+naam_zoekwoord nieuw als P2; naam_zoekwoord blijft P3; IBAN-only gedegradeerd naar P4
 // WIJZIGINGEN (01-04-2026 00:15):
@@ -78,7 +81,7 @@ export function matchCategorie(
   const p1 = van.filter(r =>
     r.iban && r.omschrijving_zoekwoord &&
     r.iban === tegenIban &&
-    omschrSchoon.includes(r.omschrijving_zoekwoord)
+    r.omschrijving_zoekwoord.split(' ').every(w => omschrSchoon.includes(w))
   );
   if (p1.length > 0) {
     return p1.sort((a, b) =>
@@ -230,7 +233,9 @@ export function insertCategorieRegel(data: {
   const naam_zoekwoord         = data.naam_zoekwoord_raw !== undefined
     ? (schoonMaken(data.naam_zoekwoord_raw) || null)
     : (schoonMaken(data.naam_origineel) || null);
-  const omschrijving_zoekwoord = schoonMaken(data.omschrijving_raw) || null;
+  const omschrijving_zoekwoord = data.omschrijving_raw
+    ? (data.omschrijving_raw.trim().split(/\s+/).map(w => schoonMaken(w)).filter(Boolean).join(' ') || null)
+    : null;
 
   const db = getDb();
   const type = data.type ?? 'alle';
@@ -282,7 +287,9 @@ export function updateCategorieRegel(
   const naam_zoekwoord         = data.naam_zoekwoord_raw !== undefined
     ? (schoonMaken(data.naam_zoekwoord_raw) || null)
     : (schoonMaken(data.naam_origineel) || null);
-  const omschrijving_zoekwoord = schoonMaken(data.omschrijving_raw) || null;
+  const omschrijving_zoekwoord = data.omschrijving_raw
+    ? (data.omschrijving_raw.trim().split(/\s+/).map(w => schoonMaken(w)).filter(Boolean).join(' ') || null)
+    : null;
 
   getDb()
     .prepare(`
