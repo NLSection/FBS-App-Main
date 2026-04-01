@@ -1,8 +1,10 @@
 // FILE: categorisatie.ts
 // AANGEMAAKT: 25-03-2026 17:30
 // VERSIE: 1
-// GEWIJZIGD: 01-04-2026 20:30
+// GEWIJZIGD: 01-04-2026 21:00
 //
+// WIJZIGINGEN (01-04-2026 21:00):
+// - matchCategorie P2: regels met gevuld omschrijving_zoekwoord uitgesloten van IBAN+naam_zoekwoord match
 // WIJZIGINGEN (01-04-2026 20:30):
 // - matchCategorie P1: omschrijving_zoekwoord regex-match (woorden in volgorde met willekeurige tekens ertussen)
 // WIJZIGINGEN (01-04-2026 14:00):
@@ -94,7 +96,7 @@ export function matchCategorie(
 
   // Prioriteit 2: IBAN + naam_zoekwoord (beide matchen)
   const p2 = van.filter(r =>
-    r.iban && r.naam_zoekwoord &&
+    r.iban && r.naam_zoekwoord && !r.omschrijving_zoekwoord &&
     r.iban === tegenIban &&
     naamSchoon.includes(r.naam_zoekwoord)
   );
