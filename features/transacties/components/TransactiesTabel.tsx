@@ -1,8 +1,10 @@
 // FILE: TransactiesTabel.tsx
 // AANGEMAAKT: 25-03-2026 12:00
 // VERSIE: 1
-// GEWIJZIGD: 01-04-2026 14:30
+// GEWIJZIGD: 01-04-2026 15:00
 //
+// WIJZIGINGEN (01-04-2026 15:00):
+// - isReloadRef toegevoegd: scrollherstel alleen bij reloadTrigger, niet bij filterwijziging
 // WIJZIGINGEN (01-04-2026 14:30):
 // - Scrollpositie-herstel na reloadTrigger: scrollPosRef opslaan voor fetch, window.scrollTo na setTransacties
 // WIJZIGINGEN (01-04-2026 01:00):
@@ -236,6 +238,7 @@ export default function TransactiesTabel() {
 const [patronModal, setPatronModal]                   = useState<PatronModalData | null>(null);
   const [uniekeCategorieenDropdown, setUniekeCategorieenDropdown] = useState<string[]>([]);
   const scrollPosRef                                     = useRef(0);
+  const isReloadRef                                      = useRef(false);
   const isSavingRef                                     = useRef(false);
   const cancelledRef                                    = useRef(false);
   const topScrollRef                                    = useRef<HTMLDivElement>(null);
@@ -259,13 +262,16 @@ const [patronModal, setPatronModal]                   = useState<PatronModalData
 
   // Herstel scrollpositie na reloadTrigger
   useEffect(() => {
-    if (reloadTrigger > 0) window.scrollTo(0, scrollPosRef.current);
+    if (isReloadRef.current) {
+      window.scrollTo(0, scrollPosRef.current);
+      isReloadRef.current = false;
+    }
   }, [transacties]);
 
   // Stap 2: laad transacties zodra periodes gereed zijn, of bij filterwijziging
   useEffect(() => {
     if (!klaar) return;
-    scrollPosRef.current = window.scrollY;
+    if (reloadTrigger > 0) { scrollPosRef.current = window.scrollY; isReloadRef.current = true; }
     setLaden(true);
     setFout(null);
     const queryParts: string[] = [];
