@@ -1,8 +1,11 @@
 // FILE: CategorieenBeheer.tsx
 // AANGEMAAKT: 25-03-2026 17:30
 // VERSIE: 1
-// GEWIJZIGD: 31-03-2026 14:30
+// GEWIJZIGD: 01-04-2026 23:00
 //
+// WIJZIGINGEN (01-04-2026 23:00):
+// - Categorieregels tab: inline bewerking per cel voor naam_zoekwoord, omschrijving_zoekwoord, toelichting, categorie, subcategorie
+// - openRegelPopup niet meer aangeroepen vanuit Categorieregels tab
 // WIJZIGINGEN (31-03-2026 14:30):
 // - periodes state toegevoegd + fetch /api/periodes
 // - handleDatumWijzig en handleVoegRekeningToe geïmplementeerd
@@ -117,6 +120,33 @@ export default function CategorieenBeheer() {
   const [regelsSortDir, setRegelsSortDir]       = useState<'asc' | 'desc'>('asc');
   const [aangepastSortCol, setAangepastSortCol] = useState<string | null>(null);
   const [aangepastSortDir, setAangepastSortDir] = useState<'asc' | 'desc'>('asc');
+
+  // Inline edit state voor regels tab
+  const [editingRegelCell, setEditingRegelCell] = useState<{ id: number; veld: string; waarde: string } | null>(null);
+
+  async function saveRegelVeld(id: number, veld: string, waarde: string, regel: CategorieRegel) {
+    const body: Record<string, unknown> = {
+      categorie: regel.categorie,
+      subcategorie: regel.subcategorie ?? null,
+      toelichting: regel.toelichting ?? null,
+      naam_origineel: regel.naam_origineel ?? null,
+      type: regel.type,
+      ...(regel.iban ? { iban: regel.iban } : {}),
+    };
+    if (veld === 'naam_zoekwoord') body.naam_zoekwoord_raw = waarde || null;
+    if (veld === 'omschrijving_zoekwoord') body.omschrijving_raw = waarde || null;
+    if (veld === 'toelichting') body.toelichting = waarde || null;
+    if (veld === 'categorie') body.categorie = waarde;
+    if (veld === 'subcategorie') body.subcategorie = waarde || null;
+
+    await fetch(`/api/categorieen/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    setEditingRegelCell(null);
+    setReloadTrigger(n => n + 1);
+  }
 
   // Scroll sync refs
   const topScrollRef1     = useRef<HTMLDivElement>(null);
@@ -436,6 +466,15 @@ export default function CategorieenBeheer() {
 
   // ── Render helpers ────────────────────────────────────────────────────
 
+  // Unieke subcategorieën per categorie voor dropdowns
+  const subcatsPerCat: Record<string, string[]> = {};
+  for (const r of regels) {
+    if (!subcatsPerCat[r.categorie]) subcatsPerCat[r.categorie] = [];
+    if (r.subcategorie && !subcatsPerCat[r.categorie].includes(r.subcategorie)) {
+      subcatsPerCat[r.categorie].push(r.subcategorie);
+    }
+  }
+
   const REGELS_KOLOMMEN = [
     { id: 'iban', label: 'IBAN' },
     { id: 'naam_origineel', label: 'Naam tegenpartij' },
@@ -592,23 +631,68 @@ export default function CategorieenBeheer() {
                   <tbody>
                     {gesorteerdeRegels.map(r => {
                       const catKleur = budgettenPotjes.find(bp => bp.naam === r.categorie)?.kleur ?? 'var(--accent)';
+                      const isEditing = (veld: string) => editingRegelCell?.id === r.id && editingRegelCell?.veld === veld;
+                      const inputStijl: React.CSSProperties = { width: '100%', background: 'var(--bg-base)', border: '1px solid var(--accent)', borderRadius: 4, padding: '3px 6px', fontSize: 12, color: 'var(--text-h)', outline: 'none' };
+                      const selectStijl: React.CSSProperties = { width: '100%', background: 'var(--bg-base)', border: '1px solid var(--border)', borderRadius: 4, padding: '3px 6px', fontSize: 12, color: 'var(--text-h)', outline: 'none', cursor: 'pointer' };
                       return (
-                        <tr key={r.id} onClick={() => openRegelPopup(r)} style={{ cursor: 'pointer' }}>
+                        <tr key={r.id}>
+                          {/* IBAN — read-only */}
                           <td style={{ fontSize: 11, fontFamily: 'monospace' }}>{r.iban || <em style={{ color: 'var(--text-dim)' }}>—</em>}</td>
+                          {/* Naam origineel — read-only */}
                           <td style={{ color: 'var(--text-h)', fontWeight: 500 }}>{r.naam_origineel || <em style={{ color: 'var(--text-dim)' }}>—</em>}</td>
-                          <td style={{ fontSize: 11, fontFamily: 'monospace' }}>{r.naam_zoekwoord || <em style={{ color: 'var(--text-dim)' }}>—</em>}</td>
-                          <td style={{ fontSize: 11 }}>{r.omschrijving_zoekwoord || <em style={{ color: 'var(--text-dim)' }}>—</em>}</td>
-                          <td style={{ fontSize: 12 }}>{r.toelichting || <em style={{ color: 'var(--text-dim)' }}>—</em>}</td>
-                          <td>
-                            <span className="badge" style={{ background: kleurBg(catKleur), border: `1px solid ${catKleur}`, color: catKleur }}>{r.categorie}</span>
+                          {/* Naam zoekwoord — editable */}
+                          <td style={{ fontSize: 11, fontFamily: 'monospace', cursor: 'pointer' }} onClick={() => !isEditing('naam_zoekwoord') && setEditingRegelCell({ id: r.id, veld: 'naam_zoekwoord', waarde: r.naam_zoekwoord ?? '' })}>
+                            {isEditing('naam_zoekwoord') ? (
+                              <input autoFocus style={inputStijl} value={editingRegelCell!.waarde}
+                                onChange={e => setEditingRegelCell({ ...editingRegelCell!, waarde: e.target.value })}
+                                onBlur={() => saveRegelVeld(r.id, 'naam_zoekwoord', editingRegelCell!.waarde, r)}
+                                onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); if (e.key === 'Escape') setEditingRegelCell(null); }}
+                              />
+                            ) : (r.naam_zoekwoord || <em style={{ color: 'var(--text-dim)' }}>—</em>)}
                           </td>
-                          <td>
-                            {r.subcategorie
-                              ? <span className="badge-outline" style={{ borderColor: catKleur, color: catKleur }}>{r.subcategorie}</span>
-                              : <span style={{ color: 'var(--text-dim)', fontSize: 12 }}>—</span>}
+                          {/* Omschrijving zoekwoord — editable */}
+                          <td style={{ fontSize: 11, cursor: 'pointer' }} onClick={() => !isEditing('omschrijving_zoekwoord') && setEditingRegelCell({ id: r.id, veld: 'omschrijving_zoekwoord', waarde: r.omschrijving_zoekwoord ?? '' })}>
+                            {isEditing('omschrijving_zoekwoord') ? (
+                              <input autoFocus style={inputStijl} value={editingRegelCell!.waarde}
+                                onChange={e => setEditingRegelCell({ ...editingRegelCell!, waarde: e.target.value })}
+                                onBlur={() => saveRegelVeld(r.id, 'omschrijving_zoekwoord', editingRegelCell!.waarde, r)}
+                                onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); if (e.key === 'Escape') setEditingRegelCell(null); }}
+                              />
+                            ) : (r.omschrijving_zoekwoord || <em style={{ color: 'var(--text-dim)' }}>—</em>)}
                           </td>
+                          {/* Toelichting — editable */}
+                          <td style={{ fontSize: 12, cursor: 'pointer' }} onClick={() => !isEditing('toelichting') && setEditingRegelCell({ id: r.id, veld: 'toelichting', waarde: r.toelichting ?? '' })}>
+                            {isEditing('toelichting') ? (
+                              <input autoFocus style={inputStijl} value={editingRegelCell!.waarde}
+                                onChange={e => setEditingRegelCell({ ...editingRegelCell!, waarde: e.target.value })}
+                                onBlur={() => saveRegelVeld(r.id, 'toelichting', editingRegelCell!.waarde, r)}
+                                onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); if (e.key === 'Escape') setEditingRegelCell(null); }}
+                              />
+                            ) : (r.toelichting || <em style={{ color: 'var(--text-dim)' }}>—</em>)}
+                          </td>
+                          {/* Categorie — dropdown */}
+                          <td>
+                            <select style={selectStijl} value={r.categorie}
+                              onChange={e => saveRegelVeld(r.id, 'categorie', e.target.value, r)}>
+                              {[...regelsUniekeCats].sort((a, b) => a.localeCompare(b, 'nl')).map(cat => (
+                                <option key={cat} value={cat}>{cat}</option>
+                              ))}
+                            </select>
+                          </td>
+                          {/* Subcategorie — dropdown */}
+                          <td>
+                            <select style={selectStijl} value={r.subcategorie ?? ''}
+                              onChange={e => saveRegelVeld(r.id, 'subcategorie', e.target.value, r)}>
+                              <option value="">—</option>
+                              {(subcatsPerCat[r.categorie] ?? []).sort((a, b) => a.localeCompare(b, 'nl')).map(sub => (
+                                <option key={sub} value={sub}>{sub}</option>
+                              ))}
+                            </select>
+                          </td>
+                          {/* Type — read-only */}
                           <td><span className="badge">{formatType(r.type)}</span></td>
-                          <td onClick={e => e.stopPropagation()}>
+                          {/* Verwijder */}
+                          <td>
                             <button
                               onClick={() => handleDelete(r.id)}
                               style={{
