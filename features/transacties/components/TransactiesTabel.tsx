@@ -1,8 +1,10 @@
 // FILE: TransactiesTabel.tsx
 // AANGEMAAKT: 25-03-2026 12:00
 // VERSIE: 1
-// GEWIJZIGD: 01-04-2026 15:00
+// GEWIJZIGD: 01-04-2026 15:30
 //
+// WIJZIGINGEN (01-04-2026 15:30):
+// - Scrollherstel via requestAnimationFrame zodat DOM gerenderd is voor window.scrollTo
 // WIJZIGINGEN (01-04-2026 15:00):
 // - isReloadRef toegevoegd: scrollherstel alleen bij reloadTrigger, niet bij filterwijziging
 // WIJZIGINGEN (01-04-2026 14:30):
@@ -263,8 +265,11 @@ const [patronModal, setPatronModal]                   = useState<PatronModalData
   // Herstel scrollpositie na reloadTrigger
   useEffect(() => {
     if (isReloadRef.current) {
-      window.scrollTo(0, scrollPosRef.current);
-      isReloadRef.current = false;
+      const pos = scrollPosRef.current;
+      requestAnimationFrame(() => {
+        window.scrollTo(0, pos);
+        isReloadRef.current = false;
+      });
     }
   }, [transacties]);
 
