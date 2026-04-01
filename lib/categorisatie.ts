@@ -1,8 +1,10 @@
 // FILE: categorisatie.ts
 // AANGEMAAKT: 25-03-2026 17:30
 // VERSIE: 1
-// GEWIJZIGD: 01-04-2026 21:00
+// GEWIJZIGD: 01-04-2026 21:30
 //
+// WIJZIGINGEN (01-04-2026 21:30):
+// - updateCategorieRegel: naam_zoekwoord en omschrijving_zoekwoord behouden bestaande DB-waarde als niet expliciet meegestuurd
 // WIJZIGINGEN (01-04-2026 21:00):
 // - matchCategorie P2: regels met gevuld omschrijving_zoekwoord uitgesloten van IBAN+naam_zoekwoord match
 // WIJZIGINGEN (01-04-2026 20:30):
@@ -289,15 +291,23 @@ export function updateCategorieRegel(
     type?: CategorieType;
   }
 ): void {
-  const naam_zoekwoord         = data.naam_zoekwoord_raw !== undefined
-    ? (schoonMaken(data.naam_zoekwoord_raw) || null)
-    : (schoonMaken(data.naam_origineel) || null);
-  const omschrijving_zoekwoord = data.omschrijving_raw
-    ? (data.omschrijving_raw.trim().split(/\s+/).map(w => schoonMaken(w)).filter(Boolean).join(' ') || null)
-    : null;
+  const db = getDb();
+  const bestaand = db.prepare('SELECT naam_zoekwoord, omschrijving_zoekwoord FROM categorieen WHERE id = ?').get(id) as
+    { naam_zoekwoord: string | null; omschrijving_zoekwoord: string | null } | undefined;
 
-  getDb()
-    .prepare(`
+  const naam_zoekwoord = data.naam_zoekwoord_raw !== undefined
+    ? (schoonMaken(data.naam_zoekwoord_raw) || null)
+    : data.naam_origineel !== undefined
+      ? (schoonMaken(data.naam_origineel) || null)
+      : (bestaand?.naam_zoekwoord ?? null);
+
+  const omschrijving_zoekwoord = data.omschrijving_raw !== undefined
+    ? (data.omschrijving_raw
+        ? (data.omschrijving_raw.trim().split(/\s+/).map(w => schoonMaken(w)).filter(Boolean).join(' ') || null)
+        : null)
+    : (bestaand?.omschrijving_zoekwoord ?? null);
+
+  db.prepare(`
       UPDATE categorieen SET
         iban = ?, naam_zoekwoord = ?, naam_origineel = ?,
         omschrijving_zoekwoord = ?, categorie = ?, subcategorie = ?,
