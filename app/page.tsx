@@ -503,7 +503,6 @@ export default function DashboardPage() {
                           <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--text-h)', display: 'flex', alignItems: 'center', gap: 6 }}>
                             <span style={{ fontSize: 10, color: 'var(--text-dim)', transition: 'transform 0.15s', transform: isOpen ? 'rotate(90deg)' : 'rotate(0deg)', display: 'inline-block' }}>▶</span>
                             {rij.categorie}
-                            {rij.saldo === 0 && <span style={{ color: 'var(--green)', fontSize: 12, fontWeight: 700 }}>✓</span>}
                           </div>
                         </td>
                         <td style={{ padding: '6px 8px' }}>
@@ -511,6 +510,7 @@ export default function DashboardPage() {
                             {rekBadge(rij.gedaanOpRekening)}
                             <RichtingsIndicator saldo={rij.saldo} />
                             {rekBadge(rij.hoortOpRekening, hoortLabel)}
+                            {rij.saldo === 0 && <span style={{ color: 'var(--green)', fontSize: 14, fontWeight: 700 }}>✓</span>}
                           </div>
                         </td>
                         <td style={{ ...tdNum, color: bedragKleur(rij.bedrag), fontWeight: 600 }}>{formatBedrag(rij.bedrag)}</td>
