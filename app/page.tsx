@@ -126,15 +126,15 @@ function naamKleur(naam: string): string {
 function RichtingsIndicator({ saldo }: { saldo: number }) {
   if (saldo < 0) {
     return (
-      <span className="bls-flow flow-right" style={{ color: 'var(--red)' }}>
-        <span>⟩</span><span>⟩</span><span>⟩</span>
+      <span className="bls-flow flow-left" style={{ color: 'var(--red)' }}>
+        <span>⟨</span><span>⟨</span><span>⟨</span>
       </span>
     );
   }
   if (saldo > 0) {
     return (
-      <span className="bls-flow flow-left" style={{ color: 'var(--green)' }}>
-        <span>⟨</span><span>⟨</span><span>⟨</span>
+      <span className="bls-flow flow-right" style={{ color: 'var(--green)' }}>
+        <span>⟩</span><span>⟩</span><span>⟩</span>
       </span>
     );
   }
