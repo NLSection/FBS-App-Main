@@ -463,7 +463,7 @@ export default function DashboardPage() {
             <thead>
               <tr>
                 <th>Categorie</th>
-                <th>Rekening</th>
+                <th>Correctie richting</th>
                 <th style={{ textAlign: 'right' }}>Bedrag</th>
                 <th style={{ textAlign: 'right' }}>Gecorrigeerd</th>
                 <th style={{ textAlign: 'right' }}>Saldo</th>
