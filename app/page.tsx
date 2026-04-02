@@ -3,6 +3,8 @@
 // VERSIE: 1
 // GEWIJZIGD: 02-04-2026 20:00
 //
+// WIJZIGINGEN (03-04-2026 03:00):
+// - CAT-tabel: Samenvatting per Categorie sectie onder BLS-tabel
 // WIJZIGINGEN (03-04-2026 01:00):
 // - Rekening-badges: hex-kleur via hash + kleurBg() achtergrond, zelfde stijl als categorie-badges
 // - Volgorde omgedraaid: hoort-op links, gedaan-op rechts; indicator richting aangepast
@@ -88,6 +90,9 @@ interface BlsRegel {
   saldo: number;
   transacties: BlsTransactie[];
 }
+
+interface CatSubrij { subcategorie: string; bedrag: number; }
+interface CatRegel { categorie: string; totaal: number; subrijen: CatSubrij[]; }
 
 function formatBedrag(bedrag: number) {
   return new Intl.NumberFormat('nl-NL', { style: 'currency', currency: 'EUR' }).format(bedrag);
@@ -181,6 +186,9 @@ export default function DashboardPage() {
   const [laadtPeriodes, setLaadtPeriodes]         = useState(true);
   const [laadtBls, setLaadtBls]                   = useState(false);
   const [openRijen, setOpenRijen]                 = useState<Set<string>>(new Set());
+  const [catData, setCatData]                     = useState<CatRegel[]>([]);
+  const [laadtCat, setLaadtCat]                   = useState(false);
+  const [openCatRijen, setOpenCatRijen]           = useState<Set<string>>(new Set());
   const [fout, setFout]                           = useState('');
   const [patronModal, setPatronModal]             = useState<PatronModalData | null>(null);
   const [budgettenPotjes, setBudgettenPotjes]     = useState<BudgetPotjeNaam[]>([]);
@@ -220,11 +228,20 @@ export default function DashboardPage() {
       datumTot = jaarPeriodes[jaarPeriodes.length - 1].eind;
     }
 
-    fetch(`/api/dashboard/bls?datum_van=${datumVan}&datum_tot=${datumTot}`)
+    const qs = `datum_van=${datumVan}&datum_tot=${datumTot}`;
+
+    fetch(`/api/dashboard/bls?${qs}`)
       .then(r => r.ok ? r.json() : Promise.reject(r.statusText))
       .then((data: BlsRegel[]) => { setBlsData(data); setOpenRijen(new Set()); })
       .catch(() => setFout('Kon BLS-data niet ophalen.'))
       .finally(() => setLaadtBls(false));
+
+    setLaadtCat(true);
+    fetch(`/api/dashboard/cat?${qs}`)
+      .then(r => r.ok ? r.json() : Promise.reject(r.statusText))
+      .then((data: CatRegel[]) => { setCatData(data); setOpenCatRijen(new Set(data.map(c => c.categorie))); })
+      .catch(() => {})
+      .finally(() => setLaadtCat(false));
   }, []);
 
   useEffect(() => {
@@ -571,6 +588,62 @@ export default function DashboardPage() {
                   );
                 });
               })()}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* CAT Sectie — Samenvatting per Categorie */}
+      <p className="section-title" style={{ marginTop: 8 }}>Samenvatting per Categorie</p>
+      {laadtCat ? (
+        <div className="loading">Categoriedata wordt geladen…</div>
+      ) : catData.length === 0 && !fout ? (
+        <div className="empty">Geen categoriedata voor deze periode.</div>
+      ) : (
+        <div className="table-wrapper" style={{ marginBottom: 36 }}>
+          <table>
+            <colgroup>
+              <col />
+              <col style={{ width: 120 }} />
+            </colgroup>
+            <thead>
+              <tr>
+                <th>Categorie</th>
+                <th style={{ textAlign: 'right' }}>Bedrag</th>
+              </tr>
+            </thead>
+            <tbody>
+              {catData.map(cat => {
+                const isOpen = openCatRijen.has(cat.categorie);
+                const heeftSubs = cat.subrijen.length > 0;
+                const toggleCat = () => setOpenCatRijen(prev => {
+                  const next = new Set(prev);
+                  if (next.has(cat.categorie)) next.delete(cat.categorie); else next.add(cat.categorie);
+                  return next;
+                });
+                const catKleur = budgettenPotjes.find(bp => bp.naam === cat.categorie)?.kleur ?? 'var(--accent)';
+                return (
+                  <Fragment key={cat.categorie}>
+                    <tr onClick={heeftSubs ? toggleCat : undefined} style={{ cursor: heeftSubs ? 'pointer' : 'default' }}>
+                      <td style={{ paddingTop: 8, paddingBottom: 8 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          {heeftSubs && <span style={{ fontSize: 10, color: 'var(--text-dim)', transition: 'transform 0.15s', transform: isOpen ? 'rotate(90deg)' : 'rotate(0deg)', display: 'inline-block' }}>▶</span>}
+                          <span className="badge" style={{ background: kleurBg(catKleur), border: `1px solid ${catKleur}`, color: catKleur, fontWeight: 700, fontSize: 13 }}>{cat.categorie}</span>
+                        </div>
+                      </td>
+                      <td style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums', fontWeight: 700, color: bedragKleur(cat.totaal) }}>{formatBedrag(cat.totaal)}</td>
+                    </tr>
+                    {isOpen && cat.subrijen.map(sub => (
+                      <tr key={`${cat.categorie}-${sub.subcategorie}`} className="bls-expand" style={{ borderBottom: 'none' }}>
+                        <td style={{ paddingLeft: 36, paddingTop: 4, paddingBottom: 4 }}>
+                          <span className="badge-outline" style={{ borderColor: catKleur, color: catKleur, fontSize: 12 }}>{sub.subcategorie}</span>
+                        </td>
+                        <td style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums', color: bedragKleur(sub.bedrag), fontSize: 13 }}>{formatBedrag(sub.bedrag)}</td>
+                      </tr>
+                    ))}
+                  </Fragment>
+                );
+              })}
             </tbody>
           </table>
         </div>
