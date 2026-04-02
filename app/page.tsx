@@ -499,7 +499,7 @@ export default function DashboardPage() {
                     <Fragment key={sleutel}>
                       {/* Hoofdrij — directe <tr> in outer tbody, geen geneste tabel */}
                       <tr onClick={toggleRij} style={{ cursor: 'pointer' }}>
-                        <td style={{ borderLeft: `2px solid ${borderKleur(rij.saldo)}`, paddingLeft: 10, paddingRight: 0, paddingTop: 6, paddingBottom: 6, whiteSpace: 'nowrap', width: '1%' }}>
+                        <td style={{ borderLeft: `2px solid ${borderKleur(rij.saldo)}`, paddingLeft: 10, paddingRight: 12, paddingTop: 6, paddingBottom: 6, whiteSpace: 'nowrap', width: '1%' }}>
                           <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--text-h)', display: 'flex', alignItems: 'center', gap: 6 }}>
                             <span style={{ fontSize: 10, color: 'var(--text-dim)', transition: 'transform 0.15s', transform: isOpen ? 'rotate(90deg)' : 'rotate(0deg)', display: 'inline-block' }}>▶</span>
                             {rij.categorie}
