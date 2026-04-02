@@ -323,7 +323,10 @@ button {
   background: var(--bg-hover);
 }
 
-.table-wrapper tbody tr.bls-outer:hover {
+.table-wrapper tbody tr.bls-expand {
+  border-bottom: none;
+}
+.table-wrapper tbody tr.bls-expand:hover {
   background: transparent;
 }
 

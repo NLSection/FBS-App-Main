@@ -3,6 +3,8 @@
 // VERSIE: 1
 // GEWIJZIGD: 02-04-2026 20:00
 //
+// WIJZIGINGEN (03-04-2026 00:00):
+// - Hover fix: hoofdrij als directe <tr> i.p.v. geneste tabel; subtabel in aparte <tr>.bls-expand
 // WIJZIGINGEN (02-04-2026 23:30):
 // - Subtabel colgroup voor uitlijning; Rekening-kolom met geanimeerde richtingsindicator
 // - Hash-gebaseerde kleuren per rekeningnaam; badge-label uitgebreid bij meerdere voorkomens
@@ -39,7 +41,7 @@
 
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { Fragment, useEffect, useState, useCallback } from 'react';
 import type { Periode } from '@/lib/maandperiodes';
 import CategoriePopup from '@/features/shared/components/CategoriePopup';
 import type { PatronModalData } from '@/features/shared/components/CategoriePopup';
@@ -453,7 +455,6 @@ export default function DashboardPage() {
             </thead>
             <tbody>
               {(() => {
-                // Wijziging 4: tel hoe vaak elke hoortOpRekening voorkomt
                 const hoortTellingen = new Map<string, number>();
                 for (const r of blsData) {
                   hoortTellingen.set(r.hoortOpRekening, (hoortTellingen.get(r.hoortOpRekening) ?? 0) + 1);
@@ -479,42 +480,31 @@ export default function DashboardPage() {
                     ? `${rij.hoortOpRekening}: ${rij.categorie}`
                     : undefined;
                   return (
-                    <tr key={sleutel} className="bls-outer" style={{ cursor: 'default' }}>
-                      <td colSpan={5} style={{ padding: 0 }}>
-                        {/* Hoofdrij — 5 kolommen via tabel om uitlijning met <th> te garanderen */}
-                        <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
-                          <colgroup>
-                            <col style={{ width: '25%' }} />
-                            <col />
-                            <col style={{ width: 120 }} />
-                            <col style={{ width: 120 }} />
-                            <col style={{ width: 100 }} />
-                          </colgroup>
-                          <tbody>
-                            <tr onClick={toggleRij} style={{ cursor: 'pointer' }}>
-                              <td style={{ borderLeft: `2px solid ${borderKleur(rij.saldo)}`, paddingLeft: 10, paddingTop: 6, paddingBottom: 6 }}>
-                                <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--text-h)', display: 'flex', alignItems: 'center', gap: 6 }}>
-                                  <span style={{ fontSize: 10, color: 'var(--text-dim)', transition: 'transform 0.15s', transform: isOpen ? 'rotate(90deg)' : 'rotate(0deg)', display: 'inline-block' }}>▶</span>
-                                  {rij.categorie}
-                                  {rij.saldo === 0 && <span style={{ color: 'var(--green)', fontSize: 12, fontWeight: 700 }}>✓</span>}
-                                </div>
-                              </td>
-                              <td style={{ padding: '6px 8px' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                                  {rekBadge(rij.gedaanOpRekening)}
-                                  <RichtingsIndicator saldo={rij.saldo} />
-                                  {rekBadge(rij.hoortOpRekening, hoortLabel)}
-                                </div>
-                              </td>
-                              <td style={{ ...tdNum, color: bedragKleur(rij.bedrag), fontWeight: 600 }}>{formatBedrag(rij.bedrag)}</td>
-                              <td style={{ ...tdNum, color: rij.gecorrigeerd !== 0 ? bedragKleur(rij.gecorrigeerd) : undefined, fontWeight: 600 }}>{rij.gecorrigeerd !== 0 ? formatBedrag(rij.gecorrigeerd) : <span style={{ color: 'var(--text-dim)' }}>—</span>}</td>
-                              <td style={{ ...tdNum, color: bedragKleur(rij.saldo), fontWeight: 600 }}>{formatBedrag(rij.saldo)}</td>
-                            </tr>
-                          </tbody>
-                        </table>
-                        {/* Subtabel */}
-                        {isOpen && rij.transacties && rij.transacties.length > 0 && (
-                          <div style={{ paddingLeft: 28, paddingRight: 8, paddingBottom: 8 }}>
+                    <Fragment key={sleutel}>
+                      {/* Hoofdrij — directe <tr> in outer tbody, geen geneste tabel */}
+                      <tr onClick={toggleRij} style={{ cursor: 'pointer' }}>
+                        <td style={{ borderLeft: `2px solid ${borderKleur(rij.saldo)}`, paddingLeft: 10, paddingTop: 6, paddingBottom: 6 }}>
+                          <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--text-h)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <span style={{ fontSize: 10, color: 'var(--text-dim)', transition: 'transform 0.15s', transform: isOpen ? 'rotate(90deg)' : 'rotate(0deg)', display: 'inline-block' }}>▶</span>
+                            {rij.categorie}
+                            {rij.saldo === 0 && <span style={{ color: 'var(--green)', fontSize: 12, fontWeight: 700 }}>✓</span>}
+                          </div>
+                        </td>
+                        <td style={{ padding: '6px 8px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                            {rekBadge(rij.gedaanOpRekening)}
+                            <RichtingsIndicator saldo={rij.saldo} />
+                            {rekBadge(rij.hoortOpRekening, hoortLabel)}
+                          </div>
+                        </td>
+                        <td style={{ ...tdNum, color: bedragKleur(rij.bedrag), fontWeight: 600 }}>{formatBedrag(rij.bedrag)}</td>
+                        <td style={{ ...tdNum, color: rij.gecorrigeerd !== 0 ? bedragKleur(rij.gecorrigeerd) : undefined, fontWeight: 600 }}>{rij.gecorrigeerd !== 0 ? formatBedrag(rij.gecorrigeerd) : <span style={{ color: 'var(--text-dim)' }}>—</span>}</td>
+                        <td style={{ ...tdNum, color: bedragKleur(rij.saldo), fontWeight: 600 }}>{formatBedrag(rij.saldo)}</td>
+                      </tr>
+                      {/* Subtabel — aparte <tr> zodat hover niet interfereert met hoofdrij */}
+                      {isOpen && rij.transacties && rij.transacties.length > 0 && (
+                        <tr className="bls-expand">
+                          <td colSpan={5} style={{ padding: '0 8px 8px 28px' }}>
                             <table style={{ width: '100%', fontSize: 12, borderCollapse: 'collapse' }}>
                               <colgroup>
                                 <col style={{ width: 90 }} />
@@ -560,10 +550,10 @@ export default function DashboardPage() {
                                 })}
                               </tbody>
                             </table>
-                          </div>
-                        )}
-                      </td>
-                    </tr>
+                          </td>
+                        </tr>
+                      )}
+                    </Fragment>
                   );
                 });
               })()}
