@@ -127,14 +127,14 @@ function RichtingsIndicator({ saldo }: { saldo: number }) {
   if (saldo < 0) {
     return (
       <span className="bls-flow flow-left" style={{ color: 'var(--red)' }}>
-        <span>&lt;</span><span>&lt;</span><span>&lt;</span>
+        <span>⟨</span><span>⟨</span><span>⟨</span>
       </span>
     );
   }
   if (saldo > 0) {
     return (
       <span className="bls-flow flow-right" style={{ color: 'var(--green)' }}>
-        <span>&gt;</span><span>&gt;</span><span>&gt;</span>
+        <span>⟩</span><span>⟩</span><span>⟩</span>
       </span>
     );
   }
