@@ -3,6 +3,8 @@
 // VERSIE: 1
 // GEWIJZIGD: 02-04-2026 20:00
 //
+// WIJZIGINGEN (02-04-2026 21:00):
+// - Categorie-badge per subtabel-transactie: opent CategoriePopup, herlaadt BLS na opslaan
 // WIJZIGINGEN (02-04-2026 20:00):
 // - BLS-tabel rijen klikbaar: klapt uit met subtabel van onderliggende transacties
 // WIJZIGINGEN (31-03-2026 21:00):
@@ -29,6 +31,9 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import type { Periode } from '@/lib/maandperiodes';
+import CategoriePopup from '@/features/shared/components/CategoriePopup';
+import type { PatronModalData } from '@/features/shared/components/CategoriePopup';
+import type { TransactieMetCategorie } from '@/lib/transacties';
 
 const MAAND_NAMEN = ['Januari','Februari','Maart','April','Mei','Juni','Juli','Augustus','September','Oktober','November','December'];
 const MAAND_KORT  = ['jan','feb','mrt','apr','mei','jun','jul','aug','sep','okt','nov','dec'];
@@ -40,7 +45,20 @@ interface BlsTransactie {
   omschrijving: string | null;
   bedrag: number | null;
   rekening_naam: string | null;
+  categorie_id: number | null;
+  categorie: string | null;
+  subcategorie: string | null;
+  toelichting: string | null;
+  type: string;
+  tegenrekening_iban_bban: string | null;
+  omschrijving_1: string | null;
+  omschrijving_2: string | null;
+  omschrijving_3: string | null;
+  handmatig_gecategoriseerd: number;
 }
+
+interface BudgetPotjeNaam { id: number; naam: string; kleur: string | null; rekening_ids: number[]; }
+interface Rekening { id: number; naam: string; iban: string; beheerd: number; }
 
 interface BlsRegel {
   categorie: string;
@@ -54,6 +72,26 @@ interface BlsRegel {
 
 function formatBedrag(bedrag: number) {
   return new Intl.NumberFormat('nl-NL', { style: 'currency', currency: 'EUR' }).format(bedrag);
+}
+
+function maakNaamChips(naam: string | null): { label: string; waarde: string }[] {
+  if (!naam) return [];
+  return naam
+    .split(/[\s.,/()\[\]{}'"!?:;]+/)
+    .filter(w => w.length >= 1)
+    .map(w => ({ label: w, waarde: w.toLowerCase().replace(/[^a-z0-9&-]/g, '') }))
+    .filter(c => c.waarde.length > 0);
+}
+
+function analyseerOmschrijvingenBls(trx: BlsTransactie): { label: string; waarde: string }[] {
+  const omschr = [trx.omschrijving_1, trx.omschrijving_2, trx.omschrijving_3]
+    .filter(Boolean).join(' ');
+  if (!omschr) return [];
+  return omschr
+    .split(/[\s.,/()\[\]{}'"!?:;]+/)
+    .filter(w => w.length >= 1)
+    .map(w => ({ label: w, waarde: w.toLowerCase().replace(/[^a-z0-9&-]/g, '') }))
+    .filter(c => c.waarde.length > 0);
 }
 
 const filterKnop = (actief: boolean): React.CSSProperties => ({
@@ -73,6 +111,10 @@ export default function DashboardPage() {
   const [laadtBls, setLaadtBls]                   = useState(false);
   const [openRijen, setOpenRijen]                 = useState<Set<string>>(new Set());
   const [fout, setFout]                           = useState('');
+  const [patronModal, setPatronModal]             = useState<PatronModalData | null>(null);
+  const [budgettenPotjes, setBudgettenPotjes]     = useState<BudgetPotjeNaam[]>([]);
+  const [rekeningen, setRekeningen]               = useState<Rekening[]>([]);
+  const [uniekeCategorieenDropdown, setUniekeCategorieenDropdown] = useState<string[]>([]);
 
   // Periodes laden
   useEffect(() => {
@@ -141,6 +183,112 @@ export default function DashboardPage() {
   }
   function borderKleur(saldo: number) {
     return saldo === 0 ? 'var(--green)' : 'var(--red)';
+  }
+
+  // Referentiedata laden voor CategoriePopup
+  useEffect(() => {
+    fetch('/api/budgetten-potjes').then(r => r.ok ? r.json() : []).then(setBudgettenPotjes).catch(() => {});
+    fetch('/api/rekeningen').then(r => r.ok ? r.json() : []).then(setRekeningen).catch(() => {});
+    fetch('/api/categorieen/uniek').then(r => r.ok ? r.json() : []).then(setUniekeCategorieenDropdown).catch(() => {});
+  }, []);
+
+  function herlaadBls() {
+    laadBls(geselecteerdePeriode, geselecteerdJaar, periodes);
+  }
+
+  async function openCategoriePopupBls(trx: BlsTransactie, e: React.MouseEvent) {
+    e.stopPropagation();
+    const naamChips = maakNaamChips(trx.naam_tegenpartij ?? null);
+    const chips = analyseerOmschrijvingenBls(trx);
+
+    if (trx.categorie_id != null || trx.categorie) {
+      const regelsRes = await fetch('/api/categorieen');
+      const regels: { id: number; naam_zoekwoord: string | null; omschrijving_zoekwoord: string | null; categorie: string; subcategorie: string | null }[] = regelsRes.ok ? await regelsRes.json() : [];
+      const regel = trx.categorie_id != null ? regels.find(r => r.id === trx.categorie_id) ?? null : null;
+
+      const categorie = trx.categorie ?? '';
+      const subcategorie = trx.subcategorie ?? '';
+
+      const naamZoekwoorden = regel?.naam_zoekwoord ? regel.naam_zoekwoord.split(' ').filter(Boolean) : [];
+      const gekozenNaamChips = naamChips.filter(c => naamZoekwoorden.includes(c.waarde)).map(c => c.waarde);
+
+      const omschrZoekwoorden = regel?.omschrijving_zoekwoord ? regel.omschrijving_zoekwoord.split(' ').filter(Boolean) : [];
+      const gekozenWoorden = chips.filter(c => omschrZoekwoorden.includes(c.waarde)).map(c => c.waarde);
+
+      const subcatRes = await fetch(`/api/subcategorieen?categorie=${encodeURIComponent(categorie)}`);
+      const subcatOpties: string[] = subcatRes.ok ? await subcatRes.json() : [];
+
+      setPatronModal({ transactie: trx as unknown as TransactieMetCategorie, toelichting: trx.toelichting ?? '', nieuweCat: categorie, catNieuw: false, nieuweCatRekeningId: '', subcategorie, subcatOpties, subcatNieuw: false, naamChips, gekozenNaamChips, chips, gekozenWoorden, scope: trx.categorie_id != null ? 'alle' : 'enkel' });
+    } else {
+      setPatronModal({ transactie: trx as unknown as TransactieMetCategorie, toelichting: trx.toelichting ?? '', nieuweCat: '', catNieuw: false, nieuweCatRekeningId: '', subcategorie: '', subcatOpties: [], subcatNieuw: false, naamChips, gekozenNaamChips: [], chips, gekozenWoorden: [], scope: 'alle' });
+    }
+  }
+
+  async function handlePatronModalBevestig() {
+    if (!patronModal) return;
+    const { transactie: t, toelichting, nieuweCat, catNieuw, nieuweCatRekeningId, subcategorie, gekozenWoorden, gekozenNaamChips, scope } = patronModal;
+    const gekozenNaamChip  = gekozenNaamChips.join(' ');
+    const gekozenWoord     = gekozenWoorden.join(' ');
+    const gekozenNaamLabel = patronModal.naamChips
+      .filter(c => gekozenNaamChips.includes(c.waarde))
+      .map(c => c.label)
+      .join(' ') || t.naam_tegenpartij || null;
+    const subcatWaarde = subcategorie === '__geen__' ? '' : subcategorie;
+    setPatronModal(null);
+
+    if (nieuweCat === '__geen__') {
+      if (scope === 'alle') {
+        if (t.categorie_id != null) await fetch(`/api/categorieen/${t.categorie_id}`, { method: 'DELETE' });
+        await fetch('/api/categoriseer', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}) });
+      } else {
+        await fetch(`/api/transacties/${t.id}`, {
+          method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ categorie_id: null, status: 'nieuw', handmatig_gecategoriseerd: 0, toelichting: toelichting || null }),
+        });
+      }
+      herlaadBls(); return;
+    }
+    if (!nieuweCat) { herlaadBls(); return; }
+
+    if (scope === 'enkel') {
+      if (catNieuw) {
+        await fetch('/api/budgetten-potjes', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ naam: nieuweCat.trim(), rekening_ids: nieuweCatRekeningId ? [parseInt(nieuweCatRekeningId, 10)] : [] }) });
+      }
+      await fetch(`/api/transacties/${t.id}`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ categorie: nieuweCat.trim(), subcategorie: subcatWaarde || null, status: 'verwerkt', handmatig_gecategoriseerd: 1, toelichting: toelichting || null }),
+      });
+      herlaadBls(); return;
+    }
+
+    // scope 'alle'
+    if (catNieuw) {
+      await fetch('/api/budgetten-potjes', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ naam: nieuweCat.trim(), rekening_ids: nieuweCatRekeningId ? [parseInt(nieuweCatRekeningId, 10)] : [] }) });
+    }
+
+    const body: Record<string, unknown> = {
+      categorie: nieuweCat.trim(),
+      subcategorie: subcatWaarde || null,
+      type: t.type,
+      naam_origineel: gekozenNaamLabel,
+      naam_zoekwoord_raw: gekozenNaamChip || t.naam_tegenpartij,
+      toelichting: toelichting || null,
+    };
+    if (t.tegenrekening_iban_bban) body.iban = t.tegenrekening_iban_bban;
+    if (gekozenWoord) body.omschrijving_raw = gekozenWoord;
+
+    let finalRegelId: number | null = null;
+    if (t.categorie_id != null && !catNieuw) {
+      await fetch(`/api/categorieen/${t.categorie_id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      finalRegelId = t.categorie_id;
+    } else {
+      const res = await fetch('/api/categorieen', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      if (res.ok) { const { id } = await res.json(); finalRegelId = id as number; }
+    }
+
+    const extra = finalRegelId != null ? { toelichting: toelichting || null, categorie_id: finalRegelId } : {};
+    await fetch('/api/categoriseer', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(extra) });
+    herlaadBls();
   }
 
   return (
@@ -284,6 +432,7 @@ export default function DashboardPage() {
                                 <th style={{ textAlign: 'left', padding: '4px 6px', fontWeight: 500 }}>Omschrijving</th>
                                 <th style={{ textAlign: 'right', padding: '4px 6px', fontWeight: 500 }}>Bedrag</th>
                                 <th style={{ textAlign: 'left', padding: '4px 6px', fontWeight: 500 }}>Rekening</th>
+                                <th style={{ textAlign: 'left', padding: '4px 6px', fontWeight: 500 }}>Categorie</th>
                               </tr>
                             </thead>
                             <tbody>
@@ -294,6 +443,14 @@ export default function DashboardPage() {
                                   <td style={{ padding: '3px 6px', maxWidth: 260, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{trx.omschrijving ?? '—'}</td>
                                   <td style={{ padding: '3px 6px', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{trx.bedrag != null ? formatBedrag(trx.bedrag) : '—'}</td>
                                   <td style={{ padding: '3px 6px' }}>{trx.rekening_naam ?? '—'}</td>
+                                  <td style={{ padding: '3px 6px' }}>
+                                    <span
+                                      onClick={(e) => openCategoriePopupBls(trx, e)}
+                                      style={{ cursor: 'pointer', fontSize: 11, padding: '1px 6px', borderRadius: 4, background: 'var(--bg-base)', border: '1px solid var(--accent)', color: 'var(--accent)', fontWeight: 500, whiteSpace: 'nowrap' }}
+                                    >
+                                      {trx.categorie ?? 'Categoriseer'}
+                                    </span>
+                                  </td>
                                 </tr>
                               ))}
                             </tbody>
@@ -307,6 +464,39 @@ export default function DashboardPage() {
             </tbody>
           </table>
         </div>
+      )}
+
+      {patronModal && (
+        <CategoriePopup
+          patronModal={patronModal}
+          setPatronModal={setPatronModal}
+          onBevestig={handlePatronModalBevestig}
+          onSluiten={() => setPatronModal(null)}
+          onAnalyseer={async () => {
+            const naam = patronModal.transactie.naam_tegenpartij;
+            if (!naam) return {};
+            const res = await fetch(`/api/transacties?naam_tegenpartij=${encodeURIComponent(naam)}`);
+            const trns: TransactieMetCategorie[] = res.ok ? await res.json() : [];
+            const tellers: Record<string, number> = {};
+            for (const t of trns) {
+              const omschr = [t.omschrijving_1, t.omschrijving_2, t.omschrijving_3].filter(Boolean).join(' ');
+              const woorden = new Set(
+                omschr.split(/[\s.,/()\[\]{}'"!?:;]+/)
+                  .filter(w => w.length >= 1)
+                  .map(w => w.toLowerCase().replace(/[^a-z0-9&-]/g, ''))
+                  .filter(w => w.length > 0)
+              );
+              for (const w of woorden) tellers[w] = (tellers[w] ?? 0) + 1;
+            }
+            return tellers;
+          }}
+          budgettenPotjes={budgettenPotjes}
+          rekeningen={rekeningen}
+          periodes={periodes}
+          onDatumWijzig={async () => {}}
+          onVoegRekeningToe={() => {}}
+          uniekeCategorieenDropdown={uniekeCategorieenDropdown}
+        />
       )}
     </>
   );

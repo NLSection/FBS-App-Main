@@ -3,6 +3,8 @@
 // VERSIE: 1
 // GEWIJZIGD: 02-04-2026 20:00
 //
+// WIJZIGINGEN (02-04-2026 21:00):
+// - BlsTransactie uitgebreid met popup-velden (categorie_id, type, omschrijving_1/2/3, etc.)
 // WIJZIGINGEN (02-04-2026 20:00):
 // - Per BLS-rij array 'transacties' toegevoegd met onderliggende transactiedetails
 // WIJZIGINGEN (31-03-2026 21:00):
@@ -27,6 +29,16 @@ interface BlsTransactie {
   omschrijving: string | null;
   bedrag: number | null;
   rekening_naam: string | null;
+  categorie_id: number | null;
+  categorie: string | null;
+  subcategorie: string | null;
+  toelichting: string | null;
+  type: string;
+  tegenrekening_iban_bban: string | null;
+  omschrijving_1: string | null;
+  omschrijving_2: string | null;
+  omschrijving_3: string | null;
+  handmatig_gecategoriseerd: number;
 }
 
 interface BlsRegel {
@@ -91,6 +103,16 @@ export function GET(request: NextRequest) {
         omschrijving: [t.omschrijving_1, t.omschrijving_2, t.omschrijving_3].filter(Boolean).join(' '),
         bedrag: t.bedrag,
         rekening_naam: t.rekening_naam ?? rekeningNaamByIban.get(t.iban_bban) ?? null,
+        categorie_id: t.categorie_id,
+        categorie: t.categorie,
+        subcategorie: t.subcategorie,
+        toelichting: t.toelichting,
+        type: t.type,
+        tegenrekening_iban_bban: t.tegenrekening_iban_bban,
+        omschrijving_1: t.omschrijving_1,
+        omschrijving_2: t.omschrijving_2,
+        omschrijving_3: t.omschrijving_3,
+        handmatig_gecategoriseerd: t.handmatig_gecategoriseerd,
       };
 
       const sleutel = `${t.categorie}::${t.iban_bban}::${gekoppeldeRekeningId}`;
