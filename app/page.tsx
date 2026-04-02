@@ -476,6 +476,7 @@ export default function DashboardPage() {
               <col style={{ width: 120 }} />
               <col style={{ width: 120 }} />
               <col style={{ width: 100 }} />
+              <col style={{ width: 50 }} />
             </colgroup>
             <thead>
               <tr>
@@ -484,6 +485,7 @@ export default function DashboardPage() {
                 <th style={{ textAlign: 'right' }}>Bedrag</th>
                 <th style={{ textAlign: 'right' }}>Gecorrigeerd</th>
                 <th style={{ textAlign: 'right' }}>Saldo</th>
+                <th style={{ textAlign: 'center' }}>Status</th>
               </tr>
             </thead>
             <tbody>
@@ -525,17 +527,24 @@ export default function DashboardPage() {
                             {rekBadge(rij.gedaanOpRekening)}
                             <RichtingsIndicator saldo={rij.saldo} />
                             {rekBadge(rij.hoortOpRekening, hoortLabel)}
-                            {rij.saldo === 0 && <span style={{ color: 'var(--green)', fontSize: 14, fontWeight: 700 }}>✓</span>}
                           </div>
                         </td>
                         <td style={{ ...tdNum, color: bedragKleur(rij.bedrag), fontWeight: 600 }}>{formatBedrag(rij.bedrag)}</td>
                         <td style={{ ...tdNum, color: rij.gecorrigeerd !== 0 ? bedragKleur(rij.gecorrigeerd) : undefined, fontWeight: 600 }}>{rij.gecorrigeerd !== 0 ? formatBedrag(rij.gecorrigeerd) : <span style={{ color: 'var(--text-dim)' }}>—</span>}</td>
                         <td style={{ ...tdNum, color: bedragKleur(rij.saldo), fontWeight: 600 }}>{formatBedrag(rij.saldo)}</td>
+                        <td style={{ textAlign: 'center', fontSize: 14 }}>
+                          {rij.saldo === 0
+                            ? <span style={{ color: 'var(--green)' }}>✓</span>
+                            : Math.abs(rij.saldo) < 1
+                              ? <span style={{ color: '#f59e0b' }}>⚠</span>
+                              : <span style={{ color: 'var(--red)' }}>✗</span>
+                          }
+                        </td>
                       </tr>
                       {/* Subtabel — aparte <tr> zodat hover niet interfereert met hoofdrij */}
                       {isOpen && rij.transacties && rij.transacties.length > 0 && (
                         <tr className="bls-expand">
-                          <td colSpan={5} style={{ padding: '0 8px 8px 28px' }}>
+                          <td colSpan={6} style={{ padding: '0 8px 8px 28px' }}>
                             <table style={{ width: '100%', fontSize: 12, borderCollapse: 'collapse' }}>
                               <colgroup>
                                 <col style={{ width: 90 }} />
@@ -604,45 +613,61 @@ export default function DashboardPage() {
           <table>
             <colgroup>
               <col />
+              <col style={{ width: 200 }} />
               <col style={{ width: 120 }} />
             </colgroup>
             <thead>
               <tr>
                 <th>Categorie</th>
+                <th>Aandeel</th>
                 <th style={{ textAlign: 'right' }}>Bedrag</th>
               </tr>
             </thead>
             <tbody>
-              {catData.map(cat => {
-                const isOpen = openCatRijen.has(cat.categorie);
-                const heeftSubs = cat.subrijen.length > 0;
-                const toggleCat = () => setOpenCatRijen(prev => {
-                  const next = new Set(prev);
-                  if (next.has(cat.categorie)) next.delete(cat.categorie); else next.add(cat.categorie);
-                  return next;
-                });
-                return (
-                  <Fragment key={cat.categorie}>
-                    <tr onClick={heeftSubs ? toggleCat : undefined} style={{ cursor: heeftSubs ? 'pointer' : 'default', borderTop: '1px solid var(--border)' }}>
-                      <td style={{ paddingTop: 8, paddingBottom: 8 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 700, fontSize: 14, color: 'var(--text-h)' }}>
-                          {heeftSubs && <span style={{ fontSize: 10, color: 'var(--text-dim)', transition: 'transform 0.15s', transform: isOpen ? 'rotate(90deg)' : 'rotate(0deg)', display: 'inline-block' }}>▶</span>}
-                          {cat.categorie}
-                        </div>
-                      </td>
-                      <td style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums', fontWeight: 700, color: bedragKleur(cat.totaal), fontSize: 14 }}>{formatBedrag(cat.totaal)}</td>
-                    </tr>
-                    {isOpen && cat.subrijen.map(sub => (
-                      <tr key={`${cat.categorie}-${sub.subcategorie}`} className="bls-expand" style={{ borderBottom: 'none' }}>
-                        <td style={{ paddingLeft: 32, paddingTop: 3, paddingBottom: 3, fontSize: 13, color: 'var(--text-dim)' }}>
-                          {sub.subcategorie}
+              {(() => {
+                const totaalAbs = catData.reduce((s, c) => s + Math.abs(c.totaal), 0);
+                return catData.map(cat => {
+                  const isOpen = openCatRijen.has(cat.categorie);
+                  const heeftSubs = cat.subrijen.length > 0;
+                  const toggleCat = () => setOpenCatRijen(prev => {
+                    const next = new Set(prev);
+                    if (next.has(cat.categorie)) next.delete(cat.categorie); else next.add(cat.categorie);
+                    return next;
+                  });
+                  const pct = totaalAbs > 0 ? Math.abs(cat.totaal) / totaalAbs : 0;
+                  const balkKleur = cat.totaal < 0 ? 'var(--red)' : 'var(--green)';
+                  return (
+                    <Fragment key={cat.categorie}>
+                      <tr onClick={heeftSubs ? toggleCat : undefined} style={{ cursor: heeftSubs ? 'pointer' : 'default', borderTop: '1px solid var(--border)' }}>
+                        <td style={{ paddingTop: 8, paddingBottom: 8 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 700, fontSize: 14, color: 'var(--text-h)' }}>
+                            {heeftSubs && <span style={{ fontSize: 10, color: 'var(--text-dim)', transition: 'transform 0.15s', transform: isOpen ? 'rotate(90deg)' : 'rotate(0deg)', display: 'inline-block' }}>▶</span>}
+                            {cat.categorie}
+                          </div>
                         </td>
-                        <td style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums', color: 'var(--text-dim)', fontSize: 13 }}>{formatBedrag(sub.bedrag)}</td>
+                        <td style={{ padding: '8px 8px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <div style={{ width: 150, height: 8, borderRadius: 4, background: 'var(--bg-base)', overflow: 'hidden', flexShrink: 0 }}>
+                              <div style={{ width: `${pct * 100}%`, height: '100%', borderRadius: 4, background: balkKleur, transition: 'width 0.3s' }} />
+                            </div>
+                            <span style={{ fontSize: 11, color: 'var(--text-dim)', fontVariantNumeric: 'tabular-nums', minWidth: 32 }}>{Math.round(pct * 100)}%</span>
+                          </div>
+                        </td>
+                        <td style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums', fontWeight: 700, color: bedragKleur(cat.totaal), fontSize: 14 }}>{formatBedrag(cat.totaal)}</td>
                       </tr>
-                    ))}
-                  </Fragment>
-                );
-              })}
+                      {isOpen && cat.subrijen.map(sub => (
+                        <tr key={`${cat.categorie}-${sub.subcategorie}`} className="bls-expand" style={{ borderBottom: 'none' }}>
+                          <td style={{ paddingLeft: 32, paddingTop: 3, paddingBottom: 3, fontSize: 13, color: 'var(--text-dim)' }}>
+                            {sub.subcategorie}
+                          </td>
+                          <td />
+                          <td style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums', color: 'var(--text-dim)', fontSize: 13 }}>{formatBedrag(sub.bedrag)}</td>
+                        </tr>
+                      ))}
+                    </Fragment>
+                  );
+                });
+              })()}
             </tbody>
           </table>
         </div>
