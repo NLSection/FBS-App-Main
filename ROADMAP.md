@@ -48,6 +48,11 @@
 ### Fase 2 — Uitstraling
 9. Section Labs branding / huisstijl
 
+### Vóór productie verwijderen
+- DEV-ONLY: /api/restore endpoint verwijderen
+- DEV-ONLY: BackupCheck component en /api/backup/check verwijderen
+- DEV-ONLY: Backup/ map uit Git verwijderen en toevoegen aan .gitignore
+
 ### Fase 3 — Uitrol
 10. Gedeelde database via netwerkpad: optie in instellingen om SQLite
     database locatie te wijzigen naar lokaal of UNC pad (bijv. \\NAS\FBS\fbs.db).

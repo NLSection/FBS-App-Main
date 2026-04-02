@@ -1,8 +1,10 @@
 // FILE: BackupCheck.tsx
 // AANGEMAAKT: 02-04-2026 10:00
 // VERSIE: 1
-// GEWIJZIGD: 02-04-2026 10:00
+// GEWIJZIGD: 02-04-2026 19:00
 //
+// WIJZIGINGEN (02-04-2026 19:00):
+// - Vereenvoudigd: POST naar /api/restore zonder data (endpoint laadt zelf van disk)
 // WIJZIGINGEN (02-04-2026 10:00):
 // - Initiële aanmaak: check op nieuwere backup bij opstarten + herstel-banner
 
@@ -36,14 +38,10 @@ export default function BackupCheck() {
     setBezig(true);
     setFout(null);
     try {
-      const backupRes = await fetch('/api/backup/latest');
-      if (!backupRes.ok) throw new Error('Backup ophalen mislukt.');
-      const backupData = await backupRes.json();
-
       const restoreRes = await fetch('/api/restore', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(backupData),
+        body: JSON.stringify({}),
       });
       if (!restoreRes.ok) {
         const err = await restoreRes.json().catch(() => ({}));
