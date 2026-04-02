@@ -3,6 +3,9 @@
 // VERSIE: 1
 // GEWIJZIGD: 02-04-2026 20:00
 //
+// WIJZIGINGEN (03-04-2026 00:30):
+// - Rekening-badges groter (13px, padding 4px 12px) en minder fel (hsl h,35%,45%)
+// - Richtingsindicator groter (18px), ruimer (gap 2px, letter-spacing 1px) en trager (2.5s cycle)
 // WIJZIGINGEN (03-04-2026 00:00):
 // - Hover fix: hoofdrij als directe <tr> i.p.v. geneste tabel; subtabel in aparte <tr>.bls-expand
 // WIJZIGINGEN (02-04-2026 23:30):
@@ -104,7 +107,7 @@ function naamKleur(naam: string): string {
     hash = naam.charCodeAt(i) + ((hash << 5) - hash);
   }
   const h = ((Math.abs(hash) % 360) + 360) % 360;
-  return `hsl(${h}, 50%, 60%)`;
+  return `hsl(${h}, 35%, 45%)`;
 }
 
 function RichtingsIndicator({ saldo }: { saldo: number }) {
@@ -462,7 +465,7 @@ export default function DashboardPage() {
                 const rekBadge = (naam: string, label?: string): React.ReactNode => {
                   const kleur = naamKleur(naam);
                   return (
-                    <span style={{ display: 'inline-block', fontSize: 10, borderRadius: 3, padding: '1px 6px', fontWeight: 600, background: kleurBg(kleur), border: `1px solid ${kleur}`, color: kleur, whiteSpace: 'nowrap', minWidth: 60, textAlign: 'center' }}>
+                    <span style={{ display: 'inline-block', fontSize: 13, borderRadius: 4, padding: '4px 12px', fontWeight: 600, background: kleurBg(kleur), border: `1px solid ${kleur}`, color: kleur, whiteSpace: 'nowrap', minWidth: 70, textAlign: 'center' }}>
                       {label ?? naam}
                     </span>
                   );
