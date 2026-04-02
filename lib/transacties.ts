@@ -34,6 +34,8 @@ export interface TransactieMetCategorie extends Transactie {
   // Rekeningen (via rekeningen JOIN)
   rekening_naam: string | null;
   tegenrekening_naam: string | null;
+  // Import metadata
+  is_nieuw: number;
 }
 
 const IMPORT_KOLOMMEN = `
@@ -87,12 +89,14 @@ export function getTransacties(filters?: TransactieFilters): TransactieMetCatego
       COALESCE(c.categorie, a.categorie)              AS categorie,
       COALESCE(c.subcategorie, a.subcategorie)        AS subcategorie,
       r1.naam                                         AS rekening_naam,
-      r2.naam                                         AS tegenrekening_naam
+      r2.naam                                         AS tegenrekening_naam,
+      CASE WHEN date(i.geimporteerd_op) = date('now') THEN 1 ELSE 0 END AS is_nieuw
     FROM transacties t
     LEFT JOIN transactie_aanpassingen a ON t.id = a.transactie_id
     LEFT JOIN categorieen c ON a.categorie_id = c.id
     LEFT JOIN rekeningen r1 ON t.iban_bban = r1.iban
     LEFT JOIN rekeningen r2 ON t.tegenrekening_iban_bban = r2.iban
+    LEFT JOIN imports i ON t.import_id = i.id
     ${where}
     ORDER BY COALESCE(a.datum_aanpassing, t.datum) DESC, t.id DESC
   `;

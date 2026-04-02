@@ -1038,6 +1038,7 @@ const [patronModal, setPatronModal]                   = useState<PatronModalData
                           >
                             {t.datum_aanpassing && <Calendar size={11} style={{ marginRight: 3, verticalAlign: 'middle' }} />}
                             {formatDatum(t.datum_aanpassing ?? t.datum)}
+                            {t.is_nieuw === 1 && <span className="badge" style={{ marginLeft: 4, fontSize: 9, padding: '0px 4px', background: 'var(--accent-dim)', border: '1px solid var(--accent)', color: 'var(--accent)' }}>Nieuw</span>}
                           </td>
                         )}
                         {zk.has('iban_bban') && (
