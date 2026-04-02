@@ -3,6 +3,8 @@
 // VERSIE: 1
 // GEWIJZIGD: 01-04-2026 23:45
 //
+// WIJZIGINGEN (03-04-2026 01:00):
+// - Subcategorieën tab: matrix van categorieën × subcategorieën met inline bewerking
 // WIJZIGINGEN (01-04-2026 23:45):
 // - Naam tegenpartij (naam_origineel) bewerkbaar via inline klik-naar-input
 // WIJZIGINGEN (01-04-2026 23:30):
@@ -56,7 +58,7 @@ interface CategorieRegel {
 interface BudgetPotjeNaam { id: number; naam: string; kleur: string | null; rekening_ids: number[]; }
 interface Rekening { id: number; naam: string; iban: string; beheerd: number; }
 
-type Tab = 'regels' | 'aangepast';
+type Tab = 'regels' | 'aangepast' | 'subcategorieen';
 
 const filterKnopStijl = (actief: boolean): React.CSSProperties => ({
   padding: '5px 14px', borderRadius: 6, fontSize: 13, cursor: 'pointer',
@@ -127,6 +129,11 @@ export default function CategorieenBeheer() {
   const [regelsSortDir, setRegelsSortDir]       = useState<'asc' | 'desc'>('asc');
   const [aangepastSortCol, setAangepastSortCol] = useState<string | null>(null);
   const [aangepastSortDir, setAangepastSortDir] = useState<'asc' | 'desc'>('asc');
+
+  // Subcategorieën tab state
+  const [subcatZoek, setSubcatZoek]             = useState('');
+  const [subcatEdit, setSubcatEdit]             = useState<{ cat: string; sub: string } | null>(null);
+  const [subcatEditWaarde, setSubcatEditWaarde] = useState('');
 
   // Inline edit state voor regels tab
   const [editingRegelCell, setEditingRegelCell] = useState<{ id: number; veld: string; waarde: string } | null>(null);
@@ -612,6 +619,9 @@ export default function CategorieenBeheer() {
         <button onClick={() => setTab('aangepast')} style={tabStijl(tab === 'aangepast')}>
           🔒 Aangepast ({transacties.length})
         </button>
+        <button onClick={() => setTab('subcategorieen')} style={tabStijl(tab === 'subcategorieen')}>
+          Subcategorieën
+        </button>
       </div>
 
       {/* Tab 1: Categorieregels */}
@@ -834,6 +844,108 @@ export default function CategorieenBeheer() {
           uniekeCategorieenDropdown={uniekeCatDropdown}
         />
       )}
+
+      {/* Tab 3: Subcategorieën */}
+      {tab === 'subcategorieen' && (() => {
+        // Bouw matrix: categorie → subcategorieën
+        const catMap = new Map<string, Set<string>>();
+        for (const r of regels) {
+          if (!r.subcategorie) continue;
+          if (!catMap.has(r.categorie)) catMap.set(r.categorie, new Set());
+          catMap.get(r.categorie)!.add(r.subcategorie);
+        }
+        const categorieen = [...catMap.keys()].sort((a, b) => a.localeCompare(b, 'nl'));
+        const zoekLower = subcatZoek.toLowerCase();
+
+        // Filter: alleen categorieën tonen die subcategorieën hebben die matchen
+        const gefilterd = zoekLower
+          ? categorieen.filter(cat => [...catMap.get(cat)!].some(s => s.toLowerCase().includes(zoekLower)))
+          : categorieen;
+
+        // Max aantal subcats per kolom (voor raster hoogte)
+        const kolomData = gefilterd.map(cat => {
+          const subs = [...catMap.get(cat)!]
+            .filter(s => !zoekLower || s.toLowerCase().includes(zoekLower))
+            .sort((a, b) => a.localeCompare(b, 'nl'));
+          return { cat, subs };
+        });
+        const maxRijen = Math.max(0, ...kolomData.map(k => k.subs.length));
+
+        async function opslaanSubcat(cat: string, subOud: string, subNieuw: string) {
+          if (subNieuw === subOud || !subNieuw.trim()) { setSubcatEdit(null); return; }
+          await fetch('/api/categorieen/subcategorie', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ categorie: cat, subcategorie_oud: subOud, subcategorie_nieuw: subNieuw.trim() }),
+          });
+          setSubcatEdit(null);
+          setReloadTrigger(n => n + 1);
+        }
+
+        return (
+          <>
+            <div style={{ marginBottom: 12 }}>
+              <input
+                type="text"
+                placeholder="Zoek subcategorie…"
+                value={subcatZoek}
+                onChange={e => setSubcatZoek(e.target.value)}
+                style={{ width: '100%', padding: '8px 12px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--bg-card)', color: 'var(--text)', fontSize: 13 }}
+              />
+            </div>
+            {gefilterd.length === 0 ? (
+              <p className="empty">Geen subcategorieën gevonden.</p>
+            ) : (
+              <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(gefilterd.length, 6)}, 1fr)`, gap: 0, border: '1px solid var(--border)', borderRadius: 6, overflow: 'hidden' }}>
+                {/* Kolomkoppen */}
+                {kolomData.map(({ cat }) => {
+                  const potje = budgettenPotjes.find(bp => bp.naam === cat);
+                  const kleur = potje?.kleur ?? 'var(--accent)';
+                  return (
+                    <div key={cat} style={{ padding: '8px 10px', fontWeight: 700, fontSize: 12, color: kleur, background: 'var(--bg-base)', borderBottom: '1px solid var(--border)', borderRight: '1px solid var(--border)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {cat}
+                    </div>
+                  );
+                })}
+                {/* Cellen */}
+                {Array.from({ length: maxRijen }, (_, rijIdx) =>
+                  kolomData.map(({ cat, subs }) => {
+                    const sub = subs[rijIdx];
+                    const isEditing = subcatEdit?.cat === cat && subcatEdit?.sub === sub;
+                    return (
+                      <div
+                        key={`${cat}-${rijIdx}`}
+                        style={{ padding: '4px 10px', fontSize: 12, color: 'var(--text)', borderBottom: '1px solid var(--border)', borderRight: '1px solid var(--border)', minHeight: 28, display: 'flex', alignItems: 'center' }}
+                      >
+                        {sub && isEditing ? (
+                          <input
+                            autoFocus
+                            value={subcatEditWaarde}
+                            onChange={e => setSubcatEditWaarde(e.target.value)}
+                            onKeyDown={e => {
+                              if (e.key === 'Enter') opslaanSubcat(cat, sub, subcatEditWaarde);
+                              if (e.key === 'Escape') setSubcatEdit(null);
+                            }}
+                            onBlur={() => opslaanSubcat(cat, sub, subcatEditWaarde)}
+                            style={{ width: '100%', padding: '2px 4px', fontSize: 12, background: 'var(--bg-base)', border: '1px solid var(--accent)', borderRadius: 3, color: 'var(--text)', outline: 'none' }}
+                          />
+                        ) : sub ? (
+                          <span
+                            onClick={() => { setSubcatEdit({ cat, sub }); setSubcatEditWaarde(sub); }}
+                            style={{ cursor: 'pointer', width: '100%' }}
+                          >
+                            {sub}
+                          </span>
+                        ) : null}
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            )}
+          </>
+        );
+      })()}
     </div>
   );
 }
