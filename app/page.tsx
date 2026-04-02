@@ -140,7 +140,7 @@ function RichtingsIndicator({ saldo }: { saldo: number }) {
   }
   return (
     <span className="bls-flow flow-zero" style={{ color: 'var(--accent)' }}>
-      <span>∣</span><span>∣</span><span>∣</span>
+      <span>|</span><span>|</span><span>|</span>
     </span>
   );
 }
