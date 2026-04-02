@@ -3,6 +3,10 @@
 // VERSIE: 1
 // GEWIJZIGD: 02-04-2026 20:00
 //
+// WIJZIGINGEN (03-04-2026 01:00):
+// - Rekening-badges: hex-kleur via hash + kleurBg() achtergrond, zelfde stijl als categorie-badges
+// - Volgorde omgedraaid: hoort-op links, gedaan-op rechts; indicator richting aangepast
+// - Chevron-tekens: enkele chevrons (‹›) i.p.v. guillemets; ||| met zelfde spacing
 // WIJZIGINGEN (03-04-2026 00:30):
 // - Rekening-badges groter (13px, padding 4px 12px) en minder fel (hsl h,35%,45%)
 // - Richtingsindicator groter (18px), ruimer (gap 2px, letter-spacing 1px) en trager (2.5s cycle)
@@ -107,21 +111,30 @@ function naamKleur(naam: string): string {
     hash = naam.charCodeAt(i) + ((hash << 5) - hash);
   }
   const h = ((Math.abs(hash) % 360) + 360) % 360;
-  return `hsl(${h}, 35%, 45%)`;
+  // HSL naar hex: zachte tint passend bij de app (s=45%, l=55%)
+  const s = 0.45, l = 0.55;
+  const a = s * Math.min(l, 1 - l);
+  const f = (n: number) => { const k = (n + h / 30) % 12; return l - a * Math.max(-1, Math.min(k - 3, 9 - k, 1)); };
+  const toHex = (v: number) => Math.round(v * 255).toString(16).padStart(2, '0');
+  return `#${toHex(f(0))}${toHex(f(8))}${toHex(f(4))}`;
 }
 
+// Volgorde: [hoort-op] indicator [gedaan-op]
+// Saldo < 0: geld moet van gedaan-op (rechts) naar hoort-op (links) → ‹‹‹ rood
+// Saldo > 0: geld moet van hoort-op (links) naar gedaan-op (rechts) → ››› groen
+// Saldo = 0: in balans → ||| blauw
 function RichtingsIndicator({ saldo }: { saldo: number }) {
   if (saldo < 0) {
     return (
       <span className="bls-flow flow-left" style={{ color: 'var(--red)' }}>
-        <span>&laquo;</span><span>&laquo;</span><span>&laquo;</span>
+        <span>&#8249;</span><span>&#8249;</span><span>&#8249;</span>
       </span>
     );
   }
   if (saldo > 0) {
     return (
       <span className="bls-flow flow-right" style={{ color: 'var(--green)' }}>
-        <span>&raquo;</span><span>&raquo;</span><span>&raquo;</span>
+        <span>&#8250;</span><span>&#8250;</span><span>&#8250;</span>
       </span>
     );
   }
@@ -495,9 +508,9 @@ export default function DashboardPage() {
                         </td>
                         <td style={{ padding: '6px 8px' }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                            {rekBadge(rij.gedaanOpRekening)}
-                            <RichtingsIndicator saldo={rij.saldo} />
                             {rekBadge(rij.hoortOpRekening, hoortLabel)}
+                            <RichtingsIndicator saldo={rij.saldo} />
+                            {rekBadge(rij.gedaanOpRekening)}
                           </div>
                         </td>
                         <td style={{ ...tdNum, color: bedragKleur(rij.bedrag), fontWeight: 600 }}>{formatBedrag(rij.bedrag)}</td>
