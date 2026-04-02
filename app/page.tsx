@@ -119,22 +119,22 @@ function naamKleur(naam: string): string {
   return `#${toHex(f(0))}${toHex(f(8))}${toHex(f(4))}`;
 }
 
-// Volgorde: [hoort-op] indicator [gedaan-op]
-// Saldo < 0: geld moet van gedaan-op (rechts) naar hoort-op (links) → ‹‹‹ rood
-// Saldo > 0: geld moet van hoort-op (links) naar gedaan-op (rechts) → ››› groen
+// Volgorde: [gedaan-op] indicator [hoort-op]
+// Saldo < 0: geld moet van gedaan-op (links) naar hoort-op (rechts) → ⟩⟩⟩ rood
+// Saldo > 0: geld moet van hoort-op (rechts) naar gedaan-op (links) → ⟨⟨⟨ groen
 // Saldo = 0: in balans → ||| blauw
 function RichtingsIndicator({ saldo }: { saldo: number }) {
   if (saldo < 0) {
     return (
-      <span className="bls-flow flow-left" style={{ color: 'var(--red)' }}>
-        <span>⟨</span><span>⟨</span><span>⟨</span>
+      <span className="bls-flow flow-right" style={{ color: 'var(--red)' }}>
+        <span>⟩</span><span>⟩</span><span>⟩</span>
       </span>
     );
   }
   if (saldo > 0) {
     return (
-      <span className="bls-flow flow-right" style={{ color: 'var(--green)' }}>
-        <span>⟩</span><span>⟩</span><span>⟩</span>
+      <span className="bls-flow flow-left" style={{ color: 'var(--green)' }}>
+        <span>⟨</span><span>⟨</span><span>⟨</span>
       </span>
     );
   }
@@ -508,9 +508,9 @@ export default function DashboardPage() {
                         </td>
                         <td style={{ padding: '6px 8px' }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                            {rekBadge(rij.hoortOpRekening, hoortLabel)}
-                            <RichtingsIndicator saldo={rij.saldo} />
                             {rekBadge(rij.gedaanOpRekening)}
+                            <RichtingsIndicator saldo={rij.saldo} />
+                            {rekBadge(rij.hoortOpRekening, hoortLabel)}
                           </div>
                         </td>
                         <td style={{ ...tdNum, color: bedragKleur(rij.bedrag), fontWeight: 600 }}>{formatBedrag(rij.bedrag)}</td>
