@@ -461,6 +461,9 @@ export default function DashboardPage() {
         </div>
       )}
 
+      {/* BLS + CAT wrapper */}
+      <div style={{ maxWidth: 960, margin: '0 auto' }}>
+
       {/* BLS Sectie */}
       <p className="section-title">Balans Budgetten en Potjes</p>
       {laadtBls ? (
@@ -468,7 +471,7 @@ export default function DashboardPage() {
       ) : blsData.length === 0 && !fout ? (
         <div className="empty">Geen data voor deze periode.</div>
       ) : (
-        <div className="table-wrapper" style={{ maxWidth: 900, marginBottom: 36, overflowX: 'hidden' }}>
+        <div className="table-wrapper" style={{ marginBottom: 36, overflowX: 'auto' }}>
           <table>
             <colgroup>
               <col style={{ width: 'auto' }} />
@@ -599,7 +602,7 @@ export default function DashboardPage() {
       ) : catData.length === 0 && !fout ? (
         <div className="empty">Geen categoriedata voor deze periode.</div>
       ) : (
-        <div className="table-wrapper" style={{ maxWidth: 500, marginBottom: 36, overflowX: 'hidden' }}>
+        <div className="table-wrapper" style={{ marginBottom: 36, overflowX: 'auto' }}>
           <table>
             <colgroup>
               <col />
@@ -648,6 +651,8 @@ export default function DashboardPage() {
           </table>
         </div>
       )}
+
+      </div>{/* einde BLS + CAT wrapper */}
 
       {patronModal && (
         <CategoriePopup
