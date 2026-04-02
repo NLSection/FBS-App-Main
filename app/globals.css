@@ -342,7 +342,7 @@ button {
   50% { opacity: 1; }
 }
 
-.bls-flow { display: inline-flex; gap: 0; font-size: 16px; line-height: 1; font-weight: 700; letter-spacing: -1px; align-items: center; vertical-align: middle; }
+.bls-flow { display: inline-flex; gap: 0; font-size: 16px; line-height: 1; font-weight: 700; letter-spacing: -1px; align-items: center; vertical-align: middle; transform: translateY(1px); }
 .bls-flow span { animation: bls-wave 2.5s ease-in-out infinite; }
 .bls-flow span:last-child { letter-spacing: 0; margin-right: 2px; }
 .bls-flow.flow-right span:nth-child(1) { animation-delay: 0s; }
