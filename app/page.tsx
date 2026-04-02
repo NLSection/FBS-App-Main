@@ -492,9 +492,7 @@ export default function DashboardPage() {
                     if (next.has(sleutel)) next.delete(sleutel); else next.add(sleutel);
                     return next;
                   });
-                  const hoortLabel = (hoortTellingen.get(rij.hoortOpRekening) ?? 0) > 1
-                    ? `${rij.hoortOpRekening}: ${rij.categorie}`
-                    : undefined;
+                  const hoortLabel = `${rij.hoortOpRekening}: ${rij.categorie}`;
                   return (
                     <Fragment key={sleutel}>
                       {/* Hoofdrij — directe <tr> in outer tbody, geen geneste tabel */}
