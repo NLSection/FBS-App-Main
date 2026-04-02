@@ -3,6 +3,9 @@
 // VERSIE: 1
 // GEWIJZIGD: 02-04-2026 20:00
 //
+// WIJZIGINGEN (02-04-2026 22:00):
+// - Bedragen hoofdrij uitlijnen onder kolomkoppen; Rekening kolom verwijderd; Subcategorie kolom toegevoegd
+// - Hele subtabel-rij klikbaar voor CategoriePopup; omboekingen zichtbaar in subtabel
 // WIJZIGINGEN (02-04-2026 21:00):
 // - Categorie-badge per subtabel-transactie: opent CategoriePopup, herlaadt BLS na opslaan
 // WIJZIGINGEN (02-04-2026 20:00):
@@ -382,6 +385,12 @@ export default function DashboardPage() {
       ) : (
         <div className="table-wrapper" style={{ marginBottom: 36 }}>
           <table>
+            <colgroup>
+              <col />
+              <col style={{ width: 120 }} />
+              <col style={{ width: 120 }} />
+              <col style={{ width: 100 }} />
+            </colgroup>
             <thead>
               <tr>
                 <th>Categorie</th>
@@ -394,7 +403,7 @@ export default function DashboardPage() {
               {blsData.map(rij => {
                 const sleutel = `${rij.categorie}::${rij.gedaanOpRekening}`;
                 const isOpen = openRijen.has(sleutel);
-                const badge: React.CSSProperties = { fontSize: 10, borderRadius: 3, padding: '0px 4px', fontWeight: 500 };
+                const badgeStijl: React.CSSProperties = { fontSize: 10, borderRadius: 3, padding: '0px 4px', fontWeight: 500 };
                 const toggleRij = () => setOpenRijen(prev => {
                   const next = new Set(prev);
                   if (next.has(sleutel)) next.delete(sleutel); else next.add(sleutel);
@@ -403,24 +412,34 @@ export default function DashboardPage() {
                 return (
                   <tr key={sleutel} style={{ cursor: 'default' }}>
                     <td colSpan={4} style={{ padding: 0 }}>
-                      {/* Hoofdrij */}
-                      <div onClick={toggleRij} style={{ display: 'grid', gridTemplateColumns: '1fr auto auto auto', alignItems: 'center', cursor: 'pointer', borderLeft: `2px solid ${borderKleur(rij.saldo)}`, paddingLeft: 10, paddingTop: 6, paddingBottom: 6 }}>
-                        <div>
-                          <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--text-h)', display: 'flex', alignItems: 'center', gap: 6 }}>
-                            <span style={{ fontSize: 10, color: 'var(--text-dim)', transition: 'transform 0.15s', transform: isOpen ? 'rotate(90deg)' : 'rotate(0deg)', display: 'inline-block' }}>▶</span>
-                            {rij.categorie}
-                            {rij.saldo === 0 && <span style={{ color: 'var(--green)', fontSize: 12, fontWeight: 700 }}>✓</span>}
-                          </div>
-                          <div style={{ marginTop: 2, display: 'flex', alignItems: 'center', gap: 4, paddingLeft: 16 }}>
-                            <span style={{ ...badge, background: 'var(--bg-base)', border: '1px solid var(--border)', color: 'var(--text-dim)' }}>{rij.gedaanOpRekening}</span>
-                            <span style={{ fontSize: 11, color: 'var(--text-dim)' }}>→</span>
-                            <span style={{ ...badge, background: 'var(--bg-base)', border: '1px solid var(--accent)', color: 'var(--accent)' }}>{rij.hoortOpRekening}</span>
-                          </div>
-                        </div>
-                        <span style={{ ...tdNum, padding: '0 12px' }}>{formatBedrag(rij.bedrag)}</span>
-                        <span style={{ ...tdNum, padding: '0 12px' }}>{rij.gecorrigeerd !== 0 ? formatBedrag(rij.gecorrigeerd) : '—'}</span>
-                        <span style={{ ...tdNum, padding: '0 12px', color: saldoKleur(rij.saldo), fontWeight: 600 }}>{formatBedrag(rij.saldo)}</span>
-                      </div>
+                      {/* Hoofdrij — 4 kolommen via tabel om uitlijning met <th> te garanderen */}
+                      <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
+                        <colgroup>
+                          <col />
+                          <col style={{ width: 120 }} />
+                          <col style={{ width: 120 }} />
+                          <col style={{ width: 100 }} />
+                        </colgroup>
+                        <tbody>
+                          <tr onClick={toggleRij} style={{ cursor: 'pointer' }}>
+                            <td style={{ borderLeft: `2px solid ${borderKleur(rij.saldo)}`, paddingLeft: 10, paddingTop: 6, paddingBottom: 6 }}>
+                              <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--text-h)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                                <span style={{ fontSize: 10, color: 'var(--text-dim)', transition: 'transform 0.15s', transform: isOpen ? 'rotate(90deg)' : 'rotate(0deg)', display: 'inline-block' }}>▶</span>
+                                {rij.categorie}
+                                {rij.saldo === 0 && <span style={{ color: 'var(--green)', fontSize: 12, fontWeight: 700 }}>✓</span>}
+                              </div>
+                              <div style={{ marginTop: 2, display: 'flex', alignItems: 'center', gap: 4, paddingLeft: 16 }}>
+                                <span style={{ ...badgeStijl, background: 'var(--bg-base)', border: '1px solid var(--border)', color: 'var(--text-dim)' }}>{rij.gedaanOpRekening}</span>
+                                <span style={{ fontSize: 11, color: 'var(--text-dim)' }}>→</span>
+                                <span style={{ ...badgeStijl, background: 'var(--bg-base)', border: '1px solid var(--accent)', color: 'var(--accent)' }}>{rij.hoortOpRekening}</span>
+                              </div>
+                            </td>
+                            <td style={tdNum}>{formatBedrag(rij.bedrag)}</td>
+                            <td style={tdNum}>{rij.gecorrigeerd !== 0 ? formatBedrag(rij.gecorrigeerd) : <span style={{ color: 'var(--text-dim)' }}>—</span>}</td>
+                            <td style={{ ...tdNum, color: saldoKleur(rij.saldo), fontWeight: 600 }}>{formatBedrag(rij.saldo)}</td>
+                          </tr>
+                        </tbody>
+                      </table>
                       {/* Subtabel */}
                       {isOpen && rij.transacties && rij.transacties.length > 0 && (
                         <div style={{ paddingLeft: 28, paddingRight: 8, paddingBottom: 8 }}>
@@ -431,26 +450,23 @@ export default function DashboardPage() {
                                 <th style={{ textAlign: 'left', padding: '4px 6px', fontWeight: 500 }}>Naam</th>
                                 <th style={{ textAlign: 'left', padding: '4px 6px', fontWeight: 500 }}>Omschrijving</th>
                                 <th style={{ textAlign: 'right', padding: '4px 6px', fontWeight: 500 }}>Bedrag</th>
-                                <th style={{ textAlign: 'left', padding: '4px 6px', fontWeight: 500 }}>Rekening</th>
                                 <th style={{ textAlign: 'left', padding: '4px 6px', fontWeight: 500 }}>Categorie</th>
+                                <th style={{ textAlign: 'left', padding: '4px 6px', fontWeight: 500 }}>Subcategorie</th>
                               </tr>
                             </thead>
                             <tbody>
                               {rij.transacties.map(trx => (
-                                <tr key={trx.id} style={{ borderBottom: '1px solid var(--border)', color: 'var(--text)' }}>
+                                <tr key={trx.id} onClick={(e) => openCategoriePopupBls(trx, e)} style={{ borderBottom: '1px solid var(--border)', color: 'var(--text)', cursor: 'pointer' }}>
                                   <td style={{ padding: '3px 6px', whiteSpace: 'nowrap' }}>{trx.datum ?? '—'}</td>
                                   <td style={{ padding: '3px 6px' }}>{trx.naam_tegenpartij ?? '—'}</td>
                                   <td style={{ padding: '3px 6px', maxWidth: 260, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{trx.omschrijving ?? '—'}</td>
                                   <td style={{ padding: '3px 6px', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{trx.bedrag != null ? formatBedrag(trx.bedrag) : '—'}</td>
-                                  <td style={{ padding: '3px 6px' }}>{trx.rekening_naam ?? '—'}</td>
                                   <td style={{ padding: '3px 6px' }}>
-                                    <span
-                                      onClick={(e) => openCategoriePopupBls(trx, e)}
-                                      style={{ cursor: 'pointer', fontSize: 11, padding: '1px 6px', borderRadius: 4, background: 'var(--bg-base)', border: '1px solid var(--accent)', color: 'var(--accent)', fontWeight: 500, whiteSpace: 'nowrap' }}
-                                    >
+                                    <span style={{ fontSize: 11, padding: '1px 6px', borderRadius: 4, background: 'var(--bg-base)', border: '1px solid var(--accent)', color: 'var(--accent)', fontWeight: 500, whiteSpace: 'nowrap' }}>
                                       {trx.categorie ?? 'Categoriseer'}
                                     </span>
                                   </td>
+                                  <td style={{ padding: '3px 6px', color: 'var(--text-dim)' }}>{trx.subcategorie ?? '—'}</td>
                                 </tr>
                               ))}
                             </tbody>

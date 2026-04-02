@@ -3,6 +3,8 @@
 // VERSIE: 1
 // GEWIJZIGD: 02-04-2026 20:00
 //
+// WIJZIGINGEN (02-04-2026 22:00):
+// - Omboekingen toegevoegd aan transacties-array per BLS-rij
 // WIJZIGINGEN (02-04-2026 21:00):
 // - BlsTransactie uitgebreid met popup-velden (categorie_id, type, omschrijving_1/2/3, etc.)
 // WIJZIGINGEN (02-04-2026 20:00):
@@ -142,7 +144,27 @@ export function GET(request: NextRequest) {
 
       const sleutel = `${t.subcategorie}::${t.iban_bban}::${gekoppeldeRekeningId}`;
       const groep = groepMap.get(sleutel);
-      if (groep) groep.gecorrigeerd += t.bedrag ?? 0;
+      if (groep) {
+        groep.gecorrigeerd += t.bedrag ?? 0;
+        groep.transacties.push({
+          id: t.id,
+          datum: t.datum_aanpassing ?? t.datum,
+          naam_tegenpartij: t.naam_tegenpartij,
+          omschrijving: [t.omschrijving_1, t.omschrijving_2, t.omschrijving_3].filter(Boolean).join(' '),
+          bedrag: t.bedrag,
+          rekening_naam: t.rekening_naam ?? rekeningNaamByIban.get(t.iban_bban) ?? null,
+          categorie_id: t.categorie_id,
+          categorie: t.categorie,
+          subcategorie: t.subcategorie,
+          toelichting: t.toelichting,
+          type: t.type,
+          tegenrekening_iban_bban: t.tegenrekening_iban_bban,
+          omschrijving_1: t.omschrijving_1,
+          omschrijving_2: t.omschrijving_2,
+          omschrijving_3: t.omschrijving_3,
+          handmatig_gecategoriseerd: t.handmatig_gecategoriseerd,
+        });
+      }
     }
 
     // Stap 4 — Response opmaken
