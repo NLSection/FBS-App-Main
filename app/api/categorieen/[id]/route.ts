@@ -1,15 +1,18 @@
 // FILE: route.ts (api/categorieen/[id])
 // AANGEMAAKT: 25-03-2026 17:30
 // VERSIE: 1
-// GEWIJZIGD: 30-03-2026 21:00
+// GEWIJZIGD: 02-04-2026 10:00
 //
 // WIJZIGINGEN (30-03-2026 21:00):
 // - PUT: toelichting doorgestuurd naar updateCategorieRegel
 // WIJZIGINGEN (28-03-2026 14:00):
 // - PUT: naam_zoekwoord_raw doorgestuurd naar updateCategorieRegel
+// WIJZIGINGEN (02-04-2026 10:00):
+// - triggerBackup() aangeroepen na succesvolle PUT en DELETE
 
 import { NextRequest, NextResponse } from 'next/server';
 import { updateCategorieRegel, deleteCategorieRegel } from '@/lib/categorisatie';
+import { triggerBackup } from '@/lib/backup';
 
 type Params = Promise<{ id: string }>;
 
@@ -19,6 +22,7 @@ export function DELETE(_req: NextRequest, { params }: { params: Params }) {
     if (isNaN(numId)) return NextResponse.json({ error: 'Ongeldig id.' }, { status: 400 });
     try {
       deleteCategorieRegel(numId);
+      triggerBackup();
       return NextResponse.json({ ok: true });
     } catch (err) {
       const bericht = err instanceof Error ? err.message : 'Databasefout.';
@@ -60,6 +64,7 @@ export async function PUT(request: NextRequest, { params }: { params: Params }) 
                           : undefined,
       type:              typeof type === 'string'               ? type as never     : 'alle',
     });
+    triggerBackup();
     return NextResponse.json({ ok: true });
   } catch (err) {
     const bericht = err instanceof Error ? err.message : 'Databasefout.';

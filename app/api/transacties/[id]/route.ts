@@ -1,14 +1,17 @@
 // FILE: route.ts (api/transacties/[id])
 // AANGEMAAKT: 25-03-2026 17:30
 // VERSIE: 1
-// GEWIJZIGD: 31-03-2026 20:00
+// GEWIJZIGD: 02-04-2026 10:00
 //
 // WIJZIGINGEN (31-03-2026 20:00):
 // - PATCH schrijft naar transactie_aanpassingen (UPSERT) i.p.v. transacties
 // - datum_aanpassing vervangt datum + originele_datum
+// WIJZIGINGEN (02-04-2026 10:00):
+// - triggerBackup() aangeroepen na succesvolle PATCH
 
 import { NextRequest, NextResponse } from 'next/server';
 import getDb from '@/lib/db';
+import { triggerBackup } from '@/lib/backup';
 
 type Params = Promise<{ id: string }>;
 
@@ -75,6 +78,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Params }
     db.prepare('INSERT OR IGNORE INTO transactie_aanpassingen (transactie_id) VALUES (?)').run(numId);
     db.prepare(`UPDATE transactie_aanpassingen SET ${setClauses.join(', ')} WHERE transactie_id = ?`)
       .run(...vals, numId);
+    triggerBackup();
     return NextResponse.json({ ok: true });
   } catch (err) {
     const bericht = err instanceof Error ? err.message : 'Databasefout.';

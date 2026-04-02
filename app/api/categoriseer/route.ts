@@ -1,7 +1,7 @@
 // FILE: route.ts (api/categoriseer)
 // AANGEMAAKT: 25-03-2026 17:30
 // VERSIE: 1
-// GEWIJZIGD: 31-03-2026 20:00
+// GEWIJZIGD: 02-04-2026 10:00
 //
 // WIJZIGINGEN (30-03-2026 20:00):
 // - POST: toelichting bulk-update ook bij lege waarde (wissen); conditie op categorie_id i.p.v. toelichting
@@ -11,10 +11,13 @@
 // - Initiële aanmaak: POST { importId } — voert categoriseerTransacties uit
 // WIJZIGINGEN (26-03-2026 11:15):
 // - importId optioneel: zonder importId worden ALLE transacties herverwerkt
+// WIJZIGINGEN (02-04-2026 10:00):
+// - triggerBackup() aangeroepen na succesvolle POST
 
 import { NextRequest, NextResponse } from 'next/server';
 import { categoriseerTransacties } from '@/lib/categorisatie';
 import getDb from '@/lib/db';
+import { triggerBackup } from '@/lib/backup';
 
 export async function POST(request: NextRequest) {
   let body: Record<string, unknown>;
@@ -41,6 +44,7 @@ export async function POST(request: NextRequest) {
     if (categorieId !== null) {
       getDb().prepare('UPDATE transactie_aanpassingen SET toelichting = ? WHERE categorie_id = ?').run(toelichting, categorieId);
     }
+    triggerBackup();
     return NextResponse.json(resultaat);
   } catch (err) {
     const bericht = err instanceof Error ? err.message : 'Databasefout.';

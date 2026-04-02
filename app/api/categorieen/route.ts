@@ -1,7 +1,7 @@
 // FILE: route.ts (api/categorieen)
 // AANGEMAAKT: 25-03-2026 17:30
 // VERSIE: 1
-// GEWIJZIGD: 31-03-2026 11:00
+// GEWIJZIGD: 02-04-2026 10:00
 //
 // WIJZIGINGEN (31-03-2026 11:00):
 // - POST toelichting: null in body doorgestuurd als null (was undefined bij typeof-check op null)
@@ -9,9 +9,12 @@
 // - POST: toelichting doorgestuurd naar insertCategorieRegel
 // WIJZIGINGEN (28-03-2026 14:00):
 // - POST: naam_zoekwoord_raw doorgestuurd naar insertCategorieRegel
+// WIJZIGINGEN (02-04-2026 10:00):
+// - triggerBackup() aangeroepen na succesvolle POST
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getCategorieRegels, insertCategorieRegel, categoriseerTransacties } from '@/lib/categorisatie';
+import { triggerBackup } from '@/lib/backup';
 
 export function GET() {
   try {
@@ -48,6 +51,7 @@ export async function POST(request: NextRequest) {
       type:              typeof type === 'string'               ? type as never     : 'alle',
     });
     categoriseerTransacties();
+    triggerBackup();
     return NextResponse.json({ id }, { status: 201 });
   } catch (err) {
     const bericht = err instanceof Error ? err.message : 'Databasefout.';

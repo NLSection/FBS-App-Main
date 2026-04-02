@@ -1,7 +1,7 @@
 // FILE: route.ts
 // AANGEMAAKT: 25-03-2026 10:30
 // VERSIE: 1
-// GEWIJZIGD: 30-03-2026 16:30
+// GEWIJZIGD: 02-04-2026 10:00
 //
 // WIJZIGINGEN (25-03-2026 17:30):
 // - Initiële aanmaak: POST /api/import — multipart CSV ontvangen, parsen, matchen en opslaan
@@ -18,6 +18,8 @@
 // - Optionele form-fields: bevestigdeRekeningen, genegeerdeIbans, permanentGenegeerdeIbans
 // - Bevestigde rekeningen worden opgeslagen incl. beheerd-vlag en optionele budgetten_potjes koppeling
 // - Genegeerde IBans worden gefilterd uit de import
+// WIJZIGINGEN (02-04-2026 10:00):
+// - triggerBackup() aangeroepen na succesvolle import
 
 import { NextRequest, NextResponse } from 'next/server';
 import { parseCSV } from '@/features/import/utils/parseCSV';
@@ -27,6 +29,7 @@ import { insertImport, insertTransacties } from '@/lib/imports';
 import { categoriseerTransacties } from '@/lib/categorisatie';
 import { insertRekening, updateBeheerd } from '@/lib/rekeningen';
 import getDb from '@/lib/db';
+import { triggerBackup } from '@/lib/backup';
 
 interface BevestigdeRekening {
   iban: string;
@@ -194,5 +197,6 @@ export async function POST(request: NextRequest) {
     });
   }
 
+  triggerBackup();
   return NextResponse.json({ resultaten });
 }

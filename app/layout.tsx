@@ -1,16 +1,19 @@
 // FILE: layout.tsx
 // AANGEMAAKT: 25-03-2026 10:00
 // VERSIE: 1
-// GEWIJZIGD: 25-03-2026 14:00
+// GEWIJZIGD: 02-04-2026 10:00
 //
 // WIJZIGINGEN (25-03-2026 14:00):
 // - Database migrations aangeroepen bij app-start
 // - Navigatiebalk vervangen door sidebar + main layout
 // - Sidebar component geïmporteerd
+// WIJZIGINGEN (02-04-2026 10:00):
+// - BackupCheck component toegevoegd voor melding bij nieuwere backup
 
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import Sidebar from "@/components/Sidebar";
+import BackupCheck from "@/components/BackupCheck";
 import { SidebarProvider } from "@/lib/sidebar-context";
 import "./globals.css";
 import { runMigrations } from "@/lib/migrations";
@@ -45,6 +48,7 @@ export default function RootLayout({
             <Sidebar />
             <main className="main">{children}</main>
           </div>
+          <BackupCheck />
         </SidebarProvider>
       </body>
     </html>
