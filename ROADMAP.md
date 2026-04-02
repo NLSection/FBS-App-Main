@@ -26,6 +26,9 @@
 - Inline bewerking per cel in de Categorieregels tab (naam_zoekwoord, omschrijving_zoekwoord, toelichting, categorie, subcategorie)
 - Chip-lengte filter verwijderd: alle woorden beschikbaar als chip ongeacht lengte
 - Categorieregel update behoudt bestaande omschrijving_zoekwoord en naam_zoekwoord als deze niet expliciet worden meegestuurd
+- Automatische backup na elke schrijfoperatie naar Backup/backup_YYYY-MM-DD_HH-MM-SS.json (max 10 bestanden)
+- Backup check bij opstarten: melding als er een nieuwere backup beschikbaar is met optie om te importeren
+- Backup synchronisatie via git mogelijk doordat backups als JSON worden opgeslagen
 
 ## Te doen
 
