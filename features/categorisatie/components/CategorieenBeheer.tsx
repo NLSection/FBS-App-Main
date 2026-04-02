@@ -265,7 +265,7 @@ export default function CategorieenBeheer() {
       reden_retour: null, oorspr_bedrag: null, oorspr_munt: null, koers: null,
       type: r.type === 'alle' ? 'normaal-af' : r.type as TransactieMetCategorie['type'],
       status: 'verwerkt', categorie_id: r.id, handmatig_gecategoriseerd: 0,
-      datum_aanpassing: null, fout_geboekt: 0, rekening_naam: null, tegenrekening_naam: null,
+      datum_aanpassing: null, fout_geboekt: 0, rekening_naam: null, tegenrekening_naam: null, is_nieuw: 0,
       categorie: r.categorie, subcategorie: r.subcategorie, toelichting: r.toelichting,
     };
     openCategoriePopup(dummy);
