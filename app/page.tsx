@@ -468,7 +468,7 @@ export default function DashboardPage() {
       ) : blsData.length === 0 && !fout ? (
         <div className="empty">Geen data voor deze periode.</div>
       ) : (
-        <div className="table-wrapper" style={{ marginBottom: 36 }}>
+        <div className="table-wrapper" style={{ maxWidth: 900, marginBottom: 36, overflowX: 'hidden' }}>
           <table>
             <colgroup>
               <col style={{ width: 'auto' }} />
@@ -599,17 +599,15 @@ export default function DashboardPage() {
       ) : catData.length === 0 && !fout ? (
         <div className="empty">Geen categoriedata voor deze periode.</div>
       ) : (
-        <div className="table-wrapper" style={{ marginBottom: 36 }}>
+        <div className="table-wrapper" style={{ maxWidth: 500, marginBottom: 36, overflowX: 'hidden' }}>
           <table>
             <colgroup>
               <col />
-              <col style={{ width: 200 }} />
               <col style={{ width: 120 }} />
             </colgroup>
             <thead>
               <tr>
                 <th>Categorie</th>
-                <th>Aandeel</th>
                 <th style={{ textAlign: 'right' }}>Bedrag</th>
               </tr>
             </thead>
@@ -623,7 +621,6 @@ export default function DashboardPage() {
                     if (next.has(cat.categorie)) next.delete(cat.categorie); else next.add(cat.categorie);
                     return next;
                   });
-                  const catTotaalAbs = Math.abs(cat.totaal);
                   return (
                     <Fragment key={cat.categorie}>
                       <tr onClick={heeftSubs ? toggleCat : undefined} style={{ cursor: heeftSubs ? 'pointer' : 'default', borderTop: '1px solid var(--border)' }}>
@@ -633,29 +630,16 @@ export default function DashboardPage() {
                             {cat.categorie}
                           </div>
                         </td>
-                        <td />
-                        <td style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums', fontWeight: 700, color: bedragKleur(cat.totaal), fontSize: 14 }}>{formatBedrag(cat.totaal)}</td>
+                        <td style={{ textAlign: 'right', padding: '8px 16px', fontVariantNumeric: 'tabular-nums', fontWeight: 700, color: bedragKleur(cat.totaal), fontSize: 14 }}>{formatBedrag(cat.totaal)}</td>
                       </tr>
-                      {isOpen && cat.subrijen.map(sub => {
-                        const subPct = catTotaalAbs > 0 ? Math.abs(sub.bedrag) / catTotaalAbs : 0;
-                        const subBalkKleur = sub.bedrag < 0 ? 'var(--red)' : 'var(--green)';
-                        return (
+                      {isOpen && cat.subrijen.map(sub => (
                           <tr key={`${cat.categorie}-${sub.subcategorie}`} className="bls-expand" style={{ borderBottom: 'none' }}>
                             <td style={{ paddingLeft: 32, paddingTop: 3, paddingBottom: 3, fontSize: 13, color: 'var(--text-dim)' }}>
                               {sub.subcategorie}
                             </td>
-                            <td style={{ padding: '3px 8px' }}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                <div style={{ width: 150, height: 6, borderRadius: 3, background: 'var(--bg-base)', overflow: 'hidden', flexShrink: 0 }}>
-                                  <div style={{ width: `${subPct * 100}%`, height: '100%', borderRadius: 3, background: subBalkKleur, transition: 'width 0.3s' }} />
-                                </div>
-                                <span style={{ fontSize: 11, color: 'var(--text-dim)', fontVariantNumeric: 'tabular-nums', minWidth: 32 }}>{Math.round(subPct * 100)}%</span>
-                              </div>
-                            </td>
-                            <td style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums', color: 'var(--text-dim)', fontSize: 13 }}>{formatBedrag(sub.bedrag)}</td>
+                            <td style={{ textAlign: 'right', padding: '3px 16px', fontVariantNumeric: 'tabular-nums', color: 'var(--text-dim)', fontSize: 13 }}>{formatBedrag(sub.bedrag)}</td>
                           </tr>
-                        );
-                      })}
+                      ))}
                     </Fragment>
                   );
                 });
