@@ -454,7 +454,7 @@ export default function DashboardPage() {
         <div className="table-wrapper" style={{ marginBottom: 36 }}>
           <table>
             <colgroup>
-              <col style={{ width: '25%' }} />
+              <col style={{ width: 'auto' }} />
               <col />
               <col style={{ width: 120 }} />
               <col style={{ width: 120 }} />
