@@ -3,6 +3,9 @@
 // VERSIE: 1
 // GEWIJZIGD: 02-04-2026 20:00
 //
+// WIJZIGINGEN (02-04-2026 23:30):
+// - Subtabel colgroup voor uitlijning; Rekening-kolom met geanimeerde richtingsindicator
+// - Hash-gebaseerde kleuren per rekeningnaam; badge-label uitgebreid bij meerdere voorkomens
 // WIJZIGINGEN (02-04-2026 23:00):
 // - Badge-stijl overgenomen van transactiepagina (kleurBg, potje-kleur, badge/badge-outline classes)
 // - Hover: alleen actieve rij kleurt, niet de outer wrapper-rij (bls-outer class)
@@ -91,6 +94,37 @@ function kleurBg(hex: string): string {
 
 function bedragKleur(bedrag: number): string {
   return bedrag < 0 ? 'var(--red)' : bedrag > 0 ? 'var(--green)' : 'var(--accent)';
+}
+
+function naamKleur(naam: string): string {
+  let hash = 0;
+  for (let i = 0; i < naam.length; i++) {
+    hash = naam.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const h = ((Math.abs(hash) % 360) + 360) % 360;
+  return `hsl(${h}, 50%, 60%)`;
+}
+
+function RichtingsIndicator({ saldo }: { saldo: number }) {
+  if (saldo < 0) {
+    return (
+      <span className="bls-flow flow-left" style={{ color: 'var(--red)' }}>
+        <span>&laquo;</span><span>&laquo;</span><span>&laquo;</span>
+      </span>
+    );
+  }
+  if (saldo > 0) {
+    return (
+      <span className="bls-flow flow-right" style={{ color: 'var(--green)' }}>
+        <span>&raquo;</span><span>&raquo;</span><span>&raquo;</span>
+      </span>
+    );
+  }
+  return (
+    <span className="bls-flow flow-zero" style={{ color: 'var(--accent)' }}>
+      <span>|</span><span>|</span><span>|</span>
+    </span>
+  );
 }
 
 function maakNaamChips(naam: string | null): { label: string; waarde: string }[] {
@@ -402,6 +436,7 @@ export default function DashboardPage() {
         <div className="table-wrapper" style={{ marginBottom: 36 }}>
           <table>
             <colgroup>
+              <col style={{ width: '25%' }} />
               <col />
               <col style={{ width: 120 }} />
               <col style={{ width: 120 }} />
@@ -410,98 +445,128 @@ export default function DashboardPage() {
             <thead>
               <tr>
                 <th>Categorie</th>
+                <th>Rekening</th>
                 <th style={{ textAlign: 'right' }}>Bedrag</th>
                 <th style={{ textAlign: 'right' }}>Gecorrigeerd</th>
                 <th style={{ textAlign: 'right' }}>Saldo</th>
               </tr>
             </thead>
             <tbody>
-              {blsData.map(rij => {
-                const sleutel = `${rij.categorie}::${rij.gedaanOpRekening}`;
-                const isOpen = openRijen.has(sleutel);
-                const badgeStijl: React.CSSProperties = { fontSize: 10, borderRadius: 3, padding: '0px 4px', fontWeight: 500 };
-                const toggleRij = () => setOpenRijen(prev => {
-                  const next = new Set(prev);
-                  if (next.has(sleutel)) next.delete(sleutel); else next.add(sleutel);
-                  return next;
+              {(() => {
+                // Wijziging 4: tel hoe vaak elke hoortOpRekening voorkomt
+                const hoortTellingen = new Map<string, number>();
+                for (const r of blsData) {
+                  hoortTellingen.set(r.hoortOpRekening, (hoortTellingen.get(r.hoortOpRekening) ?? 0) + 1);
+                }
+                const rekBadge = (naam: string, label?: string): React.ReactNode => {
+                  const kleur = naamKleur(naam);
+                  return (
+                    <span style={{ display: 'inline-block', fontSize: 10, borderRadius: 3, padding: '1px 6px', fontWeight: 600, background: kleurBg(kleur), border: `1px solid ${kleur}`, color: kleur, whiteSpace: 'nowrap', minWidth: 60, textAlign: 'center' }}>
+                      {label ?? naam}
+                    </span>
+                  );
+                };
+
+                return blsData.map(rij => {
+                  const sleutel = `${rij.categorie}::${rij.gedaanOpRekening}`;
+                  const isOpen = openRijen.has(sleutel);
+                  const toggleRij = () => setOpenRijen(prev => {
+                    const next = new Set(prev);
+                    if (next.has(sleutel)) next.delete(sleutel); else next.add(sleutel);
+                    return next;
+                  });
+                  const hoortLabel = (hoortTellingen.get(rij.hoortOpRekening) ?? 0) > 1
+                    ? `${rij.hoortOpRekening}: ${rij.categorie}`
+                    : undefined;
+                  return (
+                    <tr key={sleutel} className="bls-outer" style={{ cursor: 'default' }}>
+                      <td colSpan={5} style={{ padding: 0 }}>
+                        {/* Hoofdrij — 5 kolommen via tabel om uitlijning met <th> te garanderen */}
+                        <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
+                          <colgroup>
+                            <col style={{ width: '25%' }} />
+                            <col />
+                            <col style={{ width: 120 }} />
+                            <col style={{ width: 120 }} />
+                            <col style={{ width: 100 }} />
+                          </colgroup>
+                          <tbody>
+                            <tr onClick={toggleRij} style={{ cursor: 'pointer' }}>
+                              <td style={{ borderLeft: `2px solid ${borderKleur(rij.saldo)}`, paddingLeft: 10, paddingTop: 6, paddingBottom: 6 }}>
+                                <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--text-h)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                                  <span style={{ fontSize: 10, color: 'var(--text-dim)', transition: 'transform 0.15s', transform: isOpen ? 'rotate(90deg)' : 'rotate(0deg)', display: 'inline-block' }}>▶</span>
+                                  {rij.categorie}
+                                  {rij.saldo === 0 && <span style={{ color: 'var(--green)', fontSize: 12, fontWeight: 700 }}>✓</span>}
+                                </div>
+                              </td>
+                              <td style={{ padding: '6px 8px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                  {rekBadge(rij.gedaanOpRekening)}
+                                  <RichtingsIndicator saldo={rij.saldo} />
+                                  {rekBadge(rij.hoortOpRekening, hoortLabel)}
+                                </div>
+                              </td>
+                              <td style={{ ...tdNum, color: bedragKleur(rij.bedrag), fontWeight: 600 }}>{formatBedrag(rij.bedrag)}</td>
+                              <td style={{ ...tdNum, color: rij.gecorrigeerd !== 0 ? bedragKleur(rij.gecorrigeerd) : undefined, fontWeight: 600 }}>{rij.gecorrigeerd !== 0 ? formatBedrag(rij.gecorrigeerd) : <span style={{ color: 'var(--text-dim)' }}>—</span>}</td>
+                              <td style={{ ...tdNum, color: bedragKleur(rij.saldo), fontWeight: 600 }}>{formatBedrag(rij.saldo)}</td>
+                            </tr>
+                          </tbody>
+                        </table>
+                        {/* Subtabel */}
+                        {isOpen && rij.transacties && rij.transacties.length > 0 && (
+                          <div style={{ paddingLeft: 28, paddingRight: 8, paddingBottom: 8 }}>
+                            <table style={{ width: '100%', fontSize: 12, borderCollapse: 'collapse' }}>
+                              <colgroup>
+                                <col style={{ width: 90 }} />
+                                <col style={{ width: '20%' }} />
+                                <col />
+                                <col style={{ width: 100 }} />
+                                <col style={{ width: 130 }} />
+                                <col style={{ width: 120 }} />
+                              </colgroup>
+                              <thead>
+                                <tr style={{ color: 'var(--text-dim)', borderBottom: '1px solid var(--border)' }}>
+                                  <th style={{ textAlign: 'left', padding: '4px 6px', fontWeight: 500 }}>Datum</th>
+                                  <th style={{ textAlign: 'left', padding: '4px 6px', fontWeight: 500 }}>Naam</th>
+                                  <th style={{ textAlign: 'left', padding: '4px 6px', fontWeight: 500 }}>Omschrijving</th>
+                                  <th style={{ textAlign: 'right', padding: '4px 6px', fontWeight: 500 }}>Bedrag</th>
+                                  <th style={{ textAlign: 'left', padding: '4px 6px', fontWeight: 500 }}>Categorie</th>
+                                  <th style={{ textAlign: 'left', padding: '4px 6px', fontWeight: 500 }}>Subcategorie</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {rij.transacties.map(trx => {
+                                  const catKleur = budgettenPotjes.find(bp => bp.naam === trx.categorie)?.kleur ?? 'var(--accent)';
+                                  return (
+                                    <tr key={trx.id} onClick={(e) => openCategoriePopupBls(trx, e)} style={{ borderBottom: '1px solid var(--border)', color: 'var(--text)', cursor: 'pointer' }}>
+                                      <td style={{ padding: '3px 6px', whiteSpace: 'nowrap' }}>{trx.datum ?? '—'}</td>
+                                      <td style={{ padding: '3px 6px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{trx.naam_tegenpartij ?? '—'}</td>
+                                      <td style={{ padding: '3px 6px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{trx.omschrijving ?? '—'}</td>
+                                      <td style={{ padding: '3px 6px', textAlign: 'right', fontVariantNumeric: 'tabular-nums', fontWeight: 600, color: bedragKleur(trx.bedrag ?? 0) }}>{trx.bedrag != null ? formatBedrag(trx.bedrag) : '—'}</td>
+                                      <td style={{ padding: '3px 6px' }}>
+                                        {trx.categorie
+                                          ? <span className="badge" style={{ background: kleurBg(catKleur), border: `1px solid ${catKleur}`, color: catKleur }}>{trx.categorie}</span>
+                                          : <span className="badge-outline-red">Ongecategoriseerd</span>
+                                        }
+                                      </td>
+                                      <td style={{ padding: '3px 6px' }}>
+                                        {trx.subcategorie
+                                          ? <span className="badge-outline" style={{ borderColor: catKleur, color: catKleur }}>{trx.subcategorie}</span>
+                                          : <span style={{ color: 'var(--text-dim)', fontSize: 12 }}>—</span>
+                                        }
+                                      </td>
+                                    </tr>
+                                  );
+                                })}
+                              </tbody>
+                            </table>
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  );
                 });
-                return (
-                  <tr key={sleutel} className="bls-outer" style={{ cursor: 'default' }}>
-                    <td colSpan={4} style={{ padding: 0 }}>
-                      {/* Hoofdrij — 4 kolommen via tabel om uitlijning met <th> te garanderen */}
-                      <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
-                        <colgroup>
-                          <col />
-                          <col style={{ width: 120 }} />
-                          <col style={{ width: 120 }} />
-                          <col style={{ width: 100 }} />
-                        </colgroup>
-                        <tbody>
-                          <tr onClick={toggleRij} style={{ cursor: 'pointer' }}>
-                            <td style={{ borderLeft: `2px solid ${borderKleur(rij.saldo)}`, paddingLeft: 10, paddingTop: 6, paddingBottom: 6 }}>
-                              <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--text-h)', display: 'flex', alignItems: 'center', gap: 6 }}>
-                                <span style={{ fontSize: 10, color: 'var(--text-dim)', transition: 'transform 0.15s', transform: isOpen ? 'rotate(90deg)' : 'rotate(0deg)', display: 'inline-block' }}>▶</span>
-                                {rij.categorie}
-                                {rij.saldo === 0 && <span style={{ color: 'var(--green)', fontSize: 12, fontWeight: 700 }}>✓</span>}
-                              </div>
-                              <div style={{ marginTop: 2, display: 'flex', alignItems: 'center', gap: 4, paddingLeft: 16 }}>
-                                <span style={{ ...badgeStijl, background: 'var(--bg-base)', border: '1px solid var(--border)', color: 'var(--text-dim)' }}>{rij.gedaanOpRekening}</span>
-                                <span style={{ fontSize: 11, color: 'var(--text-dim)' }}>→</span>
-                                <span style={{ ...badgeStijl, background: 'var(--bg-base)', border: '1px solid var(--accent)', color: 'var(--accent)' }}>{rij.hoortOpRekening}</span>
-                              </div>
-                            </td>
-                            <td style={{ ...tdNum, color: bedragKleur(rij.bedrag), fontWeight: 600 }}>{formatBedrag(rij.bedrag)}</td>
-                            <td style={{ ...tdNum, color: rij.gecorrigeerd !== 0 ? bedragKleur(rij.gecorrigeerd) : undefined, fontWeight: 600 }}>{rij.gecorrigeerd !== 0 ? formatBedrag(rij.gecorrigeerd) : <span style={{ color: 'var(--text-dim)' }}>—</span>}</td>
-                            <td style={{ ...tdNum, color: bedragKleur(rij.saldo), fontWeight: 600 }}>{formatBedrag(rij.saldo)}</td>
-                          </tr>
-                        </tbody>
-                      </table>
-                      {/* Subtabel */}
-                      {isOpen && rij.transacties && rij.transacties.length > 0 && (
-                        <div style={{ paddingLeft: 28, paddingRight: 8, paddingBottom: 8 }}>
-                          <table style={{ width: '100%', fontSize: 12, borderCollapse: 'collapse' }}>
-                            <thead>
-                              <tr style={{ color: 'var(--text-dim)', borderBottom: '1px solid var(--border)' }}>
-                                <th style={{ textAlign: 'left', padding: '4px 6px', fontWeight: 500 }}>Datum</th>
-                                <th style={{ textAlign: 'left', padding: '4px 6px', fontWeight: 500 }}>Naam</th>
-                                <th style={{ textAlign: 'left', padding: '4px 6px', fontWeight: 500 }}>Omschrijving</th>
-                                <th style={{ textAlign: 'right', padding: '4px 6px', fontWeight: 500 }}>Bedrag</th>
-                                <th style={{ textAlign: 'left', padding: '4px 6px', fontWeight: 500 }}>Categorie</th>
-                                <th style={{ textAlign: 'left', padding: '4px 6px', fontWeight: 500 }}>Subcategorie</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {rij.transacties.map(trx => {
-                                const catKleur = budgettenPotjes.find(bp => bp.naam === trx.categorie)?.kleur ?? 'var(--accent)';
-                                return (
-                                  <tr key={trx.id} onClick={(e) => openCategoriePopupBls(trx, e)} style={{ borderBottom: '1px solid var(--border)', color: 'var(--text)', cursor: 'pointer' }}>
-                                    <td style={{ padding: '3px 6px', whiteSpace: 'nowrap' }}>{trx.datum ?? '—'}</td>
-                                    <td style={{ padding: '3px 6px' }}>{trx.naam_tegenpartij ?? '—'}</td>
-                                    <td style={{ padding: '3px 6px', maxWidth: 260, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{trx.omschrijving ?? '—'}</td>
-                                    <td style={{ padding: '3px 6px', textAlign: 'right', fontVariantNumeric: 'tabular-nums', fontWeight: 600, color: bedragKleur(trx.bedrag ?? 0) }}>{trx.bedrag != null ? formatBedrag(trx.bedrag) : '—'}</td>
-                                    <td style={{ padding: '3px 6px' }}>
-                                      {trx.categorie
-                                        ? <span className="badge" style={{ background: kleurBg(catKleur), border: `1px solid ${catKleur}`, color: catKleur }}>{trx.categorie}</span>
-                                        : <span className="badge-outline-red">Ongecategoriseerd</span>
-                                      }
-                                    </td>
-                                    <td style={{ padding: '3px 6px' }}>
-                                      {trx.subcategorie
-                                        ? <span className="badge-outline" style={{ borderColor: catKleur, color: catKleur }}>{trx.subcategorie}</span>
-                                        : <span style={{ color: 'var(--text-dim)', fontSize: 12 }}>—</span>
-                                      }
-                                    </td>
-                                  </tr>
-                                );
-                              })}
-                            </tbody>
-                          </table>
-                        </div>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
+              })()}
             </tbody>
           </table>
         </div>
