@@ -704,11 +704,13 @@ const [patronModal, setPatronModal]                   = useState<PatronModalData
     if (vergrendeldFilter && t.handmatig_gecategoriseerd !== 1) return false;
     if (!zoekterm) return true;
     const q = zoekterm.toLowerCase();
+    const bedragStr = t.bedrag != null ? t.bedrag.toFixed(2).replace('.', ',') : '';
     return (
       t.naam_tegenpartij?.toLowerCase().includes(q) ||
       t.omschrijving_1?.toLowerCase().includes(q) ||
       t.tegenrekening_iban_bban?.toLowerCase().includes(q) ||
-      t.toelichting?.toLowerCase().includes(q)
+      t.toelichting?.toLowerCase().includes(q) ||
+      bedragStr.includes(q)
     );
   });
 
