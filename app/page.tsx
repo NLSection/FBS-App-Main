@@ -621,24 +621,23 @@ export default function DashboardPage() {
                   if (next.has(cat.categorie)) next.delete(cat.categorie); else next.add(cat.categorie);
                   return next;
                 });
-                const catKleur = budgettenPotjes.find(bp => bp.naam === cat.categorie)?.kleur ?? 'var(--accent)';
                 return (
                   <Fragment key={cat.categorie}>
-                    <tr onClick={heeftSubs ? toggleCat : undefined} style={{ cursor: heeftSubs ? 'pointer' : 'default' }}>
+                    <tr onClick={heeftSubs ? toggleCat : undefined} style={{ cursor: heeftSubs ? 'pointer' : 'default', borderTop: '1px solid var(--border)' }}>
                       <td style={{ paddingTop: 8, paddingBottom: 8 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 700, fontSize: 14, color: 'var(--text-h)' }}>
                           {heeftSubs && <span style={{ fontSize: 10, color: 'var(--text-dim)', transition: 'transform 0.15s', transform: isOpen ? 'rotate(90deg)' : 'rotate(0deg)', display: 'inline-block' }}>▶</span>}
-                          <span className="badge" style={{ background: kleurBg(catKleur), border: `1px solid ${catKleur}`, color: catKleur, fontWeight: 700, fontSize: 13 }}>{cat.categorie}</span>
+                          {cat.categorie}
                         </div>
                       </td>
-                      <td style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums', fontWeight: 700, color: bedragKleur(cat.totaal) }}>{formatBedrag(cat.totaal)}</td>
+                      <td style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums', fontWeight: 700, color: bedragKleur(cat.totaal), fontSize: 14 }}>{formatBedrag(cat.totaal)}</td>
                     </tr>
                     {isOpen && cat.subrijen.map(sub => (
                       <tr key={`${cat.categorie}-${sub.subcategorie}`} className="bls-expand" style={{ borderBottom: 'none' }}>
-                        <td style={{ paddingLeft: 36, paddingTop: 4, paddingBottom: 4 }}>
-                          <span className="badge-outline" style={{ borderColor: catKleur, color: catKleur, fontSize: 12 }}>{sub.subcategorie}</span>
+                        <td style={{ paddingLeft: 32, paddingTop: 3, paddingBottom: 3, fontSize: 13, color: 'var(--text-dim)' }}>
+                          {sub.subcategorie}
                         </td>
-                        <td style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums', color: bedragKleur(sub.bedrag), fontSize: 13 }}>{formatBedrag(sub.bedrag)}</td>
+                        <td style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums', color: 'var(--text-dim)', fontSize: 13 }}>{formatBedrag(sub.bedrag)}</td>
                       </tr>
                     ))}
                   </Fragment>
