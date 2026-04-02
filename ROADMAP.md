@@ -20,6 +20,12 @@
 - Woordfrequentie analyseknop in categorisatie popup (tellers inline in chips)
 - Genegeerde rekeningen beheer in instellingen
 - Import prompt voor onbekende rekeningen
+- Zoekwoord matching verbeterd: omschrijving_zoekwoord en naam_zoekwoord worden per woord opgeslagen en gematcht via volgorde-regex (woorden moeten in volgorde voorkomen met willekeurige tekens ertussen)
+- P2 fallthrough fix: regels met omschrijving_zoekwoord worden niet meer via P2 gematcht als de omschrijving niet overeenkomt
+- Scrollpositie behoud na categoriewijziging in de transactiespagina
+- Inline bewerking per cel in de Categorieregels tab (naam_zoekwoord, omschrijving_zoekwoord, toelichting, categorie, subcategorie)
+- Chip-lengte filter verwijderd: alle woorden beschikbaar als chip ongeacht lengte
+- Categorieregel update behoudt bestaande omschrijving_zoekwoord en naam_zoekwoord als deze niet expliciet worden meegestuurd
 
 ## Te doen
 
