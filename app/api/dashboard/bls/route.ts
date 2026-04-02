@@ -1,8 +1,10 @@
 // FILE: route.ts (api/dashboard/bls)
 // AANGEMAAKT: 31-03-2026 21:00
 // VERSIE: 1
-// GEWIJZIGD: 01-04-2026 01:15
+// GEWIJZIGD: 02-04-2026 20:00
 //
+// WIJZIGINGEN (02-04-2026 20:00):
+// - Per BLS-rij array 'transacties' toegevoegd met onderliggende transactiedetails
 // WIJZIGINGEN (31-03-2026 21:00):
 // - Initiële aanmaak: GET /api/dashboard/bls — BLS-berekening per categorie
 // WIJZIGINGEN (31-03-2026 21:30):
@@ -18,6 +20,15 @@ import { getTransacties } from '@/lib/transacties';
 import { getBudgettenPotjes } from '@/lib/budgettenPotjes';
 import { getRekeningen } from '@/lib/rekeningen';
 
+interface BlsTransactie {
+  id: number;
+  datum: string | null;
+  naam_tegenpartij: string | null;
+  omschrijving: string | null;
+  bedrag: number | null;
+  rekening_naam: string | null;
+}
+
 interface BlsRegel {
   categorie: string;
   gedaanOpRekening: string;
@@ -25,6 +36,7 @@ interface BlsRegel {
   bedrag: number;
   gecorrigeerd: number;
   saldo: number;
+  transacties: BlsTransactie[];
 }
 
 export function GET(request: NextRequest) {
@@ -58,7 +70,7 @@ export function GET(request: NextRequest) {
     const transacties = getTransacties({ datum_van: datumVan, datum_tot: datumTot });
 
     // Stap 2 — BLS rijen: verkeerde boekingen
-    type Groep = { categorie: string; iban_bban: string; gekoppeldeRekeningId: number; bedrag: number; gecorrigeerd: number };
+    type Groep = { categorie: string; iban_bban: string; gekoppeldeRekeningId: number; bedrag: number; gecorrigeerd: number; transacties: BlsTransactie[] };
     const groepMap = new Map<string, Groep>();
 
     for (const t of transacties) {
@@ -72,10 +84,20 @@ export function GET(request: NextRequest) {
       if (trxRekeningId === undefined) continue;
       if (trxRekeningId === gekoppeldeRekeningId) continue; // juiste rekening
 
+      const trxDetail: BlsTransactie = {
+        id: t.id,
+        datum: t.datum_aanpassing ?? t.datum,
+        naam_tegenpartij: t.naam_tegenpartij,
+        omschrijving: [t.omschrijving_1, t.omschrijving_2, t.omschrijving_3].filter(Boolean).join(' '),
+        bedrag: t.bedrag,
+        rekening_naam: t.rekening_naam ?? rekeningNaamByIban.get(t.iban_bban) ?? null,
+      };
+
       const sleutel = `${t.categorie}::${t.iban_bban}::${gekoppeldeRekeningId}`;
       const bestaand = groepMap.get(sleutel);
       if (bestaand) {
         bestaand.bedrag += t.bedrag ?? 0;
+        bestaand.transacties.push(trxDetail);
       } else {
         groepMap.set(sleutel, {
           categorie: t.categorie,
@@ -83,6 +105,7 @@ export function GET(request: NextRequest) {
           gekoppeldeRekeningId,
           bedrag: t.bedrag ?? 0,
           gecorrigeerd: 0,
+          transacties: [trxDetail],
         });
       }
     }
@@ -113,6 +136,7 @@ export function GET(request: NextRequest) {
         bedrag,
         gecorrigeerd,
         saldo:            trunc2(bedrag + gecorrigeerd),
+        transacties:      g.transacties,
       });
     }
 

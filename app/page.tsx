@@ -1,8 +1,10 @@
 // FILE: page.tsx
 // AANGEMAAKT: 25-03-2026 14:00
 // VERSIE: 1
-// GEWIJZIGD: 01-04-2026 00:30
+// GEWIJZIGD: 02-04-2026 20:00
 //
+// WIJZIGINGEN (02-04-2026 20:00):
+// - BLS-tabel rijen klikbaar: klapt uit met subtabel van onderliggende transacties
 // WIJZIGINGEN (31-03-2026 21:00):
 // - Volledige herbouw: periodenavigatie, BLS-tabel, categorieoverzicht
 // WIJZIGINGEN (31-03-2026 22:00):
@@ -31,6 +33,15 @@ import type { Periode } from '@/lib/maandperiodes';
 const MAAND_NAMEN = ['Januari','Februari','Maart','April','Mei','Juni','Juli','Augustus','September','Oktober','November','December'];
 const MAAND_KORT  = ['jan','feb','mrt','apr','mei','jun','jul','aug','sep','okt','nov','dec'];
 
+interface BlsTransactie {
+  id: number;
+  datum: string | null;
+  naam_tegenpartij: string | null;
+  omschrijving: string | null;
+  bedrag: number | null;
+  rekening_naam: string | null;
+}
+
 interface BlsRegel {
   categorie: string;
   gedaanOpRekening: string;
@@ -38,6 +49,7 @@ interface BlsRegel {
   bedrag: number;
   gecorrigeerd: number;
   saldo: number;
+  transacties: BlsTransactie[];
 }
 
 function formatBedrag(bedrag: number) {
@@ -59,6 +71,7 @@ export default function DashboardPage() {
   const [blsData, setBlsData]                     = useState<BlsRegel[]>([]);
   const [laadtPeriodes, setLaadtPeriodes]         = useState(true);
   const [laadtBls, setLaadtBls]                   = useState(false);
+  const [openRijen, setOpenRijen]                 = useState<Set<string>>(new Set());
   const [fout, setFout]                           = useState('');
 
   // Periodes laden
@@ -96,7 +109,7 @@ export default function DashboardPage() {
 
     fetch(`/api/dashboard/bls?datum_van=${datumVan}&datum_tot=${datumTot}`)
       .then(r => r.ok ? r.json() : Promise.reject(r.statusText))
-      .then(setBlsData)
+      .then((data: BlsRegel[]) => { setBlsData(data); setOpenRijen(new Set()); })
       .catch(() => setFout('Kon BLS-data niet ophalen.'))
       .finally(() => setLaadtBls(false));
   }, []);
@@ -232,23 +245,62 @@ export default function DashboardPage() {
             <tbody>
               {blsData.map(rij => {
                 const sleutel = `${rij.categorie}::${rij.gedaanOpRekening}`;
+                const isOpen = openRijen.has(sleutel);
                 const badge: React.CSSProperties = { fontSize: 10, borderRadius: 3, padding: '0px 4px', fontWeight: 500 };
+                const toggleRij = () => setOpenRijen(prev => {
+                  const next = new Set(prev);
+                  if (next.has(sleutel)) next.delete(sleutel); else next.add(sleutel);
+                  return next;
+                });
                 return (
-                  <tr key={sleutel}>
-                    <td style={{ borderLeft: `2px solid ${borderKleur(rij.saldo)}`, paddingLeft: 10, paddingTop: 6, paddingBottom: 6 }}>
-                      <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--text-h)', display: 'flex', alignItems: 'center', gap: 6 }}>
-                        {rij.categorie}
-                        {rij.saldo === 0 && <span style={{ color: 'var(--green)', fontSize: 12, fontWeight: 700 }}>✓</span>}
+                  <tr key={sleutel} style={{ cursor: 'default' }}>
+                    <td colSpan={4} style={{ padding: 0 }}>
+                      {/* Hoofdrij */}
+                      <div onClick={toggleRij} style={{ display: 'grid', gridTemplateColumns: '1fr auto auto auto', alignItems: 'center', cursor: 'pointer', borderLeft: `2px solid ${borderKleur(rij.saldo)}`, paddingLeft: 10, paddingTop: 6, paddingBottom: 6 }}>
+                        <div>
+                          <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--text-h)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <span style={{ fontSize: 10, color: 'var(--text-dim)', transition: 'transform 0.15s', transform: isOpen ? 'rotate(90deg)' : 'rotate(0deg)', display: 'inline-block' }}>▶</span>
+                            {rij.categorie}
+                            {rij.saldo === 0 && <span style={{ color: 'var(--green)', fontSize: 12, fontWeight: 700 }}>✓</span>}
+                          </div>
+                          <div style={{ marginTop: 2, display: 'flex', alignItems: 'center', gap: 4, paddingLeft: 16 }}>
+                            <span style={{ ...badge, background: 'var(--bg-base)', border: '1px solid var(--border)', color: 'var(--text-dim)' }}>{rij.gedaanOpRekening}</span>
+                            <span style={{ fontSize: 11, color: 'var(--text-dim)' }}>→</span>
+                            <span style={{ ...badge, background: 'var(--bg-base)', border: '1px solid var(--accent)', color: 'var(--accent)' }}>{rij.hoortOpRekening}</span>
+                          </div>
+                        </div>
+                        <span style={{ ...tdNum, padding: '0 12px' }}>{formatBedrag(rij.bedrag)}</span>
+                        <span style={{ ...tdNum, padding: '0 12px' }}>{rij.gecorrigeerd !== 0 ? formatBedrag(rij.gecorrigeerd) : '—'}</span>
+                        <span style={{ ...tdNum, padding: '0 12px', color: saldoKleur(rij.saldo), fontWeight: 600 }}>{formatBedrag(rij.saldo)}</span>
                       </div>
-                      <div style={{ marginTop: 2, display: 'flex', alignItems: 'center', gap: 4 }}>
-                        <span style={{ ...badge, background: 'var(--bg-base)', border: '1px solid var(--border)', color: 'var(--text-dim)' }}>{rij.gedaanOpRekening}</span>
-                        <span style={{ fontSize: 11, color: 'var(--text-dim)' }}>→</span>
-                        <span style={{ ...badge, background: 'var(--bg-base)', border: '1px solid var(--accent)', color: 'var(--accent)' }}>{rij.hoortOpRekening}</span>
-                      </div>
+                      {/* Subtabel */}
+                      {isOpen && rij.transacties && rij.transacties.length > 0 && (
+                        <div style={{ paddingLeft: 28, paddingRight: 8, paddingBottom: 8 }}>
+                          <table style={{ width: '100%', fontSize: 12, borderCollapse: 'collapse' }}>
+                            <thead>
+                              <tr style={{ color: 'var(--text-dim)', borderBottom: '1px solid var(--border)' }}>
+                                <th style={{ textAlign: 'left', padding: '4px 6px', fontWeight: 500 }}>Datum</th>
+                                <th style={{ textAlign: 'left', padding: '4px 6px', fontWeight: 500 }}>Naam</th>
+                                <th style={{ textAlign: 'left', padding: '4px 6px', fontWeight: 500 }}>Omschrijving</th>
+                                <th style={{ textAlign: 'right', padding: '4px 6px', fontWeight: 500 }}>Bedrag</th>
+                                <th style={{ textAlign: 'left', padding: '4px 6px', fontWeight: 500 }}>Rekening</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {rij.transacties.map(trx => (
+                                <tr key={trx.id} style={{ borderBottom: '1px solid var(--border)', color: 'var(--text)' }}>
+                                  <td style={{ padding: '3px 6px', whiteSpace: 'nowrap' }}>{trx.datum ?? '—'}</td>
+                                  <td style={{ padding: '3px 6px' }}>{trx.naam_tegenpartij ?? '—'}</td>
+                                  <td style={{ padding: '3px 6px', maxWidth: 260, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{trx.omschrijving ?? '—'}</td>
+                                  <td style={{ padding: '3px 6px', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{trx.bedrag != null ? formatBedrag(trx.bedrag) : '—'}</td>
+                                  <td style={{ padding: '3px 6px' }}>{trx.rekening_naam ?? '—'}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
                     </td>
-                    <td style={tdNum}>{formatBedrag(rij.bedrag)}</td>
-                    <td style={tdNum}>{rij.gecorrigeerd !== 0 ? formatBedrag(rij.gecorrigeerd) : <span style={{ color: 'var(--text-dim)' }}>—</span>}</td>
-                    <td style={{ ...tdNum, color: saldoKleur(rij.saldo), fontWeight: 600 }}>{formatBedrag(rij.saldo)}</td>
                   </tr>
                 );
               })}
