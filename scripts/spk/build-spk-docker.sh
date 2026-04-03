@@ -13,27 +13,27 @@ fi
 echo "=== FBS SPK Builder via Docker op NAS ==="
 
 # 1. Maak werkmap aan op NAS
-ssh "${NAS_USER}@${NAS_IP}" "mkdir -p /volume1/FBS-build/spksrc"
+ssh "${NAS_USER}@${NAS_IP}" "mkdir -p /volume1/downloads/FBS-build/spksrc"
 
 # 2. Kopieer SPK bronbestanden naar NAS
 echo "--- Bronbestanden kopiëren naar NAS ---"
-scp scripts/spk/INFO "${NAS_USER}@${NAS_IP}:/volume1/FBS-build/"
-scp scripts/spk/installer "${NAS_USER}@${NAS_IP}:/volume1/FBS-build/"
-scp scripts/spk/start-stop-status "${NAS_USER}@${NAS_IP}:/volume1/FBS-build/"
+scp scripts/spk/INFO "${NAS_USER}@${NAS_IP}:/volume1/downloads/FBS-build/"
+scp scripts/spk/installer "${NAS_USER}@${NAS_IP}:/volume1/downloads/FBS-build/"
+scp scripts/spk/start-stop-status "${NAS_USER}@${NAS_IP}:/volume1/downloads/FBS-build/"
 
 # 3. Kopieer het package.tgz (al gebouwd door build-spk.sh)
 echo "--- package.tgz kopiëren ---"
 # Pak package.tgz uit het bestaande SPK
 TMP_DIR=$(mktemp -d)
 tar -xzf fbs-v1.0.0-x86_64.spk -C "${TMP_DIR}"
-scp "${TMP_DIR}/package.tgz" "${NAS_USER}@${NAS_IP}:/volume1/FBS-build/"
+scp "${TMP_DIR}/package.tgz" "${NAS_USER}@${NAS_IP}:/volume1/downloads/FBS-build/"
 rm -rf "${TMP_DIR}"
 
 # 4. Draai spksrc toolkit container op NAS om SPK te bouwen
 echo "--- SPK bouwen via Docker op NAS ---"
 ssh "${NAS_USER}@${NAS_IP}" '
     docker run --rm \
-        -v /volume1/FBS-build:/spk \
+        -v /volume1/downloads/FBS-build:/spk \
         ghcr.io/synocommunity/spksrc \
         bash -c "
             cd /spk &&
@@ -52,7 +52,7 @@ ssh "${NAS_USER}@${NAS_IP}" '
 
 # 5. Download het gebouwde SPK terug naar PC
 echo "--- SPK downloaden van NAS ---"
-scp "${NAS_USER}@${NAS_IP}:/volume1/FBS-build/fbs-v1.0.0-x86_64.spk" .
+scp "${NAS_USER}@${NAS_IP}:/volume1/downloads/FBS-build/fbs-v1.0.0-x86_64.spk" .
 
 echo ""
 echo "=== Klaar ==="
