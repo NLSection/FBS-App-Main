@@ -1,6 +1,6 @@
 #!/bin/sh
 
-INSTALL_DIR="/var/packages/FBS/target"
+INSTALL_DIR="/volume2/Docker/FBS-App"
 NODE="${INSTALL_DIR}/node/bin/node"
 APP="${INSTALL_DIR}/app/server.js"
 PID_FILE="/var/run/fbs.pid"

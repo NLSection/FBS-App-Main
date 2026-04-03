@@ -38,4 +38,4 @@ fbs-service start
 
 echo ""
 echo "=== Klaar ==="
-echo "App bereikbaar op: http://$(hostname -I | awk '{print $1}'):3000"
+echo "App bereikbaar op: http://$(hostname):3000"
