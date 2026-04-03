@@ -1,8 +1,10 @@
 // FILE: page.tsx
 // AANGEMAAKT: 25-03-2026 14:00
 // VERSIE: 1
-// GEWIJZIGD: 02-04-2026 20:00
+// GEWIJZIGD: 03-04-2026 10:00
 //
+// WIJZIGINGEN (03-04-2026 10:00):
+// - BLS+CAT wrapper: overflowX auto; beide table-wrappers minWidth 760px; BLS table width 100%
 // WIJZIGINGEN (03-04-2026 03:00):
 // - CAT-tabel: Samenvatting per Categorie sectie onder BLS-tabel
 // WIJZIGINGEN (03-04-2026 01:00):
@@ -462,7 +464,7 @@ export default function DashboardPage() {
       )}
 
       {/* BLS + CAT wrapper */}
-      <div style={{ maxWidth: 960, margin: '0 auto' }}>
+      <div style={{ maxWidth: 960, margin: '0 auto', overflowX: 'auto' }}>
 
       {/* BLS Sectie */}
       <p className="section-title">Balans Budgetten en Potjes</p>
@@ -471,8 +473,8 @@ export default function DashboardPage() {
       ) : blsData.length === 0 && !fout ? (
         <div className="empty">Geen data voor deze periode.</div>
       ) : (
-        <div className="table-wrapper" style={{ marginBottom: 36, overflowX: 'auto' }}>
-          <table>
+        <div className="table-wrapper" style={{ marginBottom: 36, overflowX: 'auto', minWidth: 760 }}>
+          <table style={{ width: '100%' }}>
             <colgroup>
               <col style={{ width: 'auto' }} />
               <col />
@@ -602,8 +604,8 @@ export default function DashboardPage() {
       ) : catData.length === 0 && !fout ? (
         <div className="empty">Geen categoriedata voor deze periode.</div>
       ) : (
-        <div className="table-wrapper" style={{ marginBottom: 36, overflowX: 'auto' }}>
-          <table>
+        <div className="table-wrapper" style={{ marginBottom: 36, overflowX: 'auto', minWidth: 760 }}>
+          <table style={{ width: '100%' }}>
             <colgroup>
               <col />
               <col style={{ width: 120 }} />
