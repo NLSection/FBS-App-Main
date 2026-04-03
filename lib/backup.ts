@@ -1,11 +1,10 @@
 // FILE: backup.ts
 // AANGEMAAKT: 02-04-2026 10:00
 // VERSIE: 1
-// GEWIJZIGD: 03-04-2026 10:00
+// GEWIJZIGD: 03-04-2026 16:45
 //
-// WIJZIGINGEN (03-04-2026 10:00):
-// - transactie_aanpassingen toegevoegd aan TABELLEN
-// - Git commit + push van volledige backup/ map na elke backup
+// WIJZIGINGEN (03-04-2026 16:45):
+// - Na backup: laatst_herstelde_backup bijwerken zodat bronapparaat geen melding krijgt
 // WIJZIGINGEN (02-04-2026 10:00):
 // - Initiële aanmaak: triggerBackup() — asynchroon JSON-export + rotatie tot 10 bestanden
 
@@ -50,6 +49,11 @@ export function triggerBackup(): void {
         JSON.stringify({ latestBackup: naam, dbMtime }),
         'utf-8'
       );
+
+      // Markeer deze backup als "bekend" op dit apparaat (voorkomt eigen melding)
+      try {
+        db.prepare('UPDATE instellingen SET laatst_herstelde_backup = ? WHERE id = 1').run(naam);
+      } catch { /* kolom bestaat mogelijk nog niet bij eerste run */ }
 
       // Rotatie: oudste verwijderen als er meer dan MAX_BACKUPS zijn
       const bestanden = fs.readdirSync(BACKUP_DIR)

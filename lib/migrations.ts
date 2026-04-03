@@ -1,11 +1,10 @@
 // FILE: migrations.ts
 // AANGEMAAKT: 25-03-2026 10:00
 // VERSIE: 1
-// GEWIJZIGD: 03-04-2026 10:00
+// GEWIJZIGD: 03-04-2026 16:45
 //
-// WIJZIGINGEN (03-04-2026 10:00):
-// - Stap 13: dashboard weergave-instellingen kolommen toegevoegd aan instellingen
-// - Stap 12 migratie: categorie_id genulld als niet meer aanwezig in categorieen (foreign key fix)
+// WIJZIGINGEN (03-04-2026 16:45):
+// - Stap 14: kolom laatst_herstelde_backup voor cross-device backup sync
 // WIJZIGINGEN (31-03-2026 20:00):
 // - Stap 12: tabel transactie_aanpassingen aangemaakt; bestaande aanpassingen gemigreerd uit transacties
 // WIJZIGINGEN (30-03-2026 21:00):
@@ -327,6 +326,9 @@ export function runMigrations(): void {
   try { db.exec('ALTER TABLE instellingen ADD COLUMN dashboard_cat_tonen     INTEGER NOT NULL DEFAULT 1'); } catch {}
   try { db.exec('ALTER TABLE instellingen ADD COLUMN dashboard_bls_uitgeklapt INTEGER NOT NULL DEFAULT 0'); } catch {}
   try { db.exec('ALTER TABLE instellingen ADD COLUMN dashboard_cat_uitgeklapt INTEGER NOT NULL DEFAULT 1'); } catch {}
+
+  // ── Stap 14: Laatst herstelde backup bijhouden (cross-device sync) ───────
+  try { db.exec("ALTER TABLE instellingen ADD COLUMN laatst_herstelde_backup TEXT DEFAULT NULL"); } catch {}
 
   // ── Stap 7: Cleanup pre-fix imports zonder volgnummer ────────────────────
   // Transacties geïmporteerd vóór de 'Volgnr'-fix hebben volgnummer = NULL.

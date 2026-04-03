@@ -1,11 +1,10 @@
 // FILE: route.ts (api/restore)
 // AANGEMAAKT: 29-03-2026 15:00
 // VERSIE: 1
-// GEWIJZIGD: 03-04-2026 10:00
+// GEWIJZIGD: 03-04-2026 16:45
 //
-// WIJZIGINGEN (03-04-2026 10:00):
-// - transactie_aanpassingen toegevoegd aan TABEL_VOLGORDE (achter transacties)
-// - BACKUP_DIR lowercase: backup/ i.p.v. Backup/
+// WIJZIGINGEN (03-04-2026 16:45):
+// - Na herstel: laatst_herstelde_backup opslaan in instellingen (cross-device sync)
 // WIJZIGINGEN (02-04-2026 19:00):
 // - Herschreven: accepteert { bestandsnaam?: string }, laadt JSON van disk
 // - Zonder bestandsnaam wordt de meest recente backup gebruikt (via backup-meta.json)
@@ -93,6 +92,9 @@ export async function POST(req: NextRequest) {
         }
       }
     })();
+
+    // Onthoud welke backup hersteld is (cross-device sync check)
+    db.prepare('UPDATE instellingen SET laatst_herstelde_backup = ? WHERE id = 1').run(bestandsnaam);
 
     return NextResponse.json({ success: true, hersteld: bestandsnaam });
   } catch (err) {

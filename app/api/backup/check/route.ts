@@ -1,24 +1,23 @@
 // FILE: route.ts (api/backup/check)
 // AANGEMAAKT: 02-04-2026 10:00
 // VERSIE: 1
-// GEWIJZIGD: 03-04-2026 10:00
+// GEWIJZIGD: 03-04-2026 16:45
 //
-// WIJZIGINGEN (03-04-2026 10:00):
-// - BACKUP_DIR lowercase: backup/ i.p.v. Backup/
+// WIJZIGINGEN (03-04-2026 16:45):
+// - Vergelijking op bestandsnaam i.p.v. mtime (cross-device sync)
 // WIJZIGINGEN (02-04-2026 10:00):
 // - Initiële aanmaak: GET vergelijkt nieuwste backup met db-mtime
 
 import { NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
+import getDb from '@/lib/db';
 
 const BACKUP_DIR = path.join(process.cwd(), 'backup');
-const DB_PATH    = path.join(process.cwd(), 'fbs.db');
 
 export function GET() {
   let backupIsNieuwer = false;
   let backupDatum: string | null = null;
-  let dbDatum: string | null = null;
   let backupBestand: string | null = null;
 
   try {
@@ -28,16 +27,17 @@ export function GET() {
       backupBestand = meta.latestBackup;
       backupDatum   = meta.dbMtime;
 
-      const dbStat = fs.statSync(DB_PATH);
-      dbDatum = dbStat.mtime.toISOString();
+      // Vergelijk met laatst herstelde/aangemaakte backup op dit apparaat
+      const row = getDb()
+        .prepare('SELECT laatst_herstelde_backup FROM instellingen WHERE id = 1')
+        .get() as { laatst_herstelde_backup: string | null } | undefined;
 
-      // Backup is nieuwer als de db-staat ten tijde van de backup jonger is dan de huidige db
-      // (d.w.z. de db is teruggedraaid of gereset na de backup)
-      backupIsNieuwer = new Date(meta.dbMtime) > dbStat.mtime;
+      const laatstHersteld = row?.laatst_herstelde_backup ?? null;
+      backupIsNieuwer = meta.latestBackup !== laatstHersteld;
     }
   } catch {
     // Geen backup of geen db — geen melding tonen
   }
 
-  return NextResponse.json({ backupIsNieuwer, backupDatum, dbDatum, backupBestand });
+  return NextResponse.json({ backupIsNieuwer, backupDatum, backupBestand });
 }
