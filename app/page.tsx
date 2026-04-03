@@ -820,7 +820,7 @@ export default function DashboardPage() {
                           <HamburgerBtn menuKey={`h-cat-${cat.categorie}`} items={catHoofdItems(cat.categorie)} onOpen={openMenu} />
                         </td>
                       </tr>
-                      {isOpen && cat.subrijen.map(sub => {
+                      {isOpen && cat.subrijen.filter(sub => sub.bedrag !== 0).map(sub => {
                         const subKey = `${cat.categorie}::${sub.subcategorie}`;
                         const isSubOpen   = openCatSubRows.has(subKey);
                         const subTrxs     = catSubTrx.get(subKey) ?? [];
