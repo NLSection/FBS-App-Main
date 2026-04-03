@@ -5,7 +5,7 @@
 //
 // WIJZIGINGEN (03-04-2026 10:00):
 // - transactie_aanpassingen toegevoegd aan TABELLEN
-// - Git commit + push van backup-meta.json na elke backup
+// - Git commit + push van volledige backup/ map na elke backup
 // WIJZIGINGEN (02-04-2026 10:00):
 // - Initiële aanmaak: triggerBackup() — asynchroon JSON-export + rotatie tot 10 bestanden
 
@@ -61,8 +61,8 @@ export function triggerBackup(): void {
         }
       }
 
-      // Git commit + push van backup-meta.json (asynchroon, fouten worden alleen gelogd)
-      const cmd = 'git add backup/backup-meta.json && git commit -m "backup: update meta [skip ci]" && git push';
+      // Git commit + push van volledige backup/ map (asynchroon, fouten worden alleen gelogd)
+      const cmd = 'git add backup/ && git commit -m "backup: auto [skip ci]" && git push';
       exec(cmd, { cwd: process.cwd() }, (err, _stdout, stderr) => {
         if (err) {
           console.warn('[backup] Git sync mislukt (niet fataal):', stderr || err.message);

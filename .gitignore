@@ -45,9 +45,5 @@ fbs.db
 fbs.db-shm
 fbs.db-wal
 
-# backup bestanden (alleen meta-bestand tracken)
-backup/*.json
-!backup/backup-meta.json
-
 # persoonlijke configuratie (legacy — nu in SQLite)
 # config/matchConfig.json
