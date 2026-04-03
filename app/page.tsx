@@ -212,6 +212,16 @@ const filterKnop = (actief: boolean): React.CSSProperties => ({
   border: actief ? '1px solid transparent' : '1px solid var(--border)',
 });
 
+function MiniToggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <label style={{ position: 'relative', display: 'inline-block', width: 32, height: 18, cursor: 'pointer', flexShrink: 0 }}>
+      <input type="checkbox" checked={checked} onChange={e => onChange(e.target.checked)} style={{ opacity: 0, width: 0, height: 0 }} />
+      <span style={{ position: 'absolute', inset: 0, borderRadius: 9, background: checked ? 'var(--accent)' : 'var(--border)', transition: 'background 0.2s' }} />
+      <span style={{ position: 'absolute', top: 2, left: checked ? 16 : 2, width: 14, height: 14, borderRadius: '50%', background: '#fff', transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.3)' }} />
+    </label>
+  );
+}
+
 function HamburgerBtn({ menuKey, items, onOpen }: { menuKey: string; items: { label: string; url: string }[]; onOpen: (e: React.MouseEvent, key: string, items: { label: string; url: string }[]) => void }) {
   return (
     <button
@@ -248,6 +258,8 @@ export default function DashboardPage() {
   const [openCatSubRows, setOpenCatSubRows]       = useState<Set<string>>(new Set());
   const [catSubTrx, setCatSubTrx]                 = useState<Map<string, CatSubTrx[]>>(new Map());
   const [catSubLaden, setCatSubLaden]             = useState<Set<string>>(new Set());
+  const [settingsPanel, setSettingsPanel]         = useState<'bls' | 'cat' | null>(null);
+  const settingsPanelRef = useRef<HTMLDivElement>(null);
 
   // Periodes + dashboard-instellingen laden
   useEffect(() => {
@@ -401,6 +413,51 @@ export default function DashboardPage() {
     const top  = Math.max(10, Math.min(e.clientY, window.innerHeight - 120));
     setMenuState({ key, top, left, items });
   }
+
+  async function updateDashInst(update: Partial<typeof dashInst>) {
+    const nieuw = { ...dashInst, ...update };
+    dashInstRef.current = nieuw;
+    setDashInst(nieuw);
+
+    // Direct visueel toepassen
+    if (update.blsUitgeklapt !== undefined) {
+      setOpenRijen(update.blsUitgeklapt ? new Set(blsData.map(r => `${r.categorie}::${r.gedaanOpRekening}`)) : new Set());
+    }
+    if (update.catUitgeklapt !== undefined) {
+      setOpenCatRijen(update.catUitgeklapt ? new Set(catData.map(c => c.categorie)) : new Set());
+    }
+    if (update.catUitklappen !== undefined) {
+      if (update.catUitklappen) {
+        const subKeys = new Set<string>();
+        for (const cat of catData) {
+          for (const sub of cat.subrijen) {
+            if (sub.subcategorie.length > 0 && sub.bedrag !== 0) subKeys.add(`${cat.categorie}::${sub.subcategorie}`);
+          }
+        }
+        setOpenCatSubRows(subKeys);
+        for (const key of subKeys) {
+          if (!catSubTrx.has(key)) {
+            const [catNaam, subNaam] = key.split('::');
+            laadCatSubTrx(catNaam, subNaam);
+          }
+        }
+      } else {
+        setOpenCatSubRows(new Set());
+      }
+    }
+
+    await fetch('/api/instellingen', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        dashboardBlsTonen: update.blsTonen,
+        dashboardCatTonen: update.catTonen,
+        dashboardBlsUitgeklapt: update.blsUitgeklapt,
+        dashboardCatUitgeklapt: update.catUitgeklapt,
+        catUitklappen: update.catUitklappen,
+      }),
+    });
+  }
   function blsHoofdItems(cat: string): { label: string; url: string }[] {
     const mp = maandStr();
     return [{ label: `Bekijk transacties van ${cat}`, url: `/transacties?categorie=${encodeURIComponent(cat)}${mp ? `&maand=${mp}` : ''}` }];
@@ -446,6 +503,19 @@ export default function DashboardPage() {
     document.addEventListener('keydown', handleKey);
     return () => { document.removeEventListener('click', handleClick); document.removeEventListener('keydown', handleKey); };
   }, [menuState]);
+
+  // Sluit settings paneel bij klik buiten of Escape
+  useEffect(() => {
+    if (!settingsPanel) return;
+    function handleClick(e: MouseEvent) {
+      if (settingsPanelRef.current && settingsPanelRef.current.contains(e.target as Node)) return;
+      setSettingsPanel(null);
+    }
+    function handleKey(e: KeyboardEvent) { if (e.key === 'Escape') setSettingsPanel(null); }
+    document.addEventListener('mousedown', handleClick);
+    document.addEventListener('keydown', handleKey);
+    return () => { document.removeEventListener('mousedown', handleClick); document.removeEventListener('keydown', handleKey); };
+  }, [settingsPanel]);
 
   async function openCategoriePopupBls(trx: BlsTransactie, e: React.MouseEvent) {
     e.stopPropagation();
@@ -651,7 +721,16 @@ export default function DashboardPage() {
                 <th style={{ textAlign: 'right' }}>Bedrag</th>
                 <th style={{ textAlign: 'right' }}>Gecorrigeerd</th>
                 <th style={{ textAlign: 'right' }}>Saldo</th>
-                <th style={{ width: 36, padding: 0 }}><a href="/instellingen#dashboard" style={{ color: 'var(--text-dim)', fontSize: 13, textDecoration: 'none', display: 'flex', justifyContent: 'center', paddingRight: 9 }} title="Dashboard instellingen">⚙</a></th>
+                <th style={{ width: 36, padding: 0, position: 'relative' }}>
+                  <button onClick={() => setSettingsPanel(settingsPanel === 'bls' ? null : 'bls')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-dim)', fontSize: 13, display: 'flex', justifyContent: 'center', paddingRight: 9, width: '100%' }} title="Tabel instellingen">⚙</button>
+                  {settingsPanel === 'bls' && (
+                    <div ref={settingsPanelRef} style={{ position: 'absolute', top: '100%', right: 0, zIndex: 100, background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 8, padding: '12px 16px', minWidth: 260, boxShadow: '0 4px 16px rgba(0,0,0,0.4)' }}>
+                      <p style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', color: 'var(--text-dim)', margin: '0 0 8px', letterSpacing: '0.5px' }}>Tabel instellingen</p>
+                      <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 12, color: 'var(--text)', marginBottom: 6, gap: 12, textTransform: 'none' as const, fontWeight: 400, letterSpacing: 0 }}>Standaard uitgeklapt <MiniToggle checked={dashInst.blsUitgeklapt} onChange={v => updateDashInst({ blsUitgeklapt: v })} /></label>
+                                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 12, color: 'var(--text)', textTransform: 'none', fontWeight: 400, letterSpacing: 0 }}>Tabel verbergen <a href="/instellingen#dashboard" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 32, height: 18, background: 'var(--border)', borderRadius: 9, textDecoration: 'none', flexShrink: 0, padding: 2 }}><span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '100%', height: 14, borderRadius: 7, background: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,0.3)', fontSize: 9, color: 'var(--border)', lineHeight: 1 }}>⏻</span></a></div>
+                    </div>
+                  )}
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -792,7 +871,17 @@ export default function DashboardPage() {
                 <th>Categorie</th>
                 <th style={{ textAlign: 'right', padding: '8px 16px' }}>{isAlle ? `Totaal over ${geselecteerdJaar}` : 'Bedrag'}</th>
                 {isAlle && <th style={{ textAlign: 'right', padding: '8px 16px' }}>Gemiddeld per maand</th>}
-                <th style={{ width: 36, padding: 0 }}><a href="/instellingen#dashboard" style={{ color: 'var(--text-dim)', fontSize: 13, textDecoration: 'none', display: 'flex', justifyContent: 'center', paddingRight: 9 }} title="Dashboard instellingen">⚙</a></th>
+                <th style={{ width: 36, padding: 0, position: 'relative' }}>
+                  <button onClick={() => setSettingsPanel(settingsPanel === 'cat' ? null : 'cat')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-dim)', fontSize: 13, display: 'flex', justifyContent: 'center', paddingRight: 9, width: '100%' }} title="Tabel instellingen">⚙</button>
+                  {settingsPanel === 'cat' && (
+                    <div ref={settingsPanelRef} style={{ position: 'absolute', top: '100%', right: 0, zIndex: 100, background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 8, padding: '12px 16px', minWidth: 300, boxShadow: '0 4px 16px rgba(0,0,0,0.4)' }}>
+                      <p style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', color: 'var(--text-dim)', margin: '0 0 8px', letterSpacing: '0.5px' }}>Tabel instellingen</p>
+                      <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 12, color: 'var(--text)', marginBottom: 6, gap: 12, textTransform: 'none' as const, fontWeight: 400, letterSpacing: 0 }}>Categorieën standaard uitgeklapt <MiniToggle checked={dashInst.catUitgeklapt} onChange={v => updateDashInst({ catUitgeklapt: v })} /></label>
+                      <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 12, color: 'var(--text)', marginBottom: 6, gap: 12, textTransform: 'none' as const, fontWeight: 400, letterSpacing: 0 }}>Transacties standaard uitgeklapt <MiniToggle checked={dashInst.catUitklappen} onChange={v => updateDashInst({ catUitklappen: v })} /></label>
+                                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 12, color: 'var(--text)', textTransform: 'none', fontWeight: 400, letterSpacing: 0 }}>Tabel verbergen <a href="/instellingen#dashboard" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 32, height: 18, background: 'var(--border)', borderRadius: 9, textDecoration: 'none', flexShrink: 0, padding: 2 }}><span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '100%', height: 14, borderRadius: 7, background: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,0.3)', fontSize: 9, color: 'var(--border)', lineHeight: 1 }}>⏻</span></a></div>
+                    </div>
+                  )}
+                </th>
               </tr>
             </thead>
             <tbody>
