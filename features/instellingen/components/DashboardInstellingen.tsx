@@ -70,7 +70,7 @@ export default function DashboardInstellingen() {
   const rijStijl: React.CSSProperties = { display: 'flex', alignItems: 'center', padding: '10px 0', borderBottom: '1px solid var(--border)' };
 
   return (
-    <section>
+    <section id="dashboard">
       <p className="section-title">Dashboard weergave</p>
       <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 10, padding: '4px 20px 12px' }}>
         {/* Header */}

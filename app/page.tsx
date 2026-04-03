@@ -651,7 +651,7 @@ export default function DashboardPage() {
                 <th style={{ textAlign: 'right' }}>Bedrag</th>
                 <th style={{ textAlign: 'right' }}>Gecorrigeerd</th>
                 <th style={{ textAlign: 'right' }}>Saldo</th>
-                <th style={{ width: 36 }} />
+                <th style={{ width: 36, padding: 0 }}><a href="/instellingen#dashboard" style={{ color: 'var(--text-dim)', fontSize: 13, textDecoration: 'none', display: 'flex', justifyContent: 'center', paddingRight: 9 }} title="Dashboard instellingen">⚙</a></th>
               </tr>
             </thead>
             <tbody>
@@ -792,7 +792,7 @@ export default function DashboardPage() {
                 <th>Categorie</th>
                 <th style={{ textAlign: 'right', padding: '8px 16px' }}>{isAlle ? `Totaal over ${geselecteerdJaar}` : 'Bedrag'}</th>
                 {isAlle && <th style={{ textAlign: 'right', padding: '8px 16px' }}>Gemiddeld per maand</th>}
-                <th style={{ width: 36 }} />
+                <th style={{ width: 36, padding: 0 }}><a href="/instellingen#dashboard" style={{ color: 'var(--text-dim)', fontSize: 13, textDecoration: 'none', display: 'flex', justifyContent: 'center', paddingRight: 9 }} title="Dashboard instellingen">⚙</a></th>
               </tr>
             </thead>
             <tbody>
