@@ -15,7 +15,7 @@ start() {
     cd "${INSTALL_DIR}/app"
     PORT=${PORT} "${NODE}" "${APP}" >> "${LOG_FILE}" 2>&1 &
     echo $! > "${PID_FILE}"
-    echo "FBS gestart op poort ${PORT}"
+    echo "App bereikbaar op: http://$(ip route get 1 | awk '{print $7;exit}'):${PORT}"
     exit 0
 }
 
