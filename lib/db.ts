@@ -1,13 +1,12 @@
 // FILE: db.ts
 // AANGEMAAKT: 25-03-2026 10:00
 // VERSIE: 1
-// GEWIJZIGD: 30-03-2026
+// GEWIJZIGD: 03-04-2026 22:00
 //
 // WIJZIGINGEN (25-03-2026 10:00):
 // - Initiële aanmaak: singleton SQLite verbinding naar fbs.db
-// WIJZIGINGEN (30-03-2026):
-// - Migratie: kolom beheerd (INTEGER DEFAULT 1) toegevoegd aan rekeningen
-// - Tabel genegeerde_rekeningen aangemaakt (CREATE TABLE IF NOT EXISTS)
+// WIJZIGINGEN (03-04-2026 22:00):
+// - Migratie: cat_uitklappen kolom toegevoegd aan instellingen tabel
 
 import Database from 'better-sqlite3';
 import path from 'path';
@@ -36,6 +35,10 @@ function getDb(): Database.Database {
         datum_toegevoegd TEXT NOT NULL DEFAULT (date('now'))
       )
     `).run();
+    // Migratie: cat_uitklappen kolom aan instellingen toevoegen indien nog niet aanwezig
+    try {
+      global._db.prepare('ALTER TABLE instellingen ADD COLUMN cat_uitklappen INTEGER DEFAULT 0').run();
+    } catch { /* kolom bestaat al */ }
   }
   return global._db;
 }

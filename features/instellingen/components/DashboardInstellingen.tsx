@@ -1,11 +1,10 @@
 // FILE: DashboardInstellingen.tsx
 // AANGEMAAKT: 03-04-2026 10:00
 // VERSIE: 1
-// GEWIJZIGD: 03-04-2026 10:00
+// GEWIJZIGD: 03-04-2026 22:00
 //
-// WIJZIGINGEN (03-04-2026 10:00):
-// - Layout gewijzigd: 1 rij per tabel met 2 toggles (zichtbaar + uitgeklapt)
-// - Initiële aanmaak: toggles voor BLS/CAT weergave en standaard open/dicht
+// WIJZIGINGEN (03-04-2026 22:00):
+// - catUitklappen toggle toegevoegd: subcategorieën uitklappen in CAT tabel
 
 'use client';
 
@@ -16,6 +15,7 @@ interface DashInst {
   dashboardCatTonen:      boolean;
   dashboardBlsUitgeklapt: boolean;
   dashboardCatUitgeklapt: boolean;
+  catUitklappen:          boolean;
 }
 
 function Toggle({ checked, onChange, disabled }: { checked: boolean; onChange: (v: boolean) => void; disabled?: boolean }) {
@@ -41,7 +41,7 @@ export default function DashboardInstellingen() {
     fetch('/api/instellingen')
       .then(r => r.ok ? r.json() : null)
       .then((d: DashInst | null) => {
-        if (d) setInst({ dashboardBlsTonen: d.dashboardBlsTonen, dashboardCatTonen: d.dashboardCatTonen, dashboardBlsUitgeklapt: d.dashboardBlsUitgeklapt, dashboardCatUitgeklapt: d.dashboardCatUitgeklapt });
+        if (d) setInst({ dashboardBlsTonen: d.dashboardBlsTonen, dashboardCatTonen: d.dashboardCatTonen, dashboardBlsUitgeklapt: d.dashboardBlsUitgeklapt, dashboardCatUitgeklapt: d.dashboardCatUitgeklapt, catUitklappen: Boolean(d.catUitklappen) });
       })
       .catch(() => {});
   }, []);
@@ -86,10 +86,16 @@ export default function DashboardInstellingen() {
           <div style={col3}><Toggle checked={inst.dashboardBlsUitgeklapt} onChange={v => opslaan({ dashboardBlsUitgeklapt: v })} disabled={bezig} /></div>
         </div>
         {/* CAT rij */}
-        <div style={{ ...rijStijl, borderBottom: 'none' }}>
+        <div style={rijStijl}>
           <span style={col1}>Samenvatting per Categorie</span>
           <div style={col2}><Toggle checked={inst.dashboardCatTonen}      onChange={v => opslaan({ dashboardCatTonen: v })}      disabled={bezig} /></div>
           <div style={col3}><Toggle checked={inst.dashboardCatUitgeklapt} onChange={v => opslaan({ dashboardCatUitgeklapt: v })} disabled={bezig} /></div>
+        </div>
+        {/* CAT sub uitklappen */}
+        <div style={{ ...rijStijl, borderBottom: 'none' }}>
+          <span style={{ ...col1, paddingLeft: 16, color: 'var(--text-dim)', fontSize: 12 }}>└ Subcategorieën uitklappen in CAT tabel</span>
+          <div style={col2} />
+          <div style={col3}><Toggle checked={inst.catUitklappen} onChange={v => opslaan({ catUitklappen: v })} disabled={bezig || !inst.dashboardCatTonen} /></div>
         </div>
         {fout && <p style={{ color: 'var(--red)', fontSize: 12, marginTop: 8 }}>{fout}</p>}
       </div>

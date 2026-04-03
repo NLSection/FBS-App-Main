@@ -1,10 +1,12 @@
 // FILE: TransactiesTabel.tsx
 // AANGEMAAKT: 25-03-2026 12:00
 // VERSIE: 1
-// GEWIJZIGD: 02-04-2026 00:30
+// GEWIJZIGD: 03-04-2026 22:00
 //
-// WIJZIGINGEN (02-04-2026 00:30):
-// - Herladen: tabel blijft zichtbaar (opacity 0.5) tijdens data-refresh i.p.v. laadbericht
+// WIJZIGINGEN (03-04-2026 22:00):
+// - URL params: categorie, subcategorie, maand, transactie verwerkt bij laden
+// - subcategorieFilter state toegevoegd
+// - gemarkeerdeTransactie state: highlight + scroll naar rij
 // WIJZIGINGEN (02-04-2026 00:15):
 // - Scrollherstel via onBevestigStart callback: positie opslaan vóór popup-sluiting en API calls
 // WIJZIGINGEN (01-04-2026 23:15):
@@ -247,6 +249,10 @@ export default function TransactiesTabel() {
   const [actieveTab, setActieveTab]                     = useState<string>('beheerd');
 const [patronModal, setPatronModal]                   = useState<PatronModalData | null>(null);
   const [uniekeCategorieenDropdown, setUniekeCategorieenDropdown] = useState<string[]>([]);
+  const [subcategorieFilter, setSubcategorieFilter]   = useState<string | null>(null);
+  const [gemarkeerdeTransactie, setGemarkeerdeTransactie] = useState<number | null>(null);
+  const gemarkeerdeRef                                 = useRef<HTMLTableRowElement | null>(null);
+  const scrolledToRef                                  = useRef<number | null>(null);
   const scrollPosRef                                     = useRef(0);
   const isReloadRef                                      = useRef(false);
   const isSavingRef                                     = useRef(false);
@@ -257,17 +263,34 @@ const [patronModal, setPatronModal]                   = useState<PatronModalData
   const [containerWidth, setContainerWidth] = useState(0);
   const { setTableRequiredWidth } = useSidebar();
 
-  // Stap 1: laad periodes op mount, stel actuele in als standaard
+  // Stap 1: laad periodes op mount, stel actuele in als standaard; verwerk URL params
   useEffect(() => {
     fetch('/api/periodes')
       .then(r => r.ok ? r.json() : [])
       .then((ps: Periode[]) => {
         setPeriodes(ps);
-        const actueel = ps.find(p => p.status === 'actueel') ?? ps.at(-1) ?? null;
+        const sp = new URLSearchParams(window.location.search);
+        const catParam  = sp.get('categorie');
+        const subParam  = sp.get('subcategorie');
+        const maandParam = sp.get('maand');
+        const trxParam  = sp.get('transactie');
+
+        let actueel: Periode | null = null;
+        if (maandParam) {
+          const [jaar, maandNr] = maandParam.split('-').map(Number);
+          actueel = ps.find(p => p.jaar === jaar && p.maand === maandNr) ?? null;
+          if (actueel) setGeselecteerdJaar(jaar);
+        }
+        if (!actueel) actueel = ps.find(p => p.status === 'actueel') ?? ps.at(-1) ?? null;
         setGeselecteerdePeriode(actueel);
-        setGeselecteerdJaar(actueel?.jaar ?? new Date().getFullYear());
+        if (!maandParam) setGeselecteerdJaar(actueel?.jaar ?? new Date().getFullYear());
+
+        if (catParam) setCategorieFilter(catParam);
+        if (subParam) setSubcategorieFilter(subParam);
+        if (trxParam) setGemarkeerdeTransactie(parseInt(trxParam, 10));
         setKlaar(true);
       });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Herstel scrollpositie na reloadTrigger
@@ -280,6 +303,17 @@ const [patronModal, setPatronModal]                   = useState<PatronModalData
       });
     }
   }, [transacties]);
+
+  // Scroll naar gemarkeerde transactie (eenmalig)
+  useEffect(() => {
+    if (!gemarkeerdeTransactie || scrolledToRef.current === gemarkeerdeTransactie) return;
+    if (gemarkeerdeRef.current) {
+      scrolledToRef.current = gemarkeerdeTransactie;
+      requestAnimationFrame(() => {
+        gemarkeerdeRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      });
+    }
+  });
 
   // Stap 2: laad transacties zodra periodes gereed zijn, of bij filterwijziging
   const isHerladen = useRef(false);
@@ -701,6 +735,7 @@ const [patronModal, setPatronModal]                   = useState<PatronModalData
         ? tabTransacties.filter(t => !t.categorie || t.status === 'nieuw')
         : tabTransacties.filter(t => t.categorie === categorieFilter)
   ).filter(t => {
+    if (subcategorieFilter && (t.subcategorie ?? '') !== subcategorieFilter) return false;
     if (vergrendeldFilter && t.handmatig_gecategoriseerd !== 1) return false;
     if (!zoekterm) return true;
     const q = zoekterm.toLowerCase();
@@ -1027,10 +1062,15 @@ const [patronModal, setPatronModal]                   = useState<PatronModalData
                   const inOgz        = isOvergangszone(t.datum);
                   const prevLabel    = inOgz && t.datum ? vorigePeriodeLabel(t.datum) : '';
                   const zk           = zichtbareKolommen;
+                  const isGemarkeerdRow = gemarkeerdeTransactie != null && t.id === gemarkeerdeTransactie;
 
                   return (
                     <Fragment key={t.id}>
-                      <tr onClick={() => openCategoriePopup(t)} style={{ cursor: 'pointer' }}>
+                      <tr
+                        ref={isGemarkeerdRow ? gemarkeerdeRef : null}
+                        onClick={() => openCategoriePopup(t)}
+                        style={{ cursor: 'pointer', background: isGemarkeerdRow ? 'var(--accent-dim)' : undefined }}
+                      >
                         {zk.has('datum') && (
                           <td
                             style={{ color: t.datum_aanpassing ? 'var(--accent)' : 'var(--text-dim)', fontSize: 12, whiteSpace: 'nowrap' }}

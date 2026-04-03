@@ -1,10 +1,10 @@
 // FILE: route.ts
 // AANGEMAAKT: 25-03-2026 21:00
 // VERSIE: 1
-// GEWIJZIGD: 03-04-2026 10:00
+// GEWIJZIGD: 03-04-2026 22:00
 //
-// WIJZIGINGEN (03-04-2026 10:00):
-// - PUT accepteert partiële updates; dashboard weergave-velden toegevoegd
+// WIJZIGINGEN (03-04-2026 22:00):
+// - catUitklappen toegevoegd aan PUT handler
 // WIJZIGINGEN (25-03-2026 21:00):
 // - Initiële aanmaak: GET en PUT /api/instellingen
 
@@ -32,6 +32,7 @@ export async function PUT(request: NextRequest) {
   if (body.dashboardCatTonen      !== undefined) update.dashboardCatTonen      = Boolean(body.dashboardCatTonen);
   if (body.dashboardBlsUitgeklapt !== undefined) update.dashboardBlsUitgeklapt = Boolean(body.dashboardBlsUitgeklapt);
   if (body.dashboardCatUitgeklapt !== undefined) update.dashboardCatUitgeklapt = Boolean(body.dashboardCatUitgeklapt);
+  if (body.catUitklappen          !== undefined) update.catUitklappen          = Boolean(body.catUitklappen);
 
   try {
     updateInstellingen(update);

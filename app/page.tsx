@@ -1,7 +1,7 @@
 // FILE: page.tsx
 // AANGEMAAKT: 25-03-2026 14:00
 // VERSIE: 1
-// GEWIJZIGD: 03-04-2026 21:30
+// GEWIJZIGD: 03-04-2026 22:00
 //
 // WIJZIGINGEN (03-04-2026 21:30):
 // - BLS: groen ✓ rechts naast rechter rekening-badge bij saldo === 0
@@ -100,6 +100,17 @@ interface BlsRegel {
 
 interface CatSubrij { subcategorie: string; bedrag: number; }
 interface CatRegel { categorie: string; totaal: number; subrijen: CatSubrij[]; }
+interface CatSubTrx {
+  id: number;
+  datum: string | null;
+  naam_tegenpartij: string | null;
+  omschrijving: string | null;
+  bedrag: number | null;
+  rekening_naam: string | null;
+  categorie: string | null;
+  subcategorie: string | null;
+}
+type MenuState = { key: string; top: number; left: number; items: { label: string; url: string }[] };
 
 function formatBedrag(bedrag: number) {
   return new Intl.NumberFormat('nl-NL', { style: 'currency', currency: 'EUR' }).format(bedrag);
@@ -185,6 +196,20 @@ const filterKnop = (actief: boolean): React.CSSProperties => ({
   border: actief ? '1px solid transparent' : '1px solid var(--border)',
 });
 
+function HamburgerBtn({ menuKey, items, onOpen }: { menuKey: string; items: { label: string; url: string }[]; onOpen: (e: React.MouseEvent, key: string, items: { label: string; url: string }[]) => void }) {
+  return (
+    <button
+      onClick={e => onOpen(e, menuKey, items)}
+      title="Opties"
+      style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-dim)', fontSize: 18, lineHeight: 1, padding: '2px 8px', borderRadius: 4, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+      onMouseEnter={e => (e.currentTarget.style.color = 'var(--text-h)')}
+      onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-dim)')}
+    >
+      ⋮
+    </button>
+  );
+}
+
 export default function DashboardPage() {
   const [periodes, setPeriodes]                   = useState<Periode[]>([]);
   const [geselecteerdePeriode, setGeselecteerdePeriode] = useState<Periode | null>(null);
@@ -198,11 +223,15 @@ export default function DashboardPage() {
   const [openCatRijen, setOpenCatRijen]           = useState<Set<string>>(new Set());
   const [fout, setFout]                           = useState('');
   const [patronModal, setPatronModal]             = useState<PatronModalData | null>(null);
-  const dashInstRef = useRef({ blsTonen: true, catTonen: true, blsUitgeklapt: false, catUitgeklapt: true });
+  const dashInstRef = useRef({ blsTonen: true, catTonen: true, blsUitgeklapt: false, catUitgeklapt: true, catUitklappen: false });
   const [dashInst, setDashInst]                   = useState(dashInstRef.current);
   const [budgettenPotjes, setBudgettenPotjes]     = useState<BudgetPotjeNaam[]>([]);
   const [rekeningen, setRekeningen]               = useState<Rekening[]>([]);
   const [uniekeCategorieenDropdown, setUniekeCategorieenDropdown] = useState<string[]>([]);
+  const [menuState, setMenuState]                 = useState<MenuState | null>(null);
+  const [openCatSubRows, setOpenCatSubRows]       = useState<Set<string>>(new Set());
+  const [catSubTrx, setCatSubTrx]                 = useState<Map<string, CatSubTrx[]>>(new Map());
+  const [catSubLaden, setCatSubLaden]             = useState<Set<string>>(new Set());
 
   // Periodes + dashboard-instellingen laden
   useEffect(() => {
@@ -216,6 +245,7 @@ export default function DashboardPage() {
           catTonen:      instData.dashboardCatTonen      !== false,
           blsUitgeklapt: Boolean(instData.dashboardBlsUitgeklapt),
           catUitgeklapt: Boolean(instData.dashboardCatUitgeklapt),
+          catUitklappen: Boolean(instData.catUitklappen),
         };
         dashInstRef.current = inst;
         setDashInst(inst);
@@ -235,6 +265,9 @@ export default function DashboardPage() {
   const laadBls = useCallback((periode: Periode | null, jaar: number, allesPeriodes: Periode[]) => {
     setLaadtBls(true);
     setFout('');
+    setOpenCatSubRows(new Set());
+    setCatSubTrx(new Map());
+    setCatSubLaden(new Set());
 
     let datumVan: string, datumTot: string;
     if (periode) {
@@ -303,6 +336,71 @@ export default function DashboardPage() {
   function herlaadBls() {
     laadBls(geselecteerdePeriode, geselecteerdJaar, periodes);
   }
+
+  // Menu helpers
+  function maandStr(): string {
+    if (!geselecteerdePeriode) return '';
+    return `${geselecteerdePeriode.jaar}-${String(geselecteerdePeriode.maand).padStart(2, '0')}`;
+  }
+  function openMenu(e: React.MouseEvent, key: string, items: { label: string; url: string }[]) {
+    e.stopPropagation();
+    e.preventDefault();
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const left = Math.max(10, Math.min(rect.right - 200, window.innerWidth - 220));
+    setMenuState({ key, top: rect.bottom + 4, left, items });
+  }
+  function openContextMenu(e: React.MouseEvent, key: string, items: { label: string; url: string }[]) {
+    e.preventDefault();
+    e.stopPropagation();
+    const left = Math.max(10, Math.min(e.clientX, window.innerWidth - 220));
+    const top  = Math.max(10, Math.min(e.clientY, window.innerHeight - 120));
+    setMenuState({ key, top, left, items });
+  }
+  function blsHoofdItems(cat: string): { label: string; url: string }[] {
+    const mp = maandStr();
+    return [{ label: `Bekijk transacties van ${cat}`, url: `/transacties?categorie=${encodeURIComponent(cat)}${mp ? `&maand=${mp}` : ''}` }];
+  }
+  function blsSubItems(trx: BlsTransactie): { label: string; url: string }[] {
+    const cat = trx.categorie ?? '';
+    const mp  = maandStr();
+    return [
+      { label: 'Bekijk in gefilterde weergave', url: `/transacties?categorie=${encodeURIComponent(cat)}${mp ? `&maand=${mp}` : ''}&transactie=${trx.id}` },
+      { label: 'Bekijk in maandweergave',        url: `/transacties?${mp ? `maand=${mp}&` : ''}transactie=${trx.id}` },
+    ];
+  }
+  function catHoofdItems(cat: string): { label: string; url: string }[] {
+    const mp = maandStr();
+    return [{ label: `Bekijk transacties van ${cat}`, url: `/transacties?categorie=${encodeURIComponent(cat)}${mp ? `&maand=${mp}` : ''}` }];
+  }
+  function catSubMenuItems(catNaam: string, subNaam: string): { label: string; url: string }[] {
+    const mp = maandStr();
+    return [{ label: `Bekijk transacties van ${subNaam}`, url: `/transacties?categorie=${encodeURIComponent(catNaam)}&subcategorie=${encodeURIComponent(subNaam)}${mp ? `&maand=${mp}` : ''}` }];
+  }
+
+  async function laadCatSubTrx(catNaam: string, subNaam: string) {
+    const key = `${catNaam}::${subNaam}`;
+    if (catSubLaden.has(key)) return;
+    setCatSubLaden(prev => { const next = new Set(prev); next.add(key); return next; });
+    const start = geselecteerdePeriode?.start ?? '';
+    const eind  = geselecteerdePeriode?.eind  ?? '';
+    const qs = `categorie=${encodeURIComponent(catNaam)}&subcategorie=${encodeURIComponent(subNaam)}${start ? `&van=${start}&tot=${eind}` : ''}`;
+    try {
+      const data = await fetch(`/api/dashboard/cat/transacties?${qs}`).then(r => r.ok ? r.json() : []) as CatSubTrx[];
+      setCatSubTrx(prev => { const next = new Map(prev); next.set(key, data); return next; });
+    } finally {
+      setCatSubLaden(prev => { const next = new Set(prev); next.delete(key); return next; });
+    }
+  }
+
+  // Sluit menu bij klik buiten of Escape
+  useEffect(() => {
+    if (!menuState) return;
+    function handleClick() { setMenuState(null); }
+    function handleKey(e: KeyboardEvent) { if (e.key === 'Escape') setMenuState(null); }
+    document.addEventListener('click', handleClick);
+    document.addEventListener('keydown', handleKey);
+    return () => { document.removeEventListener('click', handleClick); document.removeEventListener('keydown', handleKey); };
+  }, [menuState]);
 
   async function openCategoriePopupBls(trx: BlsTransactie, e: React.MouseEvent) {
     e.stopPropagation();
@@ -499,6 +597,7 @@ export default function DashboardPage() {
               <col style={{ width: 120 }} />
               <col style={{ width: 120 }} />
               <col style={{ width: 100 }} />
+              <col style={{ width: 36 }} />
             </colgroup>
             <thead>
               <tr>
@@ -507,6 +606,7 @@ export default function DashboardPage() {
                 <th style={{ textAlign: 'right' }}>Bedrag</th>
                 <th style={{ textAlign: 'right' }}>Gecorrigeerd</th>
                 <th style={{ textAlign: 'right' }}>Saldo</th>
+                <th style={{ width: 36 }} />
               </tr>
             </thead>
             <tbody>
@@ -536,7 +636,7 @@ export default function DashboardPage() {
                   return (
                     <Fragment key={sleutel}>
                       {/* Hoofdrij — directe <tr> in outer tbody, geen geneste tabel */}
-                      <tr onClick={toggleRij} style={{ cursor: 'pointer' }}>
+                      <tr onClick={toggleRij} onContextMenu={e => openContextMenu(e, `ctx-bls-${sleutel}`, blsHoofdItems(rij.categorie))} style={{ cursor: 'pointer' }}>
                         <td style={{ borderLeft: `2px solid ${borderKleur(rij.saldo)}`, paddingLeft: 10, paddingRight: 12, paddingTop: 6, paddingBottom: 6, whiteSpace: 'nowrap', width: '1%' }}>
                           <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--text-h)', display: 'flex', alignItems: 'center', gap: 6 }}>
                             <span style={{ fontSize: 10, color: 'var(--text-dim)', transition: 'transform 0.15s', transform: isOpen ? 'rotate(90deg)' : 'rotate(0deg)', display: 'inline-block' }}>▶</span>
@@ -554,11 +654,14 @@ export default function DashboardPage() {
                         <td style={{ ...tdNum, color: bedragKleur(rij.bedrag), fontWeight: 600 }}>{formatBedrag(rij.bedrag)}</td>
                         <td style={{ ...tdNum, color: rij.gecorrigeerd !== 0 ? bedragKleur(rij.gecorrigeerd) : undefined, fontWeight: 600 }}>{rij.gecorrigeerd !== 0 ? formatBedrag(rij.gecorrigeerd) : <span style={{ color: 'var(--text-dim)' }}>—</span>}</td>
                         <td style={{ ...tdNum, color: bedragKleur(rij.saldo), fontWeight: 600 }}>{formatBedrag(rij.saldo)}</td>
+                        <td style={{ width: 36, padding: 0, textAlign: 'center', verticalAlign: 'middle' }} onClick={e => e.stopPropagation()}>
+                          <HamburgerBtn menuKey={`hbls-${sleutel}`} items={blsHoofdItems(rij.categorie)} onOpen={openMenu} />
+                        </td>
                       </tr>
                       {/* Subtabel — aparte <tr> zodat hover niet interfereert met hoofdrij */}
                       {isOpen && rij.transacties && rij.transacties.length > 0 && (
                         <tr className="bls-expand">
-                          <td colSpan={5} style={{ padding: '0 8px 8px 28px' }}>
+                          <td colSpan={6} style={{ padding: '0 8px 8px 28px' }}>
                             <table style={{ width: '100%', fontSize: 12, borderCollapse: 'collapse', tableLayout: 'fixed' }}>
                               <colgroup>
                                 <col style={{ width: 100 }} />
@@ -567,6 +670,7 @@ export default function DashboardPage() {
                                 <col style={{ width: 90 }} />
                                 <col style={{ width: 140 }} />
                                 <col style={{ width: 140 }} />
+                                <col style={{ width: 36 }} />
                               </colgroup>
                               <thead>
                                 <tr style={{ color: 'var(--text-dim)', borderBottom: '1px solid var(--border)' }}>
@@ -576,13 +680,14 @@ export default function DashboardPage() {
                                   <th style={{ textAlign: 'right', padding: '4px 6px', fontWeight: 500 }}>Bedrag</th>
                                   <th style={{ textAlign: 'left', padding: '4px 6px', fontWeight: 500 }}>Categorie</th>
                                   <th style={{ textAlign: 'left', padding: '4px 6px', fontWeight: 500 }}>Subcategorie</th>
+                                  <th style={{ width: 36 }} />
                                 </tr>
                               </thead>
                               <tbody>
                                 {rij.transacties.map(trx => {
                                   const catKleur = budgettenPotjes.find(bp => bp.naam === trx.categorie)?.kleur ?? 'var(--accent)';
                                   return (
-                                    <tr key={trx.id} onClick={(e) => openCategoriePopupBls(trx, e)} style={{ borderBottom: '1px solid var(--border)', color: 'var(--text)', cursor: 'pointer' }}>
+                                    <tr key={trx.id} onClick={(e) => openCategoriePopupBls(trx, e)} onContextMenu={e => openContextMenu(e, `ctx-bls-sub-${trx.id}`, blsSubItems(trx))} style={{ borderBottom: '1px solid var(--border)', color: 'var(--text)', cursor: 'pointer' }}>
                                       <td style={{ padding: '3px 6px', whiteSpace: 'nowrap' }}>{trx.datum ?? '—'}</td>
                                       <td style={{ padding: '3px 6px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{trx.naam_tegenpartij ?? '—'}</td>
                                       <td title={trx.omschrijving ?? undefined} style={{ padding: '3px 6px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{trx.omschrijving ?? '—'}</td>
@@ -598,6 +703,9 @@ export default function DashboardPage() {
                                           ? <span className="badge-outline" style={{ borderColor: catKleur, color: catKleur }}>{trx.subcategorie}</span>
                                           : <span style={{ color: 'var(--text-dim)', fontSize: 12 }}>—</span>
                                         }
+                                      </td>
+                                      <td style={{ width: 36, padding: 0, textAlign: 'center', verticalAlign: 'middle' }} onClick={e => e.stopPropagation()}>
+                                        <HamburgerBtn menuKey={`h-bls-sub-${trx.id}`} items={blsSubItems(trx)} onOpen={openMenu} />
                                       </td>
                                     </tr>
                                   );
@@ -628,11 +736,13 @@ export default function DashboardPage() {
             <colgroup>
               <col />
               <col style={{ width: 120 }} />
+              <col style={{ width: 36 }} />
             </colgroup>
             <thead>
               <tr>
                 <th>Categorie</th>
                 <th style={{ textAlign: 'right' }}>Bedrag</th>
+                <th style={{ width: 36 }} />
               </tr>
             </thead>
             <tbody>
@@ -647,7 +757,7 @@ export default function DashboardPage() {
                   });
                   return (
                     <Fragment key={cat.categorie}>
-                      <tr onClick={heeftSubs ? toggleCat : undefined} style={{ cursor: heeftSubs ? 'pointer' : 'default', borderTop: '1px solid var(--border)' }}>
+                      <tr onClick={heeftSubs ? toggleCat : undefined} onContextMenu={e => openContextMenu(e, `ctx-cat-${cat.categorie}`, catHoofdItems(cat.categorie))} style={{ cursor: heeftSubs ? 'pointer' : 'default', borderTop: '1px solid var(--border)' }}>
                         <td style={{ paddingTop: 8, paddingBottom: 8 }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 700, fontSize: 14, color: 'var(--text-h)' }}>
                             {heeftSubs && <span style={{ fontSize: 10, color: 'var(--text-dim)', transition: 'transform 0.15s', transform: isOpen ? 'rotate(90deg)' : 'rotate(0deg)', display: 'inline-block' }}>▶</span>}
@@ -655,15 +765,90 @@ export default function DashboardPage() {
                           </div>
                         </td>
                         <td style={{ textAlign: 'right', padding: '8px 16px', fontVariantNumeric: 'tabular-nums', fontWeight: 700, color: bedragKleur(cat.totaal), fontSize: 14 }}>{formatBedrag(cat.totaal)}</td>
+                        <td style={{ width: 36, padding: 0, textAlign: 'center', verticalAlign: 'middle' }} onClick={e => e.stopPropagation()}>
+                          <HamburgerBtn menuKey={`h-cat-${cat.categorie}`} items={catHoofdItems(cat.categorie)} onOpen={openMenu} />
+                        </td>
                       </tr>
-                      {isOpen && cat.subrijen.map(sub => (
-                          <tr key={`${cat.categorie}-${sub.subcategorie}`} className="bls-expand" style={{ borderBottom: 'none' }}>
-                            <td style={{ paddingLeft: 32, paddingTop: 3, paddingBottom: 3, fontSize: 13, color: 'var(--text-dim)' }}>
-                              {sub.subcategorie}
-                            </td>
-                            <td style={{ textAlign: 'right', padding: '3px 16px', fontVariantNumeric: 'tabular-nums', color: 'var(--text-dim)', fontSize: 13 }}>{formatBedrag(sub.bedrag)}</td>
-                          </tr>
-                      ))}
+                      {isOpen && cat.subrijen.map(sub => {
+                        const subKey = `${cat.categorie}::${sub.subcategorie}`;
+                        const isSubOpen   = openCatSubRows.has(subKey);
+                        const subTrxs     = catSubTrx.get(subKey) ?? [];
+                        const subIsLaden  = catSubLaden.has(subKey);
+                        const canExpand   = dashInst.catUitklappen && sub.subcategorie.length > 0;
+                        function toggleSub(e: React.MouseEvent) {
+                          e.stopPropagation();
+                          setOpenCatSubRows(prev => {
+                            const next = new Set(prev);
+                            if (next.has(subKey)) { next.delete(subKey); }
+                            else { next.add(subKey); laadCatSubTrx(cat.categorie, sub.subcategorie); }
+                            return next;
+                          });
+                        }
+                        return (
+                          <Fragment key={subKey}>
+                            <tr
+                              className="bls-expand"
+                              style={{ borderBottom: 'none', cursor: canExpand ? 'pointer' : 'default' }}
+                              onClick={canExpand ? toggleSub : undefined}
+                              onContextMenu={e => openContextMenu(e, `ctx-cat-sub-${subKey}`, catSubMenuItems(cat.categorie, sub.subcategorie))}
+                            >
+                              <td style={{ paddingLeft: 32, paddingTop: 3, paddingBottom: 3, fontSize: 13, color: 'var(--text-dim)' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                                  {canExpand && <span style={{ fontSize: 9, color: 'var(--text-dim)', transition: 'transform 0.15s', transform: isSubOpen ? 'rotate(90deg)' : 'rotate(0deg)', display: 'inline-block' }}>▶</span>}
+                                  {sub.subcategorie}
+                                </div>
+                              </td>
+                              <td style={{ textAlign: 'right', padding: '3px 16px', fontVariantNumeric: 'tabular-nums', color: 'var(--text-dim)', fontSize: 13 }}>{formatBedrag(sub.bedrag)}</td>
+                              <td style={{ width: 36, padding: 0, textAlign: 'center', verticalAlign: 'middle' }} onClick={e => e.stopPropagation()}>
+                                <HamburgerBtn menuKey={`h-cat-sub-${subKey}`} items={catSubMenuItems(cat.categorie, sub.subcategorie)} onOpen={openMenu} />
+                              </td>
+                            </tr>
+                            {isSubOpen && (
+                              <tr className="bls-expand">
+                                <td colSpan={3} style={{ padding: '0 8px 8px 48px' }}>
+                                  {subIsLaden ? (
+                                    <div style={{ fontSize: 12, color: 'var(--text-dim)', padding: '4px 0' }}>Laden…</div>
+                                  ) : subTrxs.length === 0 ? (
+                                    <div style={{ fontSize: 12, color: 'var(--text-dim)', padding: '4px 0' }}>Geen transacties gevonden.</div>
+                                  ) : (
+                                    <table style={{ width: '100%', fontSize: 12, borderCollapse: 'collapse', tableLayout: 'fixed' }}>
+                                      <colgroup>
+                                        <col style={{ width: 100 }} /><col style={{ width: 200 }} /><col />
+                                        <col style={{ width: 90 }} /><col style={{ width: 140 }} /><col style={{ width: 140 }} />
+                                      </colgroup>
+                                      <thead>
+                                        <tr style={{ color: 'var(--text-dim)', borderBottom: '1px solid var(--border)' }}>
+                                          <th style={{ textAlign: 'left', padding: '4px 6px', fontWeight: 500 }}>Datum</th>
+                                          <th style={{ textAlign: 'left', padding: '4px 6px', fontWeight: 500 }}>Naam</th>
+                                          <th style={{ textAlign: 'left', padding: '4px 6px', fontWeight: 500 }}>Omschrijving</th>
+                                          <th style={{ textAlign: 'right', padding: '4px 6px', fontWeight: 500 }}>Bedrag</th>
+                                          <th style={{ textAlign: 'left', padding: '4px 6px', fontWeight: 500 }}>Categorie</th>
+                                          <th style={{ textAlign: 'left', padding: '4px 6px', fontWeight: 500 }}>Subcategorie</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody>
+                                        {subTrxs.map(trx => {
+                                          const ck = budgettenPotjes.find(bp => bp.naam === trx.categorie)?.kleur ?? 'var(--accent)';
+                                          return (
+                                            <tr key={trx.id} style={{ borderBottom: '1px solid var(--border)', color: 'var(--text)' }}>
+                                              <td style={{ padding: '3px 6px', whiteSpace: 'nowrap' }}>{trx.datum ?? '—'}</td>
+                                              <td style={{ padding: '3px 6px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{trx.naam_tegenpartij ?? '—'}</td>
+                                              <td title={trx.omschrijving ?? undefined} style={{ padding: '3px 6px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{trx.omschrijving ?? '—'}</td>
+                                              <td style={{ padding: '3px 6px', textAlign: 'right', fontVariantNumeric: 'tabular-nums', fontWeight: 600, color: bedragKleur(trx.bedrag ?? 0) }}>{trx.bedrag != null ? formatBedrag(trx.bedrag) : '—'}</td>
+                                              <td style={{ padding: '3px 6px' }}>{trx.categorie ? <span className="badge" style={{ background: kleurBg(ck), border: `1px solid ${ck}`, color: ck }}>{trx.categorie}</span> : <span className="badge-outline-red">Ongecategoriseerd</span>}</td>
+                                              <td style={{ padding: '3px 6px' }}>{trx.subcategorie ? <span className="badge-outline" style={{ borderColor: ck, color: ck }}>{trx.subcategorie}</span> : <span style={{ color: 'var(--text-dim)', fontSize: 12 }}>—</span>}</td>
+                                            </tr>
+                                          );
+                                        })}
+                                      </tbody>
+                                    </table>
+                                  )}
+                                </td>
+                              </tr>
+                            )}
+                          </Fragment>
+                        );
+                      })}
                     </Fragment>
                   );
                 });
@@ -674,6 +859,27 @@ export default function DashboardPage() {
       )}</>}
 
       </div>}{/* einde BLS + CAT wrapper */}
+
+      {/* Floating contextmenu / hamburger menu */}
+      {menuState && (
+        <div
+          onClick={e => e.stopPropagation()}
+          style={{ position: 'fixed', top: menuState.top, left: menuState.left, zIndex: 1000, background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 6, boxShadow: '0 4px 16px rgba(0,0,0,0.25)', minWidth: 200, overflow: 'hidden' }}
+        >
+          {menuState.items.map((item, i) => (
+            <a
+              key={i}
+              href={item.url}
+              style={{ display: 'block', padding: '9px 14px', fontSize: 13, color: 'var(--text)', textDecoration: 'none', cursor: 'pointer', borderBottom: i < menuState.items.length - 1 ? '1px solid var(--border)' : 'none' }}
+              onMouseEnter={e => (e.currentTarget.style.background = 'var(--accent-dim)')}
+              onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+              onClick={() => setMenuState(null)}
+            >
+              {item.label}
+            </a>
+          ))}
+        </div>
+      )}
 
       {patronModal && (
         <CategoriePopup

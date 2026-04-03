@@ -1,11 +1,10 @@
 // FILE: instellingen.ts
 // AANGEMAAKT: 25-03-2026 21:00
 // VERSIE: 1
-// GEWIJZIGD: 03-04-2026 10:00
+// GEWIJZIGD: 03-04-2026 22:00
 //
-// WIJZIGINGEN (03-04-2026 10:00):
-// - Dashboard weergave-instellingen toegevoegd (blsTonen, catTonen, blsUitgeklapt, catUitgeklapt)
-// - updateInstellingen accepteert nu partiële updates
+// WIJZIGINGEN (03-04-2026 22:00):
+// - catUitklappen instelling toegevoegd (cat_uitklappen kolom)
 // WIJZIGINGEN (25-03-2026 21:00):
 // - Initiële aanmaak: getInstellingen en updateInstellingen
 
@@ -17,6 +16,7 @@ export interface Instellingen {
   dashboardCatTonen:      boolean;
   dashboardBlsUitgeklapt: boolean;
   dashboardCatUitgeklapt: boolean;
+  catUitklappen:          boolean;
 }
 
 type Row = {
@@ -25,11 +25,12 @@ type Row = {
   dashboard_cat_tonen:       number;
   dashboard_bls_uitgeklapt:  number;
   dashboard_cat_uitgeklapt:  number;
+  cat_uitklappen:            number;
 };
 
 export function getInstellingen(): Instellingen {
   const row = getDb()
-    .prepare('SELECT maand_start_dag, dashboard_bls_tonen, dashboard_cat_tonen, dashboard_bls_uitgeklapt, dashboard_cat_uitgeklapt FROM instellingen WHERE id = 1')
+    .prepare('SELECT maand_start_dag, dashboard_bls_tonen, dashboard_cat_tonen, dashboard_bls_uitgeklapt, dashboard_cat_uitgeklapt, cat_uitklappen FROM instellingen WHERE id = 1')
     .get() as Row | undefined;
   if (!row) throw new Error('Instellingen niet gevonden in database.');
   return {
@@ -38,6 +39,7 @@ export function getInstellingen(): Instellingen {
     dashboardCatTonen:      row.dashboard_cat_tonen      !== 0,
     dashboardBlsUitgeklapt: row.dashboard_bls_uitgeklapt !== 0,
     dashboardCatUitgeklapt: row.dashboard_cat_uitgeklapt !== 0,
+    catUitklappen:          row.cat_uitklappen            !== 0,
   };
 }
 
@@ -56,6 +58,7 @@ export function updateInstellingen(data: Partial<Instellingen>): void {
   if (data.dashboardCatTonen      !== undefined) { sets.push('dashboard_cat_tonen = ?');      values.push(data.dashboardCatTonen      ? 1 : 0); }
   if (data.dashboardBlsUitgeklapt !== undefined) { sets.push('dashboard_bls_uitgeklapt = ?'); values.push(data.dashboardBlsUitgeklapt ? 1 : 0); }
   if (data.dashboardCatUitgeklapt !== undefined) { sets.push('dashboard_cat_uitgeklapt = ?'); values.push(data.dashboardCatUitgeklapt ? 1 : 0); }
+  if (data.catUitklappen          !== undefined) { sets.push('cat_uitklappen = ?');           values.push(data.catUitklappen          ? 1 : 0); }
 
   if (sets.length === 0) throw new Error('Geen velden om bij te werken.');
   getDb().prepare(`UPDATE instellingen SET ${sets.join(', ')} WHERE id = 1`).run(...values);
