@@ -75,7 +75,7 @@ export default function DashboardInstellingen() {
       <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 10, padding: '4px 20px 12px' }}>
         {/* Header */}
         <div style={{ display: 'flex', alignItems: 'center', padding: '10px 0 4px', borderBottom: '1px solid var(--border)' }}>
-          <div style={{ ...col1 }} />
+          <div style={{ ...col1, ...dimStijl }}>Tabel</div>
           <div style={{ ...col2, ...dimStijl }}>Zichtbaar</div>
           <div style={{ ...col3, ...dimStijl }}>Uitgeklapt</div>
         </div>
