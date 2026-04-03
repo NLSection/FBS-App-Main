@@ -34,6 +34,8 @@ export async function PUT(request: NextRequest) {
   if (body.dashboardCatUitgeklapt !== undefined) update.dashboardCatUitgeklapt = Boolean(body.dashboardCatUitgeklapt);
   if (body.catUitklappen          !== undefined) update.catUitklappen          = Boolean(body.catUitklappen);
   if (body.catTrxUitgeklapt       !== undefined) update.catTrxUitgeklapt       = Boolean(body.catTrxUitgeklapt);
+  if (body.vasteLastenOverzichtMaanden !== undefined) update.vasteLastenOverzichtMaanden = Number(body.vasteLastenOverzichtMaanden);
+  if (body.vasteLastenAfwijkingProcent !== undefined) update.vasteLastenAfwijkingProcent = Number(body.vasteLastenAfwijkingProcent);
 
   try {
     updateInstellingen(update);

@@ -18,6 +18,8 @@ export interface Instellingen {
   dashboardCatUitgeklapt: boolean;
   catUitklappen:          boolean;
   catTrxUitgeklapt:       boolean;
+  vasteLastenOverzichtMaanden: number;
+  vasteLastenAfwijkingProcent: number;
 }
 
 type Row = {
@@ -28,11 +30,13 @@ type Row = {
   dashboard_cat_uitgeklapt:  number;
   cat_uitklappen:            number;
   cat_trx_uitgeklapt:        number;
+  vaste_lasten_overzicht_maanden: number;
+  vaste_lasten_afwijking_procent: number;
 };
 
 export function getInstellingen(): Instellingen {
   const row = getDb()
-    .prepare('SELECT maand_start_dag, dashboard_bls_tonen, dashboard_cat_tonen, dashboard_bls_uitgeklapt, dashboard_cat_uitgeklapt, cat_uitklappen, cat_trx_uitgeklapt FROM instellingen WHERE id = 1')
+    .prepare('SELECT maand_start_dag, dashboard_bls_tonen, dashboard_cat_tonen, dashboard_bls_uitgeklapt, dashboard_cat_uitgeklapt, cat_uitklappen, cat_trx_uitgeklapt, vaste_lasten_overzicht_maanden, vaste_lasten_afwijking_procent FROM instellingen WHERE id = 1')
     .get() as Row | undefined;
   if (!row) throw new Error('Instellingen niet gevonden in database.');
   return {
@@ -43,6 +47,8 @@ export function getInstellingen(): Instellingen {
     dashboardCatUitgeklapt: row.dashboard_cat_uitgeklapt !== 0,
     catUitklappen:          row.cat_uitklappen            !== 0,
     catTrxUitgeklapt:       row.cat_trx_uitgeklapt        !== 0,
+    vasteLastenOverzichtMaanden: row.vaste_lasten_overzicht_maanden ?? 4,
+    vasteLastenAfwijkingProcent: row.vaste_lasten_afwijking_procent ?? 5,
   };
 }
 
@@ -63,6 +69,18 @@ export function updateInstellingen(data: Partial<Instellingen>): void {
   if (data.dashboardCatUitgeklapt !== undefined) { sets.push('dashboard_cat_uitgeklapt = ?'); values.push(data.dashboardCatUitgeklapt ? 1 : 0); }
   if (data.catUitklappen          !== undefined) { sets.push('cat_uitklappen = ?');           values.push(data.catUitklappen          ? 1 : 0); }
   if (data.catTrxUitgeklapt       !== undefined) { sets.push('cat_trx_uitgeklapt = ?');      values.push(data.catTrxUitgeklapt       ? 1 : 0); }
+  if (data.vasteLastenOverzichtMaanden !== undefined) {
+    if (!Number.isInteger(data.vasteLastenOverzichtMaanden) || data.vasteLastenOverzichtMaanden < 1 || data.vasteLastenOverzichtMaanden > 12) {
+      throw new Error('vasteLastenOverzichtMaanden moet een geheel getal zijn tussen 1 en 12.');
+    }
+    sets.push('vaste_lasten_overzicht_maanden = ?'); values.push(data.vasteLastenOverzichtMaanden);
+  }
+  if (data.vasteLastenAfwijkingProcent !== undefined) {
+    if (!Number.isInteger(data.vasteLastenAfwijkingProcent) || data.vasteLastenAfwijkingProcent < 1 || data.vasteLastenAfwijkingProcent > 100) {
+      throw new Error('vasteLastenAfwijkingProcent moet een geheel getal zijn tussen 1 en 100.');
+    }
+    sets.push('vaste_lasten_afwijking_procent = ?'); values.push(data.vasteLastenAfwijkingProcent);
+  }
 
   if (sets.length === 0) throw new Error('Geen velden om bij te werken.');
   getDb().prepare(`UPDATE instellingen SET ${sets.join(', ')} WHERE id = 1`).run(...values);

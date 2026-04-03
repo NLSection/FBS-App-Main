@@ -333,6 +333,10 @@ export function runMigrations(): void {
   // ── Stap 15: Transacties in subcategorieën standaard uitgeklapt ─────────
   try { db.exec("ALTER TABLE instellingen ADD COLUMN cat_trx_uitgeklapt INTEGER NOT NULL DEFAULT 0"); } catch {}
 
+  // ── Stap 16: Vaste lasten overzicht instellingen ───────────────────────
+  try { db.exec("ALTER TABLE instellingen ADD COLUMN vaste_lasten_overzicht_maanden INTEGER NOT NULL DEFAULT 4"); } catch {}
+  try { db.exec("ALTER TABLE instellingen ADD COLUMN vaste_lasten_afwijking_procent INTEGER NOT NULL DEFAULT 5"); } catch {}
+
   // ── Stap 7: Cleanup pre-fix imports zonder volgnummer ────────────────────
   // Transacties geïmporteerd vóór de 'Volgnr'-fix hebben volgnummer = NULL.
   // Als er transacties zijn maar geen enkel volgnummer gevuld is, zijn ze
