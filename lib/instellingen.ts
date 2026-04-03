@@ -17,6 +17,7 @@ export interface Instellingen {
   dashboardBlsUitgeklapt: boolean;
   dashboardCatUitgeklapt: boolean;
   catUitklappen:          boolean;
+  catTrxUitgeklapt:       boolean;
 }
 
 type Row = {
@@ -26,11 +27,12 @@ type Row = {
   dashboard_bls_uitgeklapt:  number;
   dashboard_cat_uitgeklapt:  number;
   cat_uitklappen:            number;
+  cat_trx_uitgeklapt:        number;
 };
 
 export function getInstellingen(): Instellingen {
   const row = getDb()
-    .prepare('SELECT maand_start_dag, dashboard_bls_tonen, dashboard_cat_tonen, dashboard_bls_uitgeklapt, dashboard_cat_uitgeklapt, cat_uitklappen FROM instellingen WHERE id = 1')
+    .prepare('SELECT maand_start_dag, dashboard_bls_tonen, dashboard_cat_tonen, dashboard_bls_uitgeklapt, dashboard_cat_uitgeklapt, cat_uitklappen, cat_trx_uitgeklapt FROM instellingen WHERE id = 1')
     .get() as Row | undefined;
   if (!row) throw new Error('Instellingen niet gevonden in database.');
   return {
@@ -40,6 +42,7 @@ export function getInstellingen(): Instellingen {
     dashboardBlsUitgeklapt: row.dashboard_bls_uitgeklapt !== 0,
     dashboardCatUitgeklapt: row.dashboard_cat_uitgeklapt !== 0,
     catUitklappen:          row.cat_uitklappen            !== 0,
+    catTrxUitgeklapt:       row.cat_trx_uitgeklapt        !== 0,
   };
 }
 
@@ -59,6 +62,7 @@ export function updateInstellingen(data: Partial<Instellingen>): void {
   if (data.dashboardBlsUitgeklapt !== undefined) { sets.push('dashboard_bls_uitgeklapt = ?'); values.push(data.dashboardBlsUitgeklapt ? 1 : 0); }
   if (data.dashboardCatUitgeklapt !== undefined) { sets.push('dashboard_cat_uitgeklapt = ?'); values.push(data.dashboardCatUitgeklapt ? 1 : 0); }
   if (data.catUitklappen          !== undefined) { sets.push('cat_uitklappen = ?');           values.push(data.catUitklappen          ? 1 : 0); }
+  if (data.catTrxUitgeklapt       !== undefined) { sets.push('cat_trx_uitgeklapt = ?');      values.push(data.catTrxUitgeklapt       ? 1 : 0); }
 
   if (sets.length === 0) throw new Error('Geen velden om bij te werken.');
   getDb().prepare(`UPDATE instellingen SET ${sets.join(', ')} WHERE id = 1`).run(...values);

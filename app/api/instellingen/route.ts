@@ -33,6 +33,7 @@ export async function PUT(request: NextRequest) {
   if (body.dashboardBlsUitgeklapt !== undefined) update.dashboardBlsUitgeklapt = Boolean(body.dashboardBlsUitgeklapt);
   if (body.dashboardCatUitgeklapt !== undefined) update.dashboardCatUitgeklapt = Boolean(body.dashboardCatUitgeklapt);
   if (body.catUitklappen          !== undefined) update.catUitklappen          = Boolean(body.catUitklappen);
+  if (body.catTrxUitgeklapt       !== undefined) update.catTrxUitgeklapt       = Boolean(body.catTrxUitgeklapt);
 
   try {
     updateInstellingen(update);

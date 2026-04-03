@@ -1,10 +1,12 @@
 // FILE: page.tsx
 // AANGEMAAKT: 25-03-2026 14:00
 // VERSIE: 1
-// GEWIJZIGD: 03-04-2026 23:00
+// GEWIJZIGD: 03-04-2026 17:45
 //
-// WIJZIGINGEN (03-04-2026 21:30):
-// - BLS: groen ✓ rechts naast rechter rekening-badge bij saldo === 0
+// WIJZIGINGEN (03-04-2026 17:45):
+// - CAT subtabel: kolommen gelijkgetrokken met BLS subtabel (36px actiekolom + 28px padding)
+// - Wrapper maxWidth ook bij openCatSubRows (CAT subtabel uitklap)
+// - BLS categorienaam fontSize 14 (gelijk aan CAT)
 // - BLS+CAT wrapper dynamisch: fit-content als ingeklapt, maxWidth 1150 als uitgeklapt
 // - Omschrijving td: title attribuut voor volledige tekst op hover
 // - BLS+CAT wrapper: overflowX auto; beide table-wrappers minWidth 760px; BLS table width 100%
@@ -107,8 +109,16 @@ interface CatSubTrx {
   omschrijving: string | null;
   bedrag: number | null;
   rekening_naam: string | null;
+  categorie_id: number | null;
   categorie: string | null;
   subcategorie: string | null;
+  toelichting: string | null;
+  type: string;
+  tegenrekening_iban_bban: string | null;
+  omschrijving_1: string | null;
+  omschrijving_2: string | null;
+  omschrijving_3: string | null;
+  handmatig_gecategoriseerd: number;
 }
 type MenuState = { key: string; top: number; left: number; items: { label: string; url: string }[] };
 
@@ -128,7 +138,13 @@ function bedragKleur(bedrag: number): string {
   return bedrag < 0 ? 'var(--red)' : bedrag > 0 ? 'var(--green)' : 'var(--accent)';
 }
 
+const REKENING_KLEUREN: Record<string, string> = {
+  'Gezamenlijke Rekening': '#5b8bd4',
+  'Boodschappen Rekening': '#d4945b',
+};
+
 function naamKleur(naam: string): string {
+  if (REKENING_KLEUREN[naam]) return REKENING_KLEUREN[naam];
   let hash = 0;
   for (let i = 0; i < naam.length; i++) {
     hash = naam.charCodeAt(i) + ((hash << 5) - hash);
@@ -163,7 +179,7 @@ function RichtingsIndicator({ saldo }: { saldo: number }) {
   }
   return (
     <span className="bls-flow flow-zero" style={{ color: 'var(--accent)' }}>
-      <span>|</span><span>|</span><span>|</span>
+      <span className="bar" /><span className="bar" /><span className="bar" />
     </span>
   );
 }
@@ -292,7 +308,36 @@ export default function DashboardPage() {
     setLaadtCat(true);
     fetch(`/api/dashboard/cat?${qs}`)
       .then(r => r.ok ? r.json() : Promise.reject(r.statusText))
-      .then((data: CatRegel[]) => { setCatData(data); setOpenCatRijen(dashInstRef.current.catUitgeklapt ? new Set(data.map(c => c.categorie)) : new Set()); })
+      .then((data: CatRegel[]) => {
+        setCatData(data);
+        setOpenCatRijen(dashInstRef.current.catUitgeklapt ? new Set(data.map(c => c.categorie)) : new Set());
+        // Subcategorieën standaard uitklappen + transacties laden
+        if (dashInstRef.current.catUitklappen) {
+          const subKeys = new Set<string>();
+          for (const cat of data) {
+            for (const sub of cat.subrijen) {
+              if (sub.subcategorie.length > 0) subKeys.add(`${cat.categorie}::${sub.subcategorie}`);
+            }
+          }
+          setOpenCatSubRows(subKeys);
+          // Transacties laden met correcte periode
+          const ladenSet = new Set<string>();
+          setCatSubLaden(ladenSet);
+          for (const key of subKeys) {
+            const [catNaam, subNaam] = key.split('::');
+            ladenSet.add(key);
+            setCatSubLaden(new Set(ladenSet));
+            fetch(`/api/dashboard/cat/transacties?categorie=${encodeURIComponent(catNaam)}&subcategorie=${encodeURIComponent(subNaam)}${datumVan ? `&van=${datumVan}&tot=${datumTot}` : ''}`)
+              .then(r => r.ok ? r.json() : [])
+              .then((trxData: CatSubTrx[]) => {
+                setCatSubTrx(prev => { const next = new Map(prev); next.set(key, trxData); return next; });
+              })
+              .finally(() => {
+                setCatSubLaden(prev => { const next = new Set(prev); next.delete(key); return next; });
+              });
+          }
+        }
+      })
       .catch(() => {})
       .finally(() => setLaadtCat(false));
   }, []);
@@ -580,7 +625,7 @@ export default function DashboardPage() {
       )}
 
       {/* BLS + CAT wrapper — compact als ingeklapt, breed als uitgeklapt */}
-      {(dashInst.blsTonen || dashInst.catTonen) && <div style={openRijen.size > 0 ? { maxWidth: 1150, margin: '0 auto' } : { width: 'fit-content', margin: '0 auto' }}>
+      {(dashInst.blsTonen || dashInst.catTonen) && <div style={{ maxWidth: 900, margin: '0 auto' }}>
 
       {/* BLS Sectie */}
       {dashInst.blsTonen && <><p className="section-title">Balans Budgetten en Potjes</p>
@@ -596,7 +641,7 @@ export default function DashboardPage() {
               <col />
               <col style={{ width: 120 }} />
               <col style={{ width: 120 }} />
-              <col style={{ width: 100 }} />
+              <col style={{ width: 80 }} />
               <col style={{ width: 36 }} />
             </colgroup>
             <thead>
@@ -615,8 +660,8 @@ export default function DashboardPage() {
                 for (const r of blsData) {
                   hoortTellingen.set(r.hoortOpRekening, (hoortTellingen.get(r.hoortOpRekening) ?? 0) + 1);
                 }
-                const rekBadge = (naam: string, label?: string): React.ReactNode => {
-                  const kleur = naamKleur(naam);
+                const rekBadge = (naam: string, label?: string, kleurOverride?: string): React.ReactNode => {
+                  const kleur = kleurOverride ?? naamKleur(naam);
                   return (
                     <span style={{ display: 'inline-block', fontSize: 11, borderRadius: 3, padding: '0px 6px', fontWeight: 600, border: `1px solid ${kleur}`, color: kleur, whiteSpace: 'nowrap', textAlign: 'center' }}>
                       {label ?? naam}
@@ -638,7 +683,7 @@ export default function DashboardPage() {
                       {/* Hoofdrij — directe <tr> in outer tbody, geen geneste tabel */}
                       <tr onClick={toggleRij} onContextMenu={e => openContextMenu(e, `ctx-bls-${sleutel}`, blsHoofdItems(rij.categorie))} style={{ cursor: 'pointer' }}>
                         <td style={{ borderLeft: `2px solid ${borderKleur(rij.saldo)}`, paddingLeft: 10, paddingRight: 12, paddingTop: 6, paddingBottom: 6, whiteSpace: 'nowrap', width: '1%' }}>
-                          <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--text-h)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--text-h)', display: 'flex', alignItems: 'center', gap: 6 }}>
                             <span style={{ fontSize: 10, color: 'var(--text-dim)', transition: 'transform 0.15s', transform: isOpen ? 'rotate(90deg)' : 'rotate(0deg)', display: 'inline-block' }}>▶</span>
                             {rij.categorie}
                           </div>
@@ -647,7 +692,7 @@ export default function DashboardPage() {
                           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                             {rekBadge(rij.gedaanOpRekening)}
                             <RichtingsIndicator saldo={rij.saldo} />
-                            {rekBadge(rij.hoortOpRekening, hoortLabel)}
+                            {rekBadge(rij.hoortOpRekening, hoortLabel, budgettenPotjes.find(bp => bp.naam === rij.categorie)?.kleur ?? undefined)}
                             {rij.saldo === 0 && <span style={{ color: 'var(--green)', fontSize: 13, fontWeight: 700 }}>✓</span>}
                           </div>
                         </td>
@@ -662,24 +707,24 @@ export default function DashboardPage() {
                       {isOpen && rij.transacties && rij.transacties.length > 0 && (
                         <tr className="bls-expand">
                           <td colSpan={6} style={{ padding: '0 8px 8px 28px' }}>
-                            <table style={{ width: '100%', fontSize: 12, borderCollapse: 'collapse', tableLayout: 'fixed' }}>
+                            <table style={{ fontSize: 11, borderCollapse: 'collapse', tableLayout: 'fixed', width: 850 }}>
                               <colgroup>
-                                <col style={{ width: 100 }} />
-                                <col style={{ width: 200 }} />
+                                <col style={{ width: 80 }} />
+                                <col style={{ width: 160 }} />
                                 <col />
-                                <col style={{ width: 90 }} />
-                                <col style={{ width: 140 }} />
-                                <col style={{ width: 140 }} />
+                                <col style={{ width: 65 }} />
+                                <col style={{ width: 110 }} />
+                                <col style={{ width: 110 }} />
                                 <col style={{ width: 36 }} />
                               </colgroup>
                               <thead>
                                 <tr style={{ color: 'var(--text-dim)', borderBottom: '1px solid var(--border)' }}>
-                                  <th style={{ textAlign: 'left', padding: '4px 6px', fontWeight: 500 }}>Datum</th>
-                                  <th style={{ textAlign: 'left', padding: '4px 6px', fontWeight: 500 }}>Naam</th>
-                                  <th style={{ textAlign: 'left', padding: '4px 6px', fontWeight: 500 }}>Omschrijving</th>
-                                  <th style={{ textAlign: 'right', padding: '4px 6px', fontWeight: 500 }}>Bedrag</th>
-                                  <th style={{ textAlign: 'left', padding: '4px 6px', fontWeight: 500 }}>Categorie</th>
-                                  <th style={{ textAlign: 'left', padding: '4px 6px', fontWeight: 500 }}>Subcategorie</th>
+                                  <th style={{ textAlign: 'left', padding: '2px 10px', fontWeight: 500 }}>Datum</th>
+                                  <th style={{ textAlign: 'left', padding: '2px 10px', fontWeight: 500 }}>Naam</th>
+                                  <th style={{ textAlign: 'left', padding: '2px 10px', fontWeight: 500 }}>Omschrijving</th>
+                                  <th style={{ textAlign: 'right', padding: '2px 10px', fontWeight: 500 }}>Bedrag</th>
+                                  <th style={{ textAlign: 'left', padding: '2px 10px', fontWeight: 500 }}>Categorie</th>
+                                  <th style={{ textAlign: 'left', padding: '2px 10px', fontWeight: 500 }}>Subcategorie</th>
                                   <th style={{ width: 36 }} />
                                 </tr>
                               </thead>
@@ -688,17 +733,17 @@ export default function DashboardPage() {
                                   const catKleur = budgettenPotjes.find(bp => bp.naam === trx.categorie)?.kleur ?? 'var(--accent)';
                                   return (
                                     <tr key={trx.id} onClick={(e) => openCategoriePopupBls(trx, e)} onContextMenu={e => openContextMenu(e, `ctx-bls-sub-${trx.id}`, blsSubItems(trx))} style={{ borderBottom: '1px solid var(--border)', color: 'var(--text)', cursor: 'pointer' }}>
-                                      <td style={{ padding: '3px 6px', whiteSpace: 'nowrap' }}>{trx.datum ?? '—'}</td>
-                                      <td style={{ padding: '3px 6px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{trx.naam_tegenpartij ?? '—'}</td>
-                                      <td title={trx.omschrijving ?? undefined} style={{ padding: '3px 6px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{trx.omschrijving ?? '—'}</td>
-                                      <td style={{ padding: '3px 6px', textAlign: 'right', fontVariantNumeric: 'tabular-nums', fontWeight: 600, color: bedragKleur(trx.bedrag ?? 0) }}>{trx.bedrag != null ? formatBedrag(trx.bedrag) : '—'}</td>
-                                      <td style={{ padding: '3px 6px' }}>
+                                      <td style={{ padding: '2px 10px', whiteSpace: 'nowrap' }}>{trx.datum ?? '—'}</td>
+                                      <td style={{ padding: '2px 10px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{trx.naam_tegenpartij ?? '—'}</td>
+                                      <td title={trx.omschrijving ?? undefined} style={{ padding: '2px 10px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{trx.omschrijving ?? '—'}</td>
+                                      <td style={{ padding: '2px 10px', textAlign: 'right', fontVariantNumeric: 'tabular-nums', fontWeight: 600, color: bedragKleur(trx.bedrag ?? 0) }}>{trx.bedrag != null ? formatBedrag(trx.bedrag) : '—'}</td>
+                                      <td style={{ padding: '2px 10px' }}>
                                         {trx.categorie
                                           ? <span className="badge" style={{ background: kleurBg(catKleur), border: `1px solid ${catKleur}`, color: catKleur }}>{trx.categorie}</span>
                                           : <span className="badge-outline-red">Ongecategoriseerd</span>
                                         }
                                       </td>
-                                      <td style={{ padding: '3px 6px' }}>
+                                      <td style={{ padding: '2px 10px' }}>
                                         {trx.subcategorie
                                           ? <span className="badge-outline" style={{ borderColor: catKleur, color: catKleur }}>{trx.subcategorie}</span>
                                           : <span style={{ color: 'var(--text-dim)', fontSize: 12 }}>—</span>
@@ -774,7 +819,7 @@ export default function DashboardPage() {
                         const isSubOpen   = openCatSubRows.has(subKey);
                         const subTrxs     = catSubTrx.get(subKey) ?? [];
                         const subIsLaden  = catSubLaden.has(subKey);
-                        const canExpand   = dashInst.catUitklappen && sub.subcategorie.length > 0;
+                        const canExpand   = sub.subcategorie.length > 0;
                         const toggleSub = (e: React.MouseEvent) => {
                           e.stopPropagation();
                           const willOpen = !openCatSubRows.has(subKey);
@@ -807,38 +852,44 @@ export default function DashboardPage() {
                             </tr>
                             {isSubOpen && (
                               <tr className="bls-expand">
-                                <td colSpan={3} style={{ padding: '0 8px 8px 48px' }}>
+                                <td colSpan={3} style={{ padding: '0 8px 8px 28px' }}>
                                   {subIsLaden ? (
                                     <div style={{ fontSize: 12, color: 'var(--text-dim)', padding: '4px 0' }}>Laden…</div>
                                   ) : subTrxs.length === 0 ? (
                                     <div style={{ fontSize: 12, color: 'var(--text-dim)', padding: '4px 0' }}>Geen transacties gevonden.</div>
                                   ) : (
-                                    <table style={{ width: '100%', fontSize: 12, borderCollapse: 'collapse', tableLayout: 'fixed' }}>
+                                    <table style={{ fontSize: 11, borderCollapse: 'collapse', tableLayout: 'fixed', width: 850 }}>
                                       <colgroup>
-                                        <col style={{ width: 100 }} /><col style={{ width: 200 }} /><col />
-                                        <col style={{ width: 90 }} /><col style={{ width: 140 }} /><col style={{ width: 140 }} />
+                                        <col style={{ width: 80 }} /><col style={{ width: 160 }} /><col style={{ width: 300 }} />
+                                        <col style={{ width: 65 }} /><col style={{ width: 110 }} /><col style={{ width: 110 }} />
+                                        <col style={{ width: 36 }} />
                                       </colgroup>
                                       <thead>
                                         <tr style={{ color: 'var(--text-dim)', borderBottom: '1px solid var(--border)' }}>
-                                          <th style={{ textAlign: 'left', padding: '4px 6px', fontWeight: 500 }}>Datum</th>
-                                          <th style={{ textAlign: 'left', padding: '4px 6px', fontWeight: 500 }}>Naam</th>
-                                          <th style={{ textAlign: 'left', padding: '4px 6px', fontWeight: 500 }}>Omschrijving</th>
-                                          <th style={{ textAlign: 'right', padding: '4px 6px', fontWeight: 500 }}>Bedrag</th>
-                                          <th style={{ textAlign: 'left', padding: '4px 6px', fontWeight: 500 }}>Categorie</th>
-                                          <th style={{ textAlign: 'left', padding: '4px 6px', fontWeight: 500 }}>Subcategorie</th>
+                                          <th style={{ textAlign: 'left', padding: '2px 10px', fontWeight: 500 }}>Datum</th>
+                                          <th style={{ textAlign: 'left', padding: '2px 10px', fontWeight: 500 }}>Naam</th>
+                                          <th style={{ textAlign: 'left', padding: '2px 10px', fontWeight: 500 }}>Omschrijving</th>
+                                          <th style={{ textAlign: 'right', padding: '2px 10px', fontWeight: 500 }}>Bedrag</th>
+                                          <th style={{ textAlign: 'left', padding: '2px 10px', fontWeight: 500 }}>Categorie</th>
+                                          <th style={{ textAlign: 'left', padding: '2px 10px', fontWeight: 500 }}>Subcategorie</th>
+                                          <th style={{ width: 36 }} />
                                         </tr>
                                       </thead>
                                       <tbody>
                                         {subTrxs.map(trx => {
                                           const ck = budgettenPotjes.find(bp => bp.naam === trx.categorie)?.kleur ?? 'var(--accent)';
+                                          const trxAsBls = trx as unknown as BlsTransactie;
                                           return (
-                                            <tr key={trx.id} style={{ borderBottom: '1px solid var(--border)', color: 'var(--text)' }}>
-                                              <td style={{ padding: '3px 6px', whiteSpace: 'nowrap' }}>{trx.datum ?? '—'}</td>
-                                              <td style={{ padding: '3px 6px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{trx.naam_tegenpartij ?? '—'}</td>
-                                              <td title={trx.omschrijving ?? undefined} style={{ padding: '3px 6px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{trx.omschrijving ?? '—'}</td>
-                                              <td style={{ padding: '3px 6px', textAlign: 'right', fontVariantNumeric: 'tabular-nums', fontWeight: 600, color: bedragKleur(trx.bedrag ?? 0) }}>{trx.bedrag != null ? formatBedrag(trx.bedrag) : '—'}</td>
-                                              <td style={{ padding: '3px 6px' }}>{trx.categorie ? <span className="badge" style={{ background: kleurBg(ck), border: `1px solid ${ck}`, color: ck }}>{trx.categorie}</span> : <span className="badge-outline-red">Ongecategoriseerd</span>}</td>
-                                              <td style={{ padding: '3px 6px' }}>{trx.subcategorie ? <span className="badge-outline" style={{ borderColor: ck, color: ck }}>{trx.subcategorie}</span> : <span style={{ color: 'var(--text-dim)', fontSize: 12 }}>—</span>}</td>
+                                            <tr key={trx.id} onClick={(e) => openCategoriePopupBls(trxAsBls, e)} onContextMenu={e => openContextMenu(e, `ctx-cat-sub-trx-${trx.id}`, blsSubItems(trxAsBls))} style={{ borderBottom: '1px solid var(--border)', color: 'var(--text)', cursor: 'pointer' }}>
+                                              <td style={{ padding: '2px 10px', whiteSpace: 'nowrap' }}>{trx.datum ?? '—'}</td>
+                                              <td style={{ padding: '2px 10px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{trx.naam_tegenpartij ?? '—'}</td>
+                                              <td title={trx.omschrijving ?? undefined} style={{ padding: '2px 10px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{trx.omschrijving ?? '—'}</td>
+                                              <td style={{ padding: '2px 10px', textAlign: 'right', fontVariantNumeric: 'tabular-nums', fontWeight: 600, color: bedragKleur(trx.bedrag ?? 0) }}>{trx.bedrag != null ? formatBedrag(trx.bedrag) : '—'}</td>
+                                              <td style={{ padding: '2px 10px' }}>{trx.categorie ? <span className="badge" style={{ background: kleurBg(ck), border: `1px solid ${ck}`, color: ck }}>{trx.categorie}</span> : <span className="badge-outline-red">Ongecategoriseerd</span>}</td>
+                                              <td style={{ padding: '2px 10px' }}>{trx.subcategorie ? <span className="badge-outline" style={{ borderColor: ck, color: ck }}>{trx.subcategorie}</span> : <span style={{ color: 'var(--text-dim)', fontSize: 12 }}>—</span>}</td>
+                                              <td style={{ width: 36, padding: 0, textAlign: 'center', verticalAlign: 'middle' }} onClick={e => e.stopPropagation()}>
+                                                <HamburgerBtn menuKey={`h-cat-sub-trx-${trx.id}`} items={blsSubItems(trxAsBls)} onOpen={openMenu} />
+                                              </td>
                                             </tr>
                                           );
                                         })}

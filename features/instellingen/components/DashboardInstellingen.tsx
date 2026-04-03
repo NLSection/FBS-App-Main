@@ -91,9 +91,9 @@ export default function DashboardInstellingen() {
           <div style={col2}><Toggle checked={inst.dashboardCatTonen}      onChange={v => opslaan({ dashboardCatTonen: v })}      disabled={bezig} /></div>
           <div style={col3}><Toggle checked={inst.dashboardCatUitgeklapt} onChange={v => opslaan({ dashboardCatUitgeklapt: v })} disabled={bezig} /></div>
         </div>
-        {/* CAT sub uitklappen */}
+        {/* CAT subcategorieën standaard uitgeklapt */}
         <div style={{ ...rijStijl, borderBottom: 'none' }}>
-          <span style={{ ...col1, paddingLeft: 16, color: 'var(--text-dim)', fontSize: 12 }}>└ Subcategorieën uitklappen in CAT tabel</span>
+          <span style={{ ...col1, paddingLeft: 16, color: 'var(--text-dim)', fontSize: 12 }}>└ Transacties per subcategorie standaard uitgeklapt</span>
           <div style={col2} />
           <div style={col3}><Toggle checked={inst.catUitklappen} onChange={v => opslaan({ catUitklappen: v })} disabled={bezig || !inst.dashboardCatTonen} /></div>
         </div>

@@ -1,10 +1,10 @@
 // FILE: route.ts (api/dashboard/cat/transacties)
 // AANGEMAAKT: 03-04-2026 22:00
 // VERSIE: 1
-// GEWIJZIGD: 03-04-2026 22:00
+// GEWIJZIGD: 03-04-2026 18:00
 //
-// WIJZIGINGEN (03-04-2026 22:00):
-// - Initiële aanmaak: GET /api/dashboard/cat/transacties — transacties per subcategorie
+// WIJZIGINGEN (03-04-2026 18:00):
+// - Extra velden voor CategoriePopup en contextmenu (categorie_id, toelichting, omschrijving_1/2/3, etc.)
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getTransacties } from '@/lib/transacties';
@@ -38,8 +38,16 @@ export function GET(request: NextRequest) {
       omschrijving:    [t.omschrijving_1, t.omschrijving_2, t.omschrijving_3].filter(Boolean).join(' '),
       bedrag:          t.bedrag,
       rekening_naam:   t.rekening_naam,
+      categorie_id:    t.categorie_id,
       categorie:       t.categorie,
       subcategorie:    t.subcategorie,
+      toelichting:     t.toelichting,
+      type:            t.type,
+      tegenrekening_iban_bban: t.tegenrekening_iban_bban,
+      omschrijving_1:  t.omschrijving_1,
+      omschrijving_2:  t.omschrijving_2,
+      omschrijving_3:  t.omschrijving_3,
+      handmatig_gecategoriseerd: t.handmatig_gecategoriseerd,
     })));
   } catch (err) {
     const bericht = err instanceof Error ? err.message : 'Databasefout.';

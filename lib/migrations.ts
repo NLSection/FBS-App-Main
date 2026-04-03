@@ -330,6 +330,9 @@ export function runMigrations(): void {
   // ── Stap 14: Laatst herstelde backup bijhouden (cross-device sync) ───────
   try { db.exec("ALTER TABLE instellingen ADD COLUMN laatst_herstelde_backup TEXT DEFAULT NULL"); } catch {}
 
+  // ── Stap 15: Transacties in subcategorieën standaard uitgeklapt ─────────
+  try { db.exec("ALTER TABLE instellingen ADD COLUMN cat_trx_uitgeklapt INTEGER NOT NULL DEFAULT 0"); } catch {}
+
   // ── Stap 7: Cleanup pre-fix imports zonder volgnummer ────────────────────
   // Transacties geïmporteerd vóór de 'Volgnr'-fix hebben volgnummer = NULL.
   // Als er transacties zijn maar geen enkel volgnummer gevuld is, zijn ze
