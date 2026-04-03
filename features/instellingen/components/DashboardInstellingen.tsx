@@ -8,7 +8,7 @@
 
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 interface DashInst {
   dashboardBlsTonen:      boolean;
@@ -36,6 +36,21 @@ export default function DashboardInstellingen() {
   const [inst, setInst]   = useState<DashInst | null>(null);
   const [bezig, setBezig] = useState(false);
   const [fout, setFout]   = useState<string | null>(null);
+  const [highlight, setHighlight] = useState<'bls' | 'cat' | null>(null);
+  const blsRef = useRef<HTMLDivElement>(null);
+  const catRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const hash = window.location.hash;
+    if (hash === '#highlight-bls') { setHighlight('bls'); setTimeout(() => setHighlight(null), 3000); }
+    if (hash === '#highlight-cat') { setHighlight('cat'); setTimeout(() => setHighlight(null), 3000); }
+    if (hash.startsWith('#highlight-')) {
+      setTimeout(() => {
+        const el = hash === '#highlight-bls' ? blsRef.current : catRef.current;
+        el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 100);
+    }
+  }, []);
 
   useEffect(() => {
     fetch('/api/instellingen')
@@ -80,13 +95,13 @@ export default function DashboardInstellingen() {
           <div style={{ ...col3, ...dimStijl }}>Uitgeklapt</div>
         </div>
         {/* BLS rij */}
-        <div style={rijStijl}>
+        <div ref={blsRef} style={{ ...rijStijl, ...(highlight === 'bls' ? { animation: 'highlight-pulse 1s ease-in-out 3' } : {}) }}>
           <span style={col1}>Balans Budgetten en Potjes</span>
           <div style={col2}><Toggle checked={inst.dashboardBlsTonen}      onChange={v => opslaan({ dashboardBlsTonen: v })}      disabled={bezig} /></div>
           <div style={col3}><Toggle checked={inst.dashboardBlsUitgeklapt} onChange={v => opslaan({ dashboardBlsUitgeklapt: v })} disabled={bezig} /></div>
         </div>
         {/* CAT rij */}
-        <div style={rijStijl}>
+        <div ref={catRef} style={{ ...rijStijl, ...(highlight === 'cat' ? { animation: 'highlight-pulse 1s ease-in-out 3' } : {}) }}>
           <span style={col1}>Samenvatting per Categorie</span>
           <div style={col2}><Toggle checked={inst.dashboardCatTonen}      onChange={v => opslaan({ dashboardCatTonen: v })}      disabled={bezig} /></div>
           <div style={col3}><Toggle checked={inst.dashboardCatUitgeklapt} onChange={v => opslaan({ dashboardCatUitgeklapt: v })} disabled={bezig} /></div>
