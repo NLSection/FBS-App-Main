@@ -1,0 +1,45 @@
+#!/bin/sh
+
+INSTALL_DIR="/var/packages/FBS/target"
+NODE="${INSTALL_DIR}/node/bin/node"
+APP="${INSTALL_DIR}/app/server.js"
+PID_FILE="/var/run/fbs.pid"
+LOG_FILE="/var/log/fbs.log"
+PORT=3000
+
+start() {
+    if [ -f "${PID_FILE}" ] && kill -0 $(cat "${PID_FILE}") 2>/dev/null; then
+        echo "FBS draait al"
+        exit 0
+    fi
+    cd "${INSTALL_DIR}/app"
+    PORT=${PORT} "${NODE}" "${APP}" >> "${LOG_FILE}" 2>&1 &
+    echo $! > "${PID_FILE}"
+    echo "FBS gestart op poort ${PORT}"
+    exit 0
+}
+
+stop() {
+    if [ -f "${PID_FILE}" ]; then
+        kill $(cat "${PID_FILE}") 2>/dev/null
+        rm -f "${PID_FILE}"
+        echo "FBS gestopt"
+    fi
+    exit 0
+}
+
+status() {
+    if [ -f "${PID_FILE}" ] && kill -0 $(cat "${PID_FILE}") 2>/dev/null; then
+        echo "running"
+        exit 0
+    else
+        echo "stopped"
+        exit 1
+    fi
+}
+
+case $1 in
+    start)  start  ;;
+    stop)   stop   ;;
+    status) status ;;
+esac

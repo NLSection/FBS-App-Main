@@ -47,3 +47,7 @@ fbs.db-wal
 
 # persoonlijke configuratie (legacy — nu in SQLite)
 # config/matchConfig.json
+
+# SPK build
+spk-build/
+*.spk
