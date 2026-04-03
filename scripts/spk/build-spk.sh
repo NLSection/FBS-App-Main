@@ -54,12 +54,12 @@ chmod +x "${BUILD_DIR}/spk/scripts/start-stop-status"
 # 7. package.tgz maken
 echo "--- package.tgz inpakken ---"
 cd "${BUILD_DIR}/package"
-tar -czf "${BUILD_DIR}/spk/package.tgz" .
+tar -czf "${BUILD_DIR}/spk/package.tgz" --transform 's|^\./||' .
 
 # 8. SPK maken
 echo "--- SPK inpakken ---"
 cd "${BUILD_DIR}/spk"
-tar -czf "${PROJECT_ROOT}/fbs-v1.0.0-x86_64.spk" .
+tar -czf "${PROJECT_ROOT}/fbs-v1.0.0-x86_64.spk" --transform 's|^\./||' .
 
 echo ""
 echo "=== Klaar! ==="
