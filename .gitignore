@@ -51,3 +51,7 @@ fbs.db-wal
 # SPK build
 spk-build/
 *.spk
+
+# Tauri generated bundles
+src-tauri/binaries/
+src-tauri/app/
