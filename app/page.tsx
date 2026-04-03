@@ -1,9 +1,10 @@
 // FILE: page.tsx
 // AANGEMAAKT: 25-03-2026 14:00
 // VERSIE: 1
-// GEWIJZIGD: 03-04-2026 10:00
+// GEWIJZIGD: 03-04-2026 21:30
 //
-// WIJZIGINGEN (03-04-2026 10:00):
+// WIJZIGINGEN (03-04-2026 21:30):
+// - BLS: groen ✓ rechts naast rechter rekening-badge bij saldo === 0
 // - BLS+CAT wrapper dynamisch: fit-content als ingeklapt, maxWidth 1150 als uitgeklapt
 // - Omschrijving td: title attribuut voor volledige tekst op hover
 // - BLS+CAT wrapper: overflowX auto; beide table-wrappers minWidth 760px; BLS table width 100%
@@ -547,6 +548,7 @@ export default function DashboardPage() {
                             {rekBadge(rij.gedaanOpRekening)}
                             <RichtingsIndicator saldo={rij.saldo} />
                             {rekBadge(rij.hoortOpRekening, hoortLabel)}
+                            {rij.saldo === 0 && <span style={{ color: 'var(--green)', fontSize: 13, fontWeight: 700 }}>✓</span>}
                           </div>
                         </td>
                         <td style={{ ...tdNum, color: bedragKleur(rij.bedrag), fontWeight: 600 }}>{formatBedrag(rij.bedrag)}</td>
