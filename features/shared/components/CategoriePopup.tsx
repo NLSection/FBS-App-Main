@@ -114,6 +114,7 @@ export default function CategoriePopup({
 
   function stelDatumIn(nieuweDatum: string) {
     setTijdelijkeDatum(nieuweDatum);
+    setPatronModal(m => m ? { ...m, scope: 'enkel' } : m);
     setVrijeKeuzeOpen(false);
     setVrijeKeuzeJaarOpen(false);
   }
