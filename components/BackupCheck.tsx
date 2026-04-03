@@ -1,12 +1,10 @@
 // FILE: BackupCheck.tsx
 // AANGEMAAKT: 02-04-2026 10:00
 // VERSIE: 1
-// GEWIJZIGD: 02-04-2026 19:00
+// GEWIJZIGD: 03-04-2026 16:30
 //
-// WIJZIGINGEN (02-04-2026 19:00):
-// - Vereenvoudigd: POST naar /api/restore zonder data (endpoint laadt zelf van disk)
-// WIJZIGINGEN (02-04-2026 10:00):
-// - Initiële aanmaak: check op nieuwere backup bij opstarten + herstel-banner
+// WIJZIGINGEN (03-04-2026 16:30):
+// - Polling elke 5 minuten i.p.v. eenmalige check bij mount (cross-device sync)
 
 'use client';
 
@@ -24,12 +22,18 @@ export default function BackupCheck() {
   const [fout, setFout] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch('/api/backup/check')
-      .then(r => r.json())
-      .then((data: CheckData) => {
-        if (data.backupIsNieuwer) setCheck(data);
-      })
-      .catch(() => {});
+    function doCheck() {
+      fetch('/api/backup/check')
+        .then(r => r.json())
+        .then((data: CheckData) => {
+          if (data.backupIsNieuwer) setCheck(data);
+        })
+        .catch(() => {});
+    }
+
+    doCheck();
+    const interval = setInterval(doCheck, 5 * 60 * 1000);
+    return () => clearInterval(interval);
   }, []);
 
   if (!check) return null;
