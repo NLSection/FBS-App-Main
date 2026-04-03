@@ -4,6 +4,7 @@
 // GEWIJZIGD: 03-04-2026 10:00
 //
 // WIJZIGINGEN (03-04-2026 10:00):
+// - Layout gewijzigd: 1 rij per tabel met 2 toggles (zichtbaar + uitgeklapt)
 // - Initiële aanmaak: toggles voor BLS/CAT weergave en standaard open/dicht
 
 'use client';
@@ -27,14 +28,9 @@ function Toggle({ checked, onChange, disabled }: { checked: boolean; onChange: (
   );
 }
 
-function Rij({ label, checked, onChange, disabled }: { label: string; checked: boolean; onChange: (v: boolean) => void; disabled?: boolean }) {
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 0', borderBottom: '1px solid var(--border)' }}>
-      <span style={{ fontSize: 13, color: 'var(--text)' }}>{label}</span>
-      <Toggle checked={checked} onChange={onChange} disabled={disabled} />
-    </div>
-  );
-}
+const col1: React.CSSProperties = { flex: 1, fontSize: 13, color: 'var(--text)' };
+const col2: React.CSSProperties = { width: 80, display: 'flex', justifyContent: 'center' };
+const col3: React.CSSProperties = { width: 80, display: 'flex', justifyContent: 'center' };
 
 export default function DashboardInstellingen() {
   const [inst, setInst]   = useState<DashInst | null>(null);
@@ -52,8 +48,7 @@ export default function DashboardInstellingen() {
 
   async function opslaan(update: Partial<DashInst>) {
     if (!inst) return;
-    const nieuw = { ...inst, ...update };
-    setInst(nieuw);
+    setInst({ ...inst, ...update });
     setBezig(true);
     setFout(null);
     const res = await fetch('/api/instellingen', {
@@ -65,26 +60,37 @@ export default function DashboardInstellingen() {
     if (!res.ok) {
       const d = await res.json().catch(() => ({})) as { error?: string };
       setFout(d.error ?? 'Opslaan mislukt.');
-      setInst(inst); // terugzetten bij fout
+      setInst(inst);
     }
   }
 
   if (!inst) return null;
 
+  const dimStijl: React.CSSProperties = { fontSize: 11, color: 'var(--text-dim)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' };
+  const rijStijl: React.CSSProperties = { display: 'flex', alignItems: 'center', padding: '10px 0', borderBottom: '1px solid var(--border)' };
+
   return (
     <section>
       <p className="section-title">Dashboard weergave</p>
       <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 10, padding: '4px 20px 12px' }}>
-        <div style={{ fontSize: 11, color: 'var(--text-dim)', padding: '10px 0 4px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Tonen op dashboard</div>
-        <Rij label="Balans Budgetten en Potjes" checked={inst.dashboardBlsTonen} onChange={v => opslaan({ dashboardBlsTonen: v })} disabled={bezig} />
-        <Rij label="Samenvatting per Categorie" checked={inst.dashboardCatTonen} onChange={v => opslaan({ dashboardCatTonen: v })} disabled={bezig} />
-
-        <div style={{ fontSize: 11, color: 'var(--text-dim)', padding: '14px 0 4px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Standaard uitgeklapt</div>
-        <Rij label="Balans Budgetten en Potjes" checked={inst.dashboardBlsUitgeklapt} onChange={v => opslaan({ dashboardBlsUitgeklapt: v })} disabled={bezig} />
-        <div style={{ borderBottom: 'none' }}>
-          <Rij label="Samenvatting per Categorie" checked={inst.dashboardCatUitgeklapt} onChange={v => opslaan({ dashboardCatUitgeklapt: v })} disabled={bezig} />
+        {/* Header */}
+        <div style={{ display: 'flex', alignItems: 'center', padding: '10px 0 4px', borderBottom: '1px solid var(--border)' }}>
+          <div style={{ ...col1 }} />
+          <div style={{ ...col2, ...dimStijl }}>Zichtbaar</div>
+          <div style={{ ...col3, ...dimStijl }}>Uitgeklapt</div>
         </div>
-
+        {/* BLS rij */}
+        <div style={rijStijl}>
+          <span style={col1}>Balans Budgetten en Potjes</span>
+          <div style={col2}><Toggle checked={inst.dashboardBlsTonen}      onChange={v => opslaan({ dashboardBlsTonen: v })}      disabled={bezig} /></div>
+          <div style={col3}><Toggle checked={inst.dashboardBlsUitgeklapt} onChange={v => opslaan({ dashboardBlsUitgeklapt: v })} disabled={bezig} /></div>
+        </div>
+        {/* CAT rij */}
+        <div style={{ ...rijStijl, borderBottom: 'none' }}>
+          <span style={col1}>Samenvatting per Categorie</span>
+          <div style={col2}><Toggle checked={inst.dashboardCatTonen}      onChange={v => opslaan({ dashboardCatTonen: v })}      disabled={bezig} /></div>
+          <div style={col3}><Toggle checked={inst.dashboardCatUitgeklapt} onChange={v => opslaan({ dashboardCatUitgeklapt: v })} disabled={bezig} /></div>
+        </div>
         {fout && <p style={{ color: 'var(--red)', fontSize: 12, marginTop: 8 }}>{fout}</p>}
       </div>
     </section>
