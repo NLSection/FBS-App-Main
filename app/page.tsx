@@ -1,7 +1,7 @@
 // FILE: page.tsx
 // AANGEMAAKT: 25-03-2026 14:00
 // VERSIE: 1
-// GEWIJZIGD: 03-04-2026 22:00
+// GEWIJZIGD: 03-04-2026 23:00
 //
 // WIJZIGINGEN (03-04-2026 21:30):
 // - BLS: groen ✓ rechts naast rechter rekening-badge bij saldo === 0
@@ -379,7 +379,7 @@ export default function DashboardPage() {
 
   async function laadCatSubTrx(catNaam: string, subNaam: string) {
     const key = `${catNaam}::${subNaam}`;
-    if (catSubLaden.has(key)) return;
+    if (catSubLaden.has(key) || catSubTrx.has(key)) return;
     setCatSubLaden(prev => { const next = new Set(prev); next.add(key); return next; });
     const start = geselecteerdePeriode?.start ?? '';
     const eind  = geselecteerdePeriode?.eind  ?? '';
@@ -775,15 +775,16 @@ export default function DashboardPage() {
                         const subTrxs     = catSubTrx.get(subKey) ?? [];
                         const subIsLaden  = catSubLaden.has(subKey);
                         const canExpand   = dashInst.catUitklappen && sub.subcategorie.length > 0;
-                        function toggleSub(e: React.MouseEvent) {
+                        const toggleSub = (e: React.MouseEvent) => {
                           e.stopPropagation();
+                          const willOpen = !openCatSubRows.has(subKey);
                           setOpenCatSubRows(prev => {
                             const next = new Set(prev);
-                            if (next.has(subKey)) { next.delete(subKey); }
-                            else { next.add(subKey); laadCatSubTrx(cat.categorie, sub.subcategorie); }
+                            if (next.has(subKey)) next.delete(subKey); else next.add(subKey);
                             return next;
                           });
-                        }
+                          if (willOpen) laadCatSubTrx(cat.categorie, sub.subcategorie);
+                        };
                         return (
                           <Fragment key={subKey}>
                             <tr
@@ -791,6 +792,8 @@ export default function DashboardPage() {
                               style={{ borderBottom: 'none', cursor: canExpand ? 'pointer' : 'default' }}
                               onClick={canExpand ? toggleSub : undefined}
                               onContextMenu={e => openContextMenu(e, `ctx-cat-sub-${subKey}`, catSubMenuItems(cat.categorie, sub.subcategorie))}
+                              onMouseEnter={canExpand ? e => (e.currentTarget.style.background = 'var(--bg-hover)') : undefined}
+                              onMouseLeave={canExpand ? e => (e.currentTarget.style.background = '') : undefined}
                             >
                               <td style={{ paddingLeft: 32, paddingTop: 3, paddingBottom: 3, fontSize: 13, color: 'var(--text-dim)' }}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
