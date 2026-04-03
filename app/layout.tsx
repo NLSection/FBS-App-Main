@@ -16,7 +16,7 @@ import Sidebar from "@/components/Sidebar";
 import BackupCheck from "@/components/BackupCheck";
 import { SidebarProvider } from "@/lib/sidebar-context";
 import "./globals.css";
-import { runMigrations } from "@/lib/migrations";
+
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -38,8 +38,6 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  runMigrations();
-
   return (
     <html lang="nl" className={`${geistSans.variable} ${geistMono.variable}`}>
       <body>

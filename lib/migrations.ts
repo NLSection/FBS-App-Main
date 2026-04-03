@@ -219,7 +219,7 @@ export function runMigrations(): void {
   // ── Stap 8: Omboekingen als beschermde categorie + Vaste Lasten/Overige Uitgaven ontgrendeld
   const ombRij = db.prepare("SELECT id FROM budgetten_potjes WHERE naam = 'Omboekingen'").get() as { id: number } | undefined;
   if (!ombRij) {
-    db.prepare("INSERT INTO budgetten_potjes (naam, rekening_id, beschermd, kleur) VALUES ('Omboekingen', NULL, 1, '#00BCD4')").run();
+    db.prepare("INSERT INTO budgetten_potjes (naam, type, rekening_id, beschermd, kleur) VALUES ('Omboekingen', 'potje', NULL, 1, '#00BCD4')").run();
   } else {
     db.prepare("UPDATE budgetten_potjes SET beschermd = 1 WHERE naam = 'Omboekingen'").run();
   }
@@ -269,7 +269,7 @@ export function runMigrations(): void {
   // ── Stap 11: "Aangepast" als beschermd systeemitem ─────────────────────
   const aangepastRij = db.prepare("SELECT id FROM budgetten_potjes WHERE naam = 'Aangepast'").get() as { id: number } | undefined;
   if (!aangepastRij) {
-    db.prepare("INSERT INTO budgetten_potjes (naam, rekening_id, beschermd, kleur) VALUES ('Aangepast', NULL, 1, '#e8590c')").run();
+    db.prepare("INSERT INTO budgetten_potjes (naam, type, rekening_id, beschermd, kleur) VALUES ('Aangepast', 'potje', NULL, 1, '#e8590c')").run();
   } else {
     db.prepare("UPDATE budgetten_potjes SET beschermd = 1 WHERE naam = 'Aangepast'").run();
   }
