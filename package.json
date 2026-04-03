@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "build:spk": "bash scripts/spk/build-spk.sh"
+    "build:spk": "bash scripts/spk/build-spk.sh",
+    "install:nas": "bash scripts/spk/install-via-ssh.sh"
   },
   "dependencies": {
     "better-sqlite3": "^12.8.0",
