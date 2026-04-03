@@ -504,7 +504,7 @@ export default function DashboardPage() {
                 const rekBadge = (naam: string, label?: string): React.ReactNode => {
                   const kleur = naamKleur(naam);
                   return (
-                    <span style={{ display: 'inline-block', fontSize: 11, borderRadius: 3, padding: '0px 6px', fontWeight: 600, background: kleurBg(kleur), border: `1px solid ${kleur}`, color: kleur, whiteSpace: 'nowrap', textAlign: 'center' }}>
+                    <span style={{ display: 'inline-block', fontSize: 11, borderRadius: 3, padding: '0px 6px', fontWeight: 600, border: `1px solid ${kleur}`, color: kleur, whiteSpace: 'nowrap', textAlign: 'center' }}>
                       {label ?? naam}
                     </span>
                   );
