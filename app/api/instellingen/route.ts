@@ -1,8 +1,10 @@
 // FILE: route.ts
 // AANGEMAAKT: 25-03-2026 21:00
 // VERSIE: 1
-// GEWIJZIGD: 25-03-2026 21:00
+// GEWIJZIGD: 03-04-2026 10:00
 //
+// WIJZIGINGEN (03-04-2026 10:00):
+// - PUT accepteert partiële updates; dashboard weergave-velden toegevoegd
 // WIJZIGINGEN (25-03-2026 21:00):
 // - Initiële aanmaak: GET en PUT /api/instellingen
 
@@ -19,15 +21,20 @@ export function GET() {
 }
 
 export async function PUT(request: NextRequest) {
-  let body: { maandStartDag?: unknown };
+  let body: Record<string, unknown>;
   try { body = await request.json(); } catch {
     return NextResponse.json({ error: 'Ongeldig JSON.' }, { status: 400 });
   }
-  if (body.maandStartDag === undefined) {
-    return NextResponse.json({ error: 'maandStartDag is verplicht.' }, { status: 400 });
-  }
+
+  const update: Parameters<typeof updateInstellingen>[0] = {};
+  if (body.maandStartDag          !== undefined) update.maandStartDag          = body.maandStartDag          as number;
+  if (body.dashboardBlsTonen      !== undefined) update.dashboardBlsTonen      = Boolean(body.dashboardBlsTonen);
+  if (body.dashboardCatTonen      !== undefined) update.dashboardCatTonen      = Boolean(body.dashboardCatTonen);
+  if (body.dashboardBlsUitgeklapt !== undefined) update.dashboardBlsUitgeklapt = Boolean(body.dashboardBlsUitgeklapt);
+  if (body.dashboardCatUitgeklapt !== undefined) update.dashboardCatUitgeklapt = Boolean(body.dashboardCatUitgeklapt);
+
   try {
-    updateInstellingen({ maandStartDag: body.maandStartDag as number });
+    updateInstellingen(update);
     return new NextResponse(null, { status: 204 });
   } catch (err) {
     const bericht = err instanceof Error ? err.message : 'Databasefout.';

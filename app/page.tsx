@@ -56,7 +56,7 @@
 
 'use client';
 
-import { Fragment, useEffect, useState, useCallback } from 'react';
+import { Fragment, useEffect, useState, useCallback, useRef } from 'react';
 import type { Periode } from '@/lib/maandperiodes';
 import CategoriePopup from '@/features/shared/components/CategoriePopup';
 import type { PatronModalData } from '@/features/shared/components/CategoriePopup';
@@ -197,22 +197,35 @@ export default function DashboardPage() {
   const [openCatRijen, setOpenCatRijen]           = useState<Set<string>>(new Set());
   const [fout, setFout]                           = useState('');
   const [patronModal, setPatronModal]             = useState<PatronModalData | null>(null);
+  const dashInstRef = useRef({ blsTonen: true, catTonen: true, blsUitgeklapt: false, catUitgeklapt: true });
+  const [dashInst, setDashInst]                   = useState(dashInstRef.current);
   const [budgettenPotjes, setBudgettenPotjes]     = useState<BudgetPotjeNaam[]>([]);
   const [rekeningen, setRekeningen]               = useState<Rekening[]>([]);
   const [uniekeCategorieenDropdown, setUniekeCategorieenDropdown] = useState<string[]>([]);
 
-  // Periodes laden
+  // Periodes + dashboard-instellingen laden
   useEffect(() => {
-    fetch('/api/periodes')
-      .then(r => r.ok ? r.json() : Promise.reject(r.statusText))
-      .then((data: Periode[]) => {
-        setPeriodes(data);
-        const actueel = data.find(p => p.status === 'actueel') ?? data[data.length - 1] ?? null;
-        if (actueel) {
-          setGeselecteerdePeriode(actueel);
-          setGeselecteerdJaar(actueel.jaar);
-        }
-      })
+    Promise.all([
+      fetch('/api/periodes').then(r => r.ok ? r.json() : Promise.reject(r.statusText)),
+      fetch('/api/instellingen').then(r => r.ok ? r.json() : null).catch(() => null),
+    ]).then(([periodesData, instData]: [Periode[], Record<string, unknown> | null]) => {
+      if (instData) {
+        const inst = {
+          blsTonen:      instData.dashboardBlsTonen      !== false,
+          catTonen:      instData.dashboardCatTonen      !== false,
+          blsUitgeklapt: Boolean(instData.dashboardBlsUitgeklapt),
+          catUitgeklapt: Boolean(instData.dashboardCatUitgeklapt),
+        };
+        dashInstRef.current = inst;
+        setDashInst(inst);
+      }
+      setPeriodes(periodesData);
+      const actueel = periodesData.find((p: Periode) => p.status === 'actueel') ?? periodesData[periodesData.length - 1] ?? null;
+      if (actueel) {
+        setGeselecteerdePeriode(actueel);
+        setGeselecteerdJaar(actueel.jaar);
+      }
+    })
       .catch(() => setFout('Kon periodes niet ophalen.'))
       .finally(() => setLaadtPeriodes(false));
   }, []);
@@ -238,14 +251,14 @@ export default function DashboardPage() {
 
     fetch(`/api/dashboard/bls?${qs}`)
       .then(r => r.ok ? r.json() : Promise.reject(r.statusText))
-      .then((data: BlsRegel[]) => { setBlsData(data); setOpenRijen(new Set()); })
+      .then((data: BlsRegel[]) => { setBlsData(data); setOpenRijen(dashInstRef.current.blsUitgeklapt ? new Set(data.map(r => `${r.categorie}::${r.gedaanOpRekening}`)) : new Set()); })
       .catch(() => setFout('Kon BLS-data niet ophalen.'))
       .finally(() => setLaadtBls(false));
 
     setLaadtCat(true);
     fetch(`/api/dashboard/cat?${qs}`)
       .then(r => r.ok ? r.json() : Promise.reject(r.statusText))
-      .then((data: CatRegel[]) => { setCatData(data); setOpenCatRijen(new Set(data.map(c => c.categorie))); })
+      .then((data: CatRegel[]) => { setCatData(data); setOpenCatRijen(dashInstRef.current.catUitgeklapt ? new Set(data.map(c => c.categorie)) : new Set()); })
       .catch(() => {})
       .finally(() => setLaadtCat(false));
   }, []);
@@ -468,10 +481,10 @@ export default function DashboardPage() {
       )}
 
       {/* BLS + CAT wrapper — compact als ingeklapt, breed als uitgeklapt */}
-      <div style={openRijen.size > 0 ? { maxWidth: 1150, margin: '0 auto' } : { width: 'fit-content', margin: '0 auto' }}>
+      {(dashInst.blsTonen || dashInst.catTonen) && <div style={openRijen.size > 0 ? { maxWidth: 1150, margin: '0 auto' } : { width: 'fit-content', margin: '0 auto' }}>
 
       {/* BLS Sectie */}
-      <p className="section-title">Balans Budgetten en Potjes</p>
+      {dashInst.blsTonen && <><p className="section-title">Balans Budgetten en Potjes</p>
       {laadtBls ? (
         <div className="loading">BLS-data wordt geladen…</div>
       ) : blsData.length === 0 && !fout ? (
@@ -599,10 +612,10 @@ export default function DashboardPage() {
             </tbody>
           </table>
         </div>
-      )}
+      )}</>}
 
       {/* CAT Sectie — Samenvatting per Categorie */}
-      <p className="section-title" style={{ marginTop: 8 }}>Samenvatting per Categorie</p>
+      {dashInst.catTonen && <><p className="section-title" style={{ marginTop: 8 }}>Samenvatting per Categorie</p>
       {laadtCat ? (
         <div className="loading">Categoriedata wordt geladen…</div>
       ) : catData.length === 0 && !fout ? (
@@ -656,9 +669,9 @@ export default function DashboardPage() {
             </tbody>
           </table>
         </div>
-      )}
+      )}</>}
 
-      </div>{/* einde BLS + CAT wrapper */}
+      </div>}{/* einde BLS + CAT wrapper */}
 
       {patronModal && (
         <CategoriePopup

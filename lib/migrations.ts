@@ -4,6 +4,7 @@
 // GEWIJZIGD: 03-04-2026 10:00
 //
 // WIJZIGINGEN (03-04-2026 10:00):
+// - Stap 13: dashboard weergave-instellingen kolommen toegevoegd aan instellingen
 // - Stap 12 migratie: categorie_id genulld als niet meer aanwezig in categorieen (foreign key fix)
 // WIJZIGINGEN (31-03-2026 20:00):
 // - Stap 12: tabel transactie_aanpassingen aangemaakt; bestaande aanpassingen gemigreerd uit transacties
@@ -320,6 +321,12 @@ export function runMigrations(): void {
       db.prepare('UPDATE transacties SET datum = originele_datum WHERE originele_datum IS NOT NULL').run();
     })();
   }
+
+  // ── Stap 13: Dashboard weergave-instellingen ─────────────────────────────
+  try { db.exec('ALTER TABLE instellingen ADD COLUMN dashboard_bls_tonen     INTEGER NOT NULL DEFAULT 1'); } catch {}
+  try { db.exec('ALTER TABLE instellingen ADD COLUMN dashboard_cat_tonen     INTEGER NOT NULL DEFAULT 1'); } catch {}
+  try { db.exec('ALTER TABLE instellingen ADD COLUMN dashboard_bls_uitgeklapt INTEGER NOT NULL DEFAULT 0'); } catch {}
+  try { db.exec('ALTER TABLE instellingen ADD COLUMN dashboard_cat_uitgeklapt INTEGER NOT NULL DEFAULT 1'); } catch {}
 
   // ── Stap 7: Cleanup pre-fix imports zonder volgnummer ────────────────────
   // Transacties geïmporteerd vóór de 'Volgnr'-fix hebben volgnummer = NULL.

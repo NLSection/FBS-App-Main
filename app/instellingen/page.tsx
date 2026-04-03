@@ -9,6 +9,7 @@
 // - BackupRestore sectie toegevoegd
 
 import AlgemeneInstellingen from '@/features/instellingen/components/AlgemeneInstellingen';
+import DashboardInstellingen from '@/features/instellingen/components/DashboardInstellingen';
 import RekeningenBeheer from '@/features/instellingen/components/RekeningenBeheer';
 import BudgettenPotjesBeheer from '@/features/instellingen/components/BudgettenPotjesBeheer';
 import BackupRestore from '@/features/instellingen/components/BackupRestore';
@@ -18,6 +19,7 @@ export default function InstellingenPage() {
     <div className="space-y-12 max-w-4xl">
       <h1 className="text-xl font-semibold">Instellingen</h1>
       <AlgemeneInstellingen />
+      <DashboardInstellingen />
       <RekeningenBeheer />
       <BudgettenPotjesBeheer />
       <BackupRestore />
