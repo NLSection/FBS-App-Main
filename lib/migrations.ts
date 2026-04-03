@@ -1,8 +1,10 @@
 // FILE: migrations.ts
 // AANGEMAAKT: 25-03-2026 10:00
 // VERSIE: 1
-// GEWIJZIGD: 31-03-2026 20:00
+// GEWIJZIGD: 03-04-2026 10:00
 //
+// WIJZIGINGEN (03-04-2026 10:00):
+// - Stap 12 migratie: categorie_id genulld als niet meer aanwezig in categorieen (foreign key fix)
 // WIJZIGINGEN (31-03-2026 20:00):
 // - Stap 12: tabel transactie_aanpassingen aangemaakt; bestaande aanpassingen gemigreerd uit transacties
 // WIJZIGINGEN (30-03-2026 21:00):
@@ -298,7 +300,7 @@ export function runMigrations(): void {
         SELECT
           id,
           CASE WHEN originele_datum IS NOT NULL THEN datum ELSE NULL END,
-          categorie_id,
+          CASE WHEN categorie_id IS NOT NULL AND EXISTS (SELECT 1 FROM categorieen WHERE id = transacties.categorie_id) THEN categorie_id ELSE NULL END,
           categorie,
           subcategorie,
           COALESCE(status, 'nieuw'),

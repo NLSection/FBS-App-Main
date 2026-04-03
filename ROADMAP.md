@@ -26,11 +26,14 @@
 - Inline bewerking per cel in de Categorieregels tab (naam_zoekwoord, omschrijving_zoekwoord, toelichting, categorie, subcategorie)
 - Chip-lengte filter verwijderd: alle woorden beschikbaar als chip ongeacht lengte
 - Categorieregel update behoudt bestaande omschrijving_zoekwoord en naam_zoekwoord als deze niet expliciet worden meegestuurd
-- Automatische backup na elke schrijfoperatie naar Backup/backup_YYYY-MM-DD_HH-MM-SS.json (max 10 bestanden)
+- Automatische backup na elke schrijfoperatie naar backup/backup_YYYY-MM-DD_HH-MM-SS.json (max 10 bestanden)
 - Backup check bij opstarten: melding als er een nieuwere backup beschikbaar is met optie om te importeren
 - Backup synchronisatie via git mogelijk doordat backups als JSON worden opgeslagen
 
 ## Te doen
+
+### Onderhoud / technische schuld
+- [ ] **Code-audit:** hele app nalopen op dode code en onnodige complexiteit (`app/`, `components/`, `features/`, `lib/`) — bevindingen eerst rapporteren, daarna pas wijzigen
 
 ### Fase 1 — Functionaliteit
 1. Ondersteuning voor andere bank CSV formaten (configureerbare kolomkoppelingen)
@@ -51,7 +54,7 @@
 ### Vóór productie verwijderen
 - DEV-ONLY: /api/restore endpoint verwijderen
 - DEV-ONLY: BackupCheck component en /api/backup/check verwijderen
-- DEV-ONLY: Backup/ map uit Git verwijderen en toevoegen aan .gitignore
+- DEV-ONLY: backup/ map uit Git verwijderen en toevoegen aan .gitignore
 
 ### Fase 3 — Uitrol
 10. Gedeelde database via netwerkpad: optie in instellingen om SQLite

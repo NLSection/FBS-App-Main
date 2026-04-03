@@ -1,8 +1,10 @@
 // FILE: backup.ts
 // AANGEMAAKT: 02-04-2026 10:00
 // VERSIE: 1
-// GEWIJZIGD: 02-04-2026 10:00
+// GEWIJZIGD: 03-04-2026 10:00
 //
+// WIJZIGINGEN (03-04-2026 10:00):
+// - transactie_aanpassingen toegevoegd aan TABELLEN
 // WIJZIGINGEN (02-04-2026 10:00):
 // - Initiële aanmaak: triggerBackup() — asynchroon JSON-export + rotatie tot 10 bestanden
 
@@ -10,9 +12,9 @@ import fs from 'fs';
 import path from 'path';
 import getDb from './db';
 
-const BACKUP_DIR = path.join(process.cwd(), 'Backup');
+const BACKUP_DIR = path.join(process.cwd(), 'backup');
 const DB_PATH    = path.join(process.cwd(), 'fbs.db');
-const TABELLEN   = ['transacties', 'imports', 'categorieen', 'budgetten_potjes', 'rekeningen', 'instellingen'];
+const TABELLEN   = ['transacties', 'transactie_aanpassingen', 'imports', 'categorieen', 'budgetten_potjes', 'rekeningen', 'instellingen'];
 const MAX_BACKUPS = 10;
 
 export function triggerBackup(): void {

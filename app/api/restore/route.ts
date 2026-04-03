@@ -1,8 +1,11 @@
 // FILE: route.ts (api/restore)
 // AANGEMAAKT: 29-03-2026 15:00
 // VERSIE: 1
-// GEWIJZIGD: 02-04-2026 19:00
+// GEWIJZIGD: 03-04-2026 10:00
 //
+// WIJZIGINGEN (03-04-2026 10:00):
+// - transactie_aanpassingen toegevoegd aan TABEL_VOLGORDE (achter transacties)
+// - BACKUP_DIR lowercase: backup/ i.p.v. Backup/
 // WIJZIGINGEN (02-04-2026 19:00):
 // - Herschreven: accepteert { bestandsnaam?: string }, laadt JSON van disk
 // - Zonder bestandsnaam wordt de meest recente backup gebruikt (via backup-meta.json)
@@ -21,10 +24,10 @@ import fs from 'fs';
 import path from 'path';
 import getDb from '@/lib/db';
 
-const BACKUP_DIR = path.join(process.cwd(), 'Backup');
+const BACKUP_DIR = path.join(process.cwd(), 'backup');
 
 // Ouder-tabellen eerst; delete in omgekeerde volgorde
-const TABEL_VOLGORDE = ['instellingen', 'rekeningen', 'categorieen', 'imports', 'budgetten_potjes', 'transacties'];
+const TABEL_VOLGORDE = ['instellingen', 'rekeningen', 'categorieen', 'imports', 'budgetten_potjes', 'transacties', 'transactie_aanpassingen'];
 
 export async function POST(req: NextRequest) {
   let bestandsnaam: string | undefined;

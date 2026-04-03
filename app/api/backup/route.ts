@@ -1,15 +1,17 @@
 // FILE: route.ts (api/backup)
 // AANGEMAAKT: 29-03-2026 15:00
 // VERSIE: 1
-// GEWIJZIGD: 29-03-2026 15:00
+// GEWIJZIGD: 03-04-2026 10:00
 //
+// WIJZIGINGEN (03-04-2026 10:00):
+// - transactie_aanpassingen toegevoegd aan TOEGESTANE_TABELLEN
 // WIJZIGINGEN (29-03-2026 15:00):
 // - Initiële aanmaak: GET /api/backup?tabellen=... exporteert geselecteerde tabellen als JSON
 
 import { NextRequest, NextResponse } from 'next/server';
 import getDb from '@/lib/db';
 
-const TOEGESTANE_TABELLEN = ['transacties', 'imports', 'categorieen', 'budgetten_potjes', 'rekeningen', 'instellingen'];
+const TOEGESTANE_TABELLEN = ['transacties', 'transactie_aanpassingen', 'imports', 'categorieen', 'budgetten_potjes', 'rekeningen', 'instellingen'];
 
 export function GET(req: NextRequest) {
   const param = req.nextUrl.searchParams.get('tabellen') ?? '';

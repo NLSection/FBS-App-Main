@@ -1,8 +1,10 @@
 // FILE: route.ts (api/backup/check)
 // AANGEMAAKT: 02-04-2026 10:00
 // VERSIE: 1
-// GEWIJZIGD: 02-04-2026 10:00
+// GEWIJZIGD: 03-04-2026 10:00
 //
+// WIJZIGINGEN (03-04-2026 10:00):
+// - BACKUP_DIR lowercase: backup/ i.p.v. Backup/
 // WIJZIGINGEN (02-04-2026 10:00):
 // - Initiële aanmaak: GET vergelijkt nieuwste backup met db-mtime
 
@@ -10,7 +12,7 @@ import { NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
 
-const BACKUP_DIR = path.join(process.cwd(), 'Backup');
+const BACKUP_DIR = path.join(process.cwd(), 'backup');
 const DB_PATH    = path.join(process.cwd(), 'fbs.db');
 
 export function GET() {
