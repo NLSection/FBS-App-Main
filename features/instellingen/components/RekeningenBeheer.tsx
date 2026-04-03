@@ -323,11 +323,9 @@ export default function RekeningenBeheer() {
           </table>
         </div>
       )}
-      {/* Genegeerde Rekeningen */}
+      {/* Genegeerde Rekeningen — alleen tonen als er genegeerde rekeningen zijn */}
+      {genegeerd.length > 0 && (<>
       <p className="section-title" style={{ marginTop: 32 }}>Genegeerde Rekeningen</p>
-      {genegeerd.length === 0 ? (
-        <p className="empty">Geen genegeerde rekeningen.</p>
-      ) : (
         <div className="table-wrapper">
           <table>
             <thead>
@@ -354,7 +352,7 @@ export default function RekeningenBeheer() {
             </tbody>
           </table>
         </div>
-      )}
+      </>)}
     </section>
   );
 }
