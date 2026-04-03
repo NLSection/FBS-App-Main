@@ -6,6 +6,7 @@
 // WIJZIGINGEN (03-04-2026 10:00):
 // - BLS+CAT wrapper: overflowX auto; beide table-wrappers minWidth 760px; BLS table width 100%
 // - Subtabel kolommen vaste breedtes; subtabel minWidth 900; BLS+CAT wrappers minWidth 966
+// - Revert breedte-overrides; subtabel tableLayout fixed met auto Omschrijving kolom
 // WIJZIGINGEN (03-04-2026 03:00):
 // - CAT-tabel: Samenvatting per Categorie sectie onder BLS-tabel
 // WIJZIGINGEN (03-04-2026 01:00):
@@ -465,7 +466,7 @@ export default function DashboardPage() {
       )}
 
       {/* BLS + CAT wrapper */}
-      <div style={{ maxWidth: 960, margin: '0 auto', overflowX: 'auto' }}>
+      <div style={{ maxWidth: 960, margin: '0 auto' }}>
 
       {/* BLS Sectie */}
       <p className="section-title">Balans Budgetten en Potjes</p>
@@ -474,8 +475,8 @@ export default function DashboardPage() {
       ) : blsData.length === 0 && !fout ? (
         <div className="empty">Geen data voor deze periode.</div>
       ) : (
-        <div className="table-wrapper" style={{ marginBottom: 36, overflowX: 'auto', minWidth: 966 }}>
-          <table style={{ width: '100%' }}>
+        <div className="table-wrapper" style={{ marginBottom: 36 }}>
+          <table>
             <colgroup>
               <col style={{ width: 'auto' }} />
               <col />
@@ -541,14 +542,14 @@ export default function DashboardPage() {
                       {isOpen && rij.transacties && rij.transacties.length > 0 && (
                         <tr className="bls-expand">
                           <td colSpan={5} style={{ padding: '0 8px 8px 28px' }}>
-                            <table style={{ width: '100%', fontSize: 12, borderCollapse: 'collapse', minWidth: 900 }}>
+                            <table style={{ width: '100%', fontSize: 12, borderCollapse: 'collapse', tableLayout: 'fixed' }}>
                               <colgroup>
                                 <col style={{ width: 100 }} />
                                 <col style={{ width: 200 }} />
-                                <col style={{ width: 280 }} />
+                                <col />
                                 <col style={{ width: 90 }} />
-                                <col style={{ width: 130 }} />
-                                <col style={{ width: 130 }} />
+                                <col style={{ width: 140 }} />
+                                <col style={{ width: 140 }} />
                               </colgroup>
                               <thead>
                                 <tr style={{ color: 'var(--text-dim)', borderBottom: '1px solid var(--border)' }}>
@@ -605,8 +606,8 @@ export default function DashboardPage() {
       ) : catData.length === 0 && !fout ? (
         <div className="empty">Geen categoriedata voor deze periode.</div>
       ) : (
-        <div className="table-wrapper" style={{ marginBottom: 36, overflowX: 'auto', minWidth: 966 }}>
-          <table style={{ width: '100%' }}>
+        <div className="table-wrapper" style={{ marginBottom: 36 }}>
+          <table>
             <colgroup>
               <col />
               <col style={{ width: 120 }} />
