@@ -37,8 +37,12 @@ function getDb(): Database.Database {
     `).run();
     // Migratie: cat_uitklappen kolom aan instellingen toevoegen indien nog niet aanwezig
     try {
-      global._db.prepare('ALTER TABLE instellingen ADD COLUMN cat_uitklappen INTEGER DEFAULT 0').run();
+      global._db.prepare('ALTER TABLE instellingen ADD COLUMN cat_uitklappen INTEGER DEFAULT 1').run();
     } catch { /* kolom bestaat al */ }
+    // Zet bestaande rijen op 1 als de waarde nog 0 is (eerste keer na kolom-aanmaak)
+    try {
+      global._db.prepare('UPDATE instellingen SET cat_uitklappen = 1 WHERE cat_uitklappen = 0').run();
+    } catch { /* geen actie nodig */ }
   }
   return global._db;
 }

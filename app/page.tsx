@@ -223,7 +223,7 @@ export default function DashboardPage() {
   const [openCatRijen, setOpenCatRijen]           = useState<Set<string>>(new Set());
   const [fout, setFout]                           = useState('');
   const [patronModal, setPatronModal]             = useState<PatronModalData | null>(null);
-  const dashInstRef = useRef({ blsTonen: true, catTonen: true, blsUitgeklapt: false, catUitgeklapt: true, catUitklappen: false });
+  const dashInstRef = useRef({ blsTonen: true, catTonen: true, blsUitgeklapt: false, catUitgeklapt: true, catUitklappen: true });
   const [dashInst, setDashInst]                   = useState(dashInstRef.current);
   const [budgettenPotjes, setBudgettenPotjes]     = useState<BudgetPotjeNaam[]>([]);
   const [rekeningen, setRekeningen]               = useState<Rekening[]>([]);
@@ -788,7 +788,6 @@ export default function DashboardPage() {
                         return (
                           <Fragment key={subKey}>
                             <tr
-                              className="bls-expand"
                               style={{ borderBottom: 'none', cursor: canExpand ? 'pointer' : 'default' }}
                               onClick={canExpand ? toggleSub : undefined}
                               onContextMenu={e => openContextMenu(e, `ctx-cat-sub-${subKey}`, catSubMenuItems(cat.categorie, sub.subcategorie))}
