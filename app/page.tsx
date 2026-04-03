@@ -4,6 +4,8 @@
 // GEWIJZIGD: 03-04-2026 10:00
 //
 // WIJZIGINGEN (03-04-2026 10:00):
+// - BLS+CAT wrapper dynamisch: fit-content als ingeklapt, maxWidth 1150 als uitgeklapt
+// - Omschrijving td: title attribuut voor volledige tekst op hover
 // - BLS+CAT wrapper: overflowX auto; beide table-wrappers minWidth 760px; BLS table width 100%
 // - Subtabel kolommen vaste breedtes; subtabel minWidth 900; BLS+CAT wrappers minWidth 966
 // - Revert breedte-overrides; subtabel tableLayout fixed met auto Omschrijving kolom
@@ -465,8 +467,8 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* BLS + CAT wrapper */}
-      <div style={{ maxWidth: 1150, margin: '0 auto' }}>
+      {/* BLS + CAT wrapper — compact als ingeklapt, breed als uitgeklapt */}
+      <div style={openRijen.size > 0 ? { maxWidth: 1150, margin: '0 auto' } : { width: 'fit-content', margin: '0 auto' }}>
 
       {/* BLS Sectie */}
       <p className="section-title">Balans Budgetten en Potjes</p>
