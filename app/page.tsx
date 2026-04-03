@@ -777,16 +777,21 @@ export default function DashboardPage() {
         <div className="empty">Geen categoriedata voor deze periode.</div>
       ) : (
         <div className="table-wrapper" style={{ marginBottom: 36 }}>
-          <table>
+          {(() => {
+            const isAlle = geselecteerdePeriode === null;
+            const aantalAfgesloten = isAlle ? periodes.filter(p => p.jaar === geselecteerdJaar && p.status === 'afgesloten').length : 0;
+            return (<table>
             <colgroup>
               <col />
-              <col style={{ width: 120 }} />
+              <col style={{ width: isAlle ? 150 : 120 }} />
+              {isAlle && <col style={{ width: 180 }} />}
               <col style={{ width: 36 }} />
             </colgroup>
             <thead>
               <tr>
                 <th>Categorie</th>
-                <th style={{ textAlign: 'right' }}>Bedrag</th>
+                <th style={{ textAlign: 'right', padding: '8px 16px' }}>{isAlle ? `Totaal over ${geselecteerdJaar}` : 'Bedrag'}</th>
+                {isAlle && <th style={{ textAlign: 'right', padding: '8px 16px' }}>Gemiddeld per maand</th>}
                 <th style={{ width: 36 }} />
               </tr>
             </thead>
@@ -810,6 +815,7 @@ export default function DashboardPage() {
                           </div>
                         </td>
                         <td style={{ textAlign: 'right', padding: '8px 16px', fontVariantNumeric: 'tabular-nums', fontWeight: 700, color: bedragKleur(cat.totaal), fontSize: 14 }}>{formatBedrag(cat.totaal)}</td>
+                        {isAlle && <td style={{ textAlign: 'right', padding: '8px 16px', fontVariantNumeric: 'tabular-nums', fontWeight: 700, color: aantalAfgesloten > 0 ? bedragKleur(cat.totaal / aantalAfgesloten) : 'var(--text-dim)', fontSize: 14 }}>{aantalAfgesloten > 0 ? formatBedrag(cat.totaal / aantalAfgesloten) : '—'}</td>}
                         <td style={{ width: 36, padding: 0, textAlign: 'center', verticalAlign: 'middle' }} onClick={e => e.stopPropagation()}>
                           <HamburgerBtn menuKey={`h-cat-${cat.categorie}`} items={catHoofdItems(cat.categorie)} onOpen={openMenu} />
                         </td>
@@ -846,13 +852,14 @@ export default function DashboardPage() {
                                 </div>
                               </td>
                               <td style={{ textAlign: 'right', padding: '3px 16px', fontVariantNumeric: 'tabular-nums', color: 'var(--text-dim)', fontSize: 13 }}>{formatBedrag(sub.bedrag)}</td>
+                              {isAlle && <td style={{ textAlign: 'right', padding: '3px 16px', fontVariantNumeric: 'tabular-nums', color: 'var(--text-dim)', fontSize: 13 }}>{aantalAfgesloten > 0 ? formatBedrag(sub.bedrag / aantalAfgesloten) : '—'}</td>}
                               <td style={{ width: 36, padding: 0, textAlign: 'center', verticalAlign: 'middle' }} onClick={e => e.stopPropagation()}>
                                 <HamburgerBtn menuKey={`h-cat-sub-${subKey}`} items={catSubMenuItems(cat.categorie, sub.subcategorie)} onOpen={openMenu} />
                               </td>
                             </tr>
                             {isSubOpen && (
                               <tr className="bls-expand">
-                                <td colSpan={3} style={{ padding: '0 8px 8px 28px' }}>
+                                <td colSpan={isAlle ? 4 : 3} style={{ padding: '0 8px 8px 28px' }}>
                                   {subIsLaden ? (
                                     <div style={{ fontSize: 12, color: 'var(--text-dim)', padding: '4px 0' }}>Laden…</div>
                                   ) : subTrxs.length === 0 ? (
@@ -907,7 +914,8 @@ export default function DashboardPage() {
                 });
               })()}
             </tbody>
-          </table>
+          </table>);
+          })()}
         </div>
       )}</>}
 
