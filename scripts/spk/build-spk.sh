@@ -39,7 +39,7 @@ npm ci --omit=dev --target_arch=x64 --target_platform=linux
 echo "--- Node.js ${NODE_VERSION} downloaden ---"
 cd "${BUILD_DIR}"
 if [ ! -f "${NODE_TARBALL}" ]; then
-    curl -fsSL "${NODE_URL}" -o "${NODE_TARBALL}"
+    curl -fsSL --ssl-no-revoke "${NODE_URL}" -o "${NODE_TARBALL}"
 fi
 tar -xzf "${NODE_TARBALL}" --strip-components=1 -C package/node
 
