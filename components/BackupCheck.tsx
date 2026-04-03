@@ -1,10 +1,10 @@
 // FILE: BackupCheck.tsx
 // AANGEMAAKT: 02-04-2026 10:00
 // VERSIE: 1
-// GEWIJZIGD: 03-04-2026 17:00
+// GEWIJZIGD: 03-04-2026 17:30
 //
-// WIJZIGINGEN (03-04-2026 17:00):
-// - Restyled naar centered modal met overlay, in lijn met app-design (dark theme)
+// WIJZIGINGEN (03-04-2026 17:30):
+// - Modal met aparte header-balk, gescheiden body en knoppen — in lijn met app-stijl
 
 'use client';
 
@@ -69,43 +69,54 @@ export default function BackupCheck() {
       background: 'rgba(0,0,0,0.6)',
     }}>
       <div style={{
-        background: 'var(--bg-card)', border: '1px solid var(--border)',
-        borderRadius: 10, padding: 28, minWidth: 340, maxWidth: 440,
-        boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
-        textAlign: 'center',
+        background: 'var(--bg-surface)', border: '1px solid var(--border)',
+        borderRadius: 10, overflow: 'hidden', minWidth: 380, maxWidth: 460,
+        boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
       }}>
-        <p style={{ margin: '0 0 6px', fontWeight: 600, fontSize: 16, color: 'var(--text-h)' }}>
-          Nieuwe backup beschikbaar
-        </p>
-        <p style={{ margin: '0 0 20px', fontSize: 14, color: 'var(--text)', lineHeight: 1.5 }}>
-          Er is een backup van <strong style={{ color: 'var(--text-h)' }}>{datum}</strong> gesynchroniseerd.
-          <br />Wil je de database bijwerken?
-        </p>
-        {fout && <p style={{ color: '#ef4444', margin: '0 0 12px', fontSize: 13 }}>{fout}</p>}
-        <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
-          <button
-            onClick={herstel}
-            disabled={bezig}
-            style={{
-              background: 'var(--accent)', color: '#fff', border: 'none',
-              borderRadius: 6, padding: '8px 24px', fontSize: 14,
-              fontWeight: 500, cursor: bezig ? 'wait' : 'pointer',
-              opacity: bezig ? 0.6 : 1,
-            }}
-          >
-            {bezig ? 'Bezig…' : 'Importeren'}
-          </button>
-          <button
-            onClick={() => setCheck(null)}
-            disabled={bezig}
-            style={{
-              background: 'transparent', color: 'var(--text)',
-              border: '1px solid var(--border)', borderRadius: 6,
-              padding: '8px 24px', fontSize: 14, cursor: 'pointer',
-            }}
-          >
-            Later
-          </button>
+        {/* Header */}
+        <div style={{
+          background: 'var(--accent)', padding: '14px 20px',
+          display: 'flex', alignItems: 'center', gap: 10,
+        }}>
+          <span style={{ fontSize: 18 }}>&#x1F4E5;</span>
+          <span style={{ fontWeight: 600, fontSize: 15, color: '#fff' }}>
+            Nieuwe backup beschikbaar
+          </span>
+        </div>
+
+        {/* Body */}
+        <div style={{ padding: '20px 24px 24px' }}>
+          <p style={{ margin: '0 0 16px', fontSize: 14, color: 'var(--text)', lineHeight: 1.6 }}>
+            Er is een backup van{' '}
+            <strong style={{ color: 'var(--text-h)' }}>{datum}</strong>{' '}
+            gesynchroniseerd. Wil je de database bijwerken?
+          </p>
+          {fout && <p style={{ color: '#ef4444', margin: '0 0 12px', fontSize: 13 }}>{fout}</p>}
+          <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+            <button
+              onClick={() => setCheck(null)}
+              disabled={bezig}
+              style={{
+                background: 'var(--bg-card)', color: 'var(--text)',
+                border: '1px solid var(--border)', borderRadius: 6,
+                padding: '8px 20px', fontSize: 13, cursor: 'pointer',
+              }}
+            >
+              Later
+            </button>
+            <button
+              onClick={herstel}
+              disabled={bezig}
+              style={{
+                background: 'var(--accent)', color: '#fff', border: 'none',
+                borderRadius: 6, padding: '8px 20px', fontSize: 13,
+                fontWeight: 500, cursor: bezig ? 'wait' : 'pointer',
+                opacity: bezig ? 0.6 : 1,
+              }}
+            >
+              {bezig ? 'Bezig…' : 'Importeren'}
+            </button>
+          </div>
         </div>
       </div>
     </div>
