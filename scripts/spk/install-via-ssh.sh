@@ -1,52 +1,41 @@
 #!/bin/bash
 set -e
 
-NAS_IP="${1:-}"
-NAS_USER="${2:-admin}"
-SPK_FILE="$(dirname "$0")/../../fbs-v1.0.0-x86_64.spk"
-INSTALL_DIR="/var/packages/FBS/target"
+SPK_FILE="/volume1/Downloads/fbs-v1.0.0-x86_64.spk"
+SPK_DIR="/volume1/Downloads/scripts/spk"
+INSTALL_DIR="/volume2/Docker/FBS-App"
 DATA_DIR="/volume1/FBS"
 
-if [ -z "$NAS_IP" ]; then
-    echo "Gebruik: $0 <nas-ip> [gebruikersnaam]"
-    echo "Voorbeeld: $0 192.168.1.100 admin"
-    exit 1
-fi
-
-echo "=== FBS SSH Installer ==="
-echo "NAS: ${NAS_USER}@${NAS_IP}"
+echo "=== FBS Installer ==="
 echo "SPK: ${SPK_FILE}"
+echo "Installatiemap: ${INSTALL_DIR}"
+echo "Datamap: ${DATA_DIR}"
 
-# 1. Pak package.tgz uit het SPK bestand
+# 1. Mappen aanmaken
+echo "--- Mappen aanmaken ---"
+mkdir -p "${INSTALL_DIR}"
+mkdir -p "${DATA_DIR}"
+
+# 2. package.tgz uitpakken uit SPK naar INSTALL_DIR
 echo "--- SPK uitpakken ---"
 TMP_DIR=$(mktemp -d)
 tar -xzf "${SPK_FILE}" -C "${TMP_DIR}"
-tar -xzf "${TMP_DIR}/package.tgz" -C "${TMP_DIR}"
-rm "${TMP_DIR}/package.tgz"
+tar -xzf "${TMP_DIR}/package.tgz" -C "${INSTALL_DIR}"
+rm -rf "${TMP_DIR}"
 
-# 2. Maak installatiemap aan op NAS
-echo "--- Installatiemap aanmaken op NAS ---"
-ssh "${NAS_USER}@${NAS_IP}" "mkdir -p ${INSTALL_DIR} && mkdir -p ${DATA_DIR}"
+# 3. Symlink database
+echo "--- Database symlink aanmaken ---"
+ln -sf "${DATA_DIR}/fbs.db" "${INSTALL_DIR}/fbs.db"
 
-# 3. Kopieer bestanden naar NAS
-echo "--- Bestanden kopiëren naar NAS (dit kan even duren) ---"
-rsync -avz --progress "${TMP_DIR}/" "${NAS_USER}@${NAS_IP}:${INSTALL_DIR}/"
+# 4. Service script installeren
+echo "--- Service script installeren ---"
+cp "${SPK_DIR}/start-stop-status" /usr/local/bin/fbs-service
+chmod +x /usr/local/bin/fbs-service
 
-# 4. Kopieer start-stop-status script
-scp "${TMP_DIR}/../scripts/start-stop-status" \
-    "${NAS_USER}@${NAS_IP}:/tmp/fbs-start-stop-status"
-
-# 5. Start de app
+# 5. App starten
 echo "--- App starten ---"
-ssh "${NAS_USER}@${NAS_IP}" "
-    chmod +x /tmp/fbs-start-stop-status
-    DATA_DIR=${DATA_DIR} INSTALL_DIR=${INSTALL_DIR} \
-    /tmp/fbs-start-stop-status start
-"
+fbs-service start
 
 echo ""
 echo "=== Klaar ==="
-echo "App bereikbaar op: http://${NAS_IP}:3000"
-
-# Opruimen
-rm -rf "${TMP_DIR}"
+echo "App bereikbaar op: http://$(hostname -I | awk '{print $1}'):3000"
