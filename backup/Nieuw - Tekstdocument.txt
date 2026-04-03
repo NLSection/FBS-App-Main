@@ -1,0 +1,1 @@
+{"backupIsNieuwer":false,"backupDatum":"2026-03-30T21:04:01.752Z","dbDatum":"2026-04-03T04:53:53.010Z","backupBestand":"backup_2026-04-03_15-30-19.json"}
