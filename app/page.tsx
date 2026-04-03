@@ -466,7 +466,7 @@ export default function DashboardPage() {
       )}
 
       {/* BLS + CAT wrapper */}
-      <div style={{ maxWidth: 1400, margin: '0 auto' }}>
+      <div style={{ maxWidth: 1150, margin: '0 auto' }}>
 
       {/* BLS Sectie */}
       <p className="section-title">Balans Budgetten en Potjes</p>
