@@ -289,7 +289,7 @@ button {
   border-radius: 10px;
   overflow-x: auto;
   overflow-y: clip;
-  scrollbar-color: var(--border) var(--bg-base);
+  scrollbar-color: var(--border) transparent;
   scrollbar-width: thin;
 }
 
