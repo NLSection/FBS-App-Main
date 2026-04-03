@@ -545,11 +545,11 @@ export default function DashboardPage() {
                             <table style={{ width: '100%', fontSize: 12, borderCollapse: 'collapse', tableLayout: 'fixed' }}>
                               <colgroup>
                                 <col style={{ width: 100 }} />
-                                <col style={{ width: 200 }} />
+                                <col style={{ width: 150 }} />
                                 <col />
-                                <col style={{ width: 90 }} />
-                                <col style={{ width: 140 }} />
-                                <col style={{ width: 140 }} />
+                                <col style={{ width: 80 }} />
+                                <col style={{ width: 110 }} />
+                                <col style={{ width: 110 }} />
                               </colgroup>
                               <thead>
                                 <tr style={{ color: 'var(--text-dim)', borderBottom: '1px solid var(--border)' }}>
