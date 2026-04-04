@@ -29,6 +29,7 @@ import Link from 'next/link';
 import { useEffect, useRef } from 'react';
 import { usePathname } from 'next/navigation';
 import { useSidebar } from '@/lib/sidebar-context';
+import { APP_VERSION } from '@/lib/version';
 
 const navItems = [
   {
@@ -251,6 +252,7 @@ export default function Sidebar() {
       <div className="sidebar-footer" style={{ justifyContent: collapsed ? 'center' : undefined }}>
         <SectionLabsLogo />
         {!collapsed && <span>Section Labs</span>}
+        {!collapsed && <span style={{ fontSize: 9, color: 'var(--text-dim)', opacity: 0.5, marginLeft: 'auto' }}>v{APP_VERSION}</span>}
       </div>
     </nav>
     {/* Toggle knop — ronde knop half buiten de sidebar */}
