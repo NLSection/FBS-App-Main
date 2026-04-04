@@ -54,8 +54,8 @@ pub fn run() {
                 .env("DB_PATH", &db_path)
                 .spawn();
 
-            let child = match result {
-                Ok((_rx, child)) => child,
+            let (rx, child) = match result {
+                Ok((rx, child)) => (rx, child),
                 Err(e) => {
                     let msg = format!(
                         "Kon Node.js server niet starten.\n\nFout: {e}"
@@ -64,6 +64,23 @@ pub fn run() {
                     std::process::exit(1);
                 }
             };
+
+            // Node stdout/stderr loggen naar fbs-debug.log
+            let log_path_clone = log_path.clone();
+            tauri::async_runtime::spawn(async move {
+                let mut rx = rx;
+                while let Some(event) = rx.recv().await {
+                    if let tauri_plugin_shell::process::CommandEvent::Stdout(line)
+                        | tauri_plugin_shell::process::CommandEvent::Stderr(line) = event
+                    {
+                        if let Ok(mut f) = OpenOptions::new()
+                            .create(true).append(true).open(&log_path_clone)
+                        {
+                            let _ = writeln!(f, "[node] {}", String::from_utf8_lossy(&line));
+                        }
+                    }
+                }
+            });
 
             // Sla child process op voor cleanup
             let state = app.state::<NodeProcess>();
