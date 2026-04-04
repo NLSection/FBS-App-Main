@@ -49,7 +49,7 @@ pub fn run() {
                 .sidecar("node")
                 .map_err(|e| format!("Kan sidecar niet aanmaken: {e}"))?
                 .args([server_js_str.as_str()])
-                .env("PORT", "3000")
+                .env("PORT", "3001")
                 .env("NODE_ENV", "production")
                 .env("DB_PATH", &db_path)
                 .spawn();
@@ -96,7 +96,7 @@ pub fn run() {
             let max_wait = Duration::from_secs(30);
 
             loop {
-                if client.get("http://localhost:3000").send().is_ok() {
+                if client.get("http://localhost:3001").send().is_ok() {
                     break;
                 }
                 if start.elapsed() > max_wait {

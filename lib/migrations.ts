@@ -290,8 +290,10 @@ export function runMigrations(): void {
   `);
 
   // Eenmalige datamisgratie: kopieer bestaande aanpassingen uit transacties
+  // Alleen uitvoeren als de legacy-kolom 'categorie' nog op de transacties tabel staat
+  const heeftCategorieKolom = (db.prepare("SELECT COUNT(*) AS n FROM pragma_table_info('transacties') WHERE name = 'categorie'").get() as { n: number }).n > 0;
   const aanpassingenLeeg = db.prepare('SELECT COUNT(*) AS n FROM transactie_aanpassingen').get() as { n: number };
-  if (aanpassingenLeeg.n === 0) {
+  if (aanpassingenLeeg.n === 0 && heeftCategorieKolom) {
     db.transaction(() => {
       db.prepare(`
         INSERT OR IGNORE INTO transactie_aanpassingen
