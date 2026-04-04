@@ -18,19 +18,24 @@ pub fn run() {
                 .map_err(|e| format!("Kan resource map niet vinden: {e}"))?;
 
             let server_js = resource_path.join("app").join("server.js");
+            let server_js_str = server_js
+                .to_string_lossy()
+                .trim_start_matches("\\\\?\\")
+                .to_string();
 
             let log_path = std::env::temp_dir().join("fbs-debug.log");
             if let Ok(mut f) = OpenOptions::new().create(true).append(true).open(&log_path) {
                 let _ = writeln!(f, "resource_dir: {:?}", app.path().resource_dir());
                 let _ = writeln!(f, "server_js pad: {:?}", server_js);
                 let _ = writeln!(f, "server_js bestaat: {}", server_js.exists());
+                let _ = writeln!(f, "server_js genormaliseerd: {}", server_js_str);
             }
 
             // Start Next.js server via Tauri sidecar (resolvet automatisch het juiste pad)
             let result = app.shell()
                 .sidecar("binaries/node")
                 .map_err(|e| format!("Kan sidecar niet aanmaken: {e}"))?
-                .args([server_js.to_string_lossy().as_ref()])
+                .args([server_js_str.as_str()])
                 .env("PORT", "3000")
                 .env("NODE_ENV", "production")
                 .spawn();

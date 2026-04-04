@@ -618,11 +618,11 @@ export default function CategorieenBeheer() {
         <button onClick={() => setTab('regels')} style={tabStijl(tab === 'regels')}>
           Categorieregels ({regels.length})
         </button>
+        <button onClick={() => setTab('subcategorieen')} style={tabStijl(tab === 'subcategorieen')}>
+          Subcategorieën ({new Set(Object.values(subcatsPerCat).flat()).size})
+        </button>
         <button onClick={() => setTab('aangepast')} style={tabStijl(tab === 'aangepast')}>
           🔒 Aangepast ({transacties.length})
-        </button>
-        <button onClick={() => setTab('subcategorieen')} style={tabStijl(tab === 'subcategorieen')}>
-          Subcategorieën
         </button>
       </div>
 
@@ -902,51 +902,51 @@ export default function CategorieenBeheer() {
             {gefilterd.length === 0 ? (
               <p className="empty">Geen subcategorieën gevonden.</p>
             ) : (
-              <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(gefilterd.length, 6)}, 1fr)`, gap: 0, border: '1px solid var(--border)', borderRadius: 6, overflow: 'hidden' }}>
-                {/* Kolomkoppen */}
-                {kolomData.map(({ cat }) => {
-                  const potje = budgettenPotjes.find(bp => bp.naam === cat);
-                  const kleur = potje?.kleur ?? 'var(--accent)';
-                  return (
-                    <div key={cat} style={{ padding: '8px 10px', fontWeight: 700, fontSize: 12, color: kleur, background: 'var(--bg-base)', borderBottom: '1px solid var(--border)', borderRight: '1px solid var(--border)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      {cat}
-                    </div>
-                  );
-                })}
-                {/* Cellen */}
-                {Array.from({ length: maxRijen }, (_, rijIdx) =>
-                  kolomData.map(({ cat, subs }) => {
-                    const sub = subs[rijIdx];
-                    const isEditing = subcatEdit?.cat === cat && subcatEdit?.sub === sub;
-                    return (
-                      <div
-                        key={`${cat}-${rijIdx}`}
-                        style={{ padding: '4px 10px', fontSize: 12, color: 'var(--text)', borderBottom: '1px solid var(--border)', borderRight: '1px solid var(--border)', minHeight: 28, display: 'flex', alignItems: 'center' }}
-                      >
-                        {sub && isEditing ? (
-                          <input
-                            autoFocus
-                            value={subcatEditWaarde}
-                            onChange={e => setSubcatEditWaarde(e.target.value)}
-                            onKeyDown={e => {
-                              if (e.key === 'Enter') opslaanSubcat(cat, sub, subcatEditWaarde);
-                              if (e.key === 'Escape') setSubcatEdit(null);
-                            }}
-                            onBlur={() => opslaanSubcat(cat, sub, subcatEditWaarde)}
-                            style={{ width: '100%', padding: '2px 4px', fontSize: 12, background: 'var(--bg-base)', border: '1px solid var(--accent)', borderRadius: 3, color: 'var(--text)', outline: 'none' }}
-                          />
-                        ) : sub ? (
-                          <span
-                            onClick={() => { setSubcatEdit({ cat, sub }); setSubcatEditWaarde(sub); }}
-                            style={{ cursor: 'pointer', width: '100%' }}
-                          >
-                            {sub}
-                          </span>
-                        ) : null}
-                      </div>
-                    );
-                  })
-                )}
+              <div className="table-wrapper">
+                <table style={{ width: '100%' }}>
+                  <thead>
+                    <tr>
+                      {kolomData.map(({ cat }) => {
+                        const kleur = budgettenPotjes.find(bp => bp.naam === cat)?.kleur ?? 'var(--accent)';
+                        return <th key={cat} style={{ color: kleur, whiteSpace: 'nowrap' }}>{cat}</th>;
+                      })}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {Array.from({ length: maxRijen }, (_, rijIdx) => (
+                      <tr key={rijIdx}>
+                        {kolomData.map(({ cat, subs }) => {
+                          const sub = subs[rijIdx];
+                          const isEditing = subcatEdit?.cat === cat && subcatEdit?.sub === sub;
+                          return (
+                            <td key={`${cat}-${rijIdx}`} style={{ fontSize: 12, color: 'var(--text)', verticalAlign: 'top' }}>
+                              {sub && isEditing ? (
+                                <input
+                                  autoFocus
+                                  value={subcatEditWaarde}
+                                  onChange={e => setSubcatEditWaarde(e.target.value)}
+                                  onKeyDown={e => {
+                                    if (e.key === 'Enter') opslaanSubcat(cat, sub, subcatEditWaarde);
+                                    if (e.key === 'Escape') setSubcatEdit(null);
+                                  }}
+                                  onBlur={() => opslaanSubcat(cat, sub, subcatEditWaarde)}
+                                  style={{ width: '100%', padding: '2px 4px', fontSize: 12, background: 'var(--bg-base)', border: '1px solid var(--accent)', borderRadius: 3, color: 'var(--text)', outline: 'none' }}
+                                />
+                              ) : sub ? (
+                                <span
+                                  onClick={() => { setSubcatEdit({ cat, sub }); setSubcatEditWaarde(sub); }}
+                                  style={{ cursor: 'pointer' }}
+                                >
+                                  {sub}
+                                </span>
+                              ) : null}
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             )}
           </>
