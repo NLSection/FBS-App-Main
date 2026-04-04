@@ -26,9 +26,9 @@
   "bundle": {
     "active": true,
     "targets": "all",
+    "publisher": "Section Labs",
     "externalBin": ["binaries/node"],
     "resources": [
-      "binaries/*",
       "app/**/*"
     ],
     "icon": [

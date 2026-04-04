@@ -1,12 +1,14 @@
 // FILE: db.ts
 // AANGEMAAKT: 25-03-2026 10:00
 // VERSIE: 1
-// GEWIJZIGD: 03-04-2026 22:00
+// GEWIJZIGD: 04-04-2026 22:30
 //
 // WIJZIGINGEN (25-03-2026 10:00):
 // - Initiële aanmaak: singleton SQLite verbinding naar fbs.db
 // WIJZIGINGEN (03-04-2026 22:00):
 // - Migratie: cat_uitklappen kolom toegevoegd aan instellingen tabel
+// WIJZIGINGEN (04-04-2026 22:30):
+// - Fix: UPDATE die cat_uitklappen=0 steeds resette naar 1 verwijderd
 
 import Database from 'better-sqlite3';
 import path from 'path';
@@ -39,10 +41,6 @@ function getDb(): Database.Database {
     try {
       global._db.prepare('ALTER TABLE instellingen ADD COLUMN cat_uitklappen INTEGER DEFAULT 1').run();
     } catch { /* kolom bestaat al */ }
-    // Zet bestaande rijen op 1 als de waarde nog 0 is (eerste keer na kolom-aanmaak)
-    try {
-      global._db.prepare('UPDATE instellingen SET cat_uitklappen = 1 WHERE cat_uitklappen = 0').run();
-    } catch { /* geen actie nodig */ }
   }
   return global._db;
 }

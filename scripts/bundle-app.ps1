@@ -1,10 +1,12 @@
 # FILE: bundle-app.ps1
 # AANGEMAAKT: 04-04-2026 22:30
 # VERSIE: 1
-# GEWIJZIGD: 04-04-2026 22:30
+# GEWIJZIGD: 04-04-2026 23:30
 #
 # WIJZIGINGEN (04-04-2026 22:30):
 # - Initieel script: bouwt Next.js standalone en kopieert naar src-tauri/app/
+# WIJZIGINGEN (04-04-2026 23:30):
+# - Cleanup stap: fbs.db, backup/ verwijderd na kopiëren
 
 $ErrorActionPreference = "Stop"
 $ProjectRoot = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
@@ -29,6 +31,20 @@ if (Test-Path $TauriAppPath) {
 
 Write-Host "=== Kopieer standalone → src-tauri/app/ ===" -ForegroundColor Cyan
 Copy-Item -Recurse $StandalonePath $TauriAppPath
+
+Write-Host "=== Verwijder overbodige bestanden ===" -ForegroundColor Cyan
+$Cleanup = @(
+    (Join-Path $TauriAppPath "fbs.db"),
+    (Join-Path $TauriAppPath "fbs.db-shm"),
+    (Join-Path $TauriAppPath "fbs.db-wal"),
+    (Join-Path $TauriAppPath "backup")
+)
+foreach ($item in $Cleanup) {
+    if (Test-Path $item) {
+        Remove-Item -Recurse -Force $item
+        Write-Host "  Verwijderd: $item"
+    }
+}
 
 Write-Host "=== Kopieer public/ → src-tauri/app/public/ ===" -ForegroundColor Cyan
 $PublicSrc = Join-Path $ProjectRoot "public"

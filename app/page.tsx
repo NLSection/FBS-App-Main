@@ -227,11 +227,11 @@ function HamburgerBtn({ menuKey, items, onOpen }: { menuKey: string; items: { la
     <button
       onClick={e => onOpen(e, menuKey, items)}
       title="Opties"
-      style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-dim)', fontSize: 18, lineHeight: 1, padding: '2px 8px', borderRadius: 4, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+      style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-dim)', lineHeight: 1, padding: 0, borderRadius: 4, display: 'flex', alignItems: 'center' }}
       onMouseEnter={e => (e.currentTarget.style.color = 'var(--text-h)')}
       onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-dim)')}
     >
-      ⋮
+      <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><circle cx="8" cy="3" r="1.5" /><circle cx="8" cy="8" r="1.5" /><circle cx="8" cy="13" r="1.5" /></svg>
     </button>
   );
 }
@@ -695,7 +695,7 @@ export default function DashboardPage() {
       )}
 
       {/* BLS + CAT wrapper — compact als ingeklapt, breed als uitgeklapt */}
-      {(dashInst.blsTonen || dashInst.catTonen) && <div style={{ maxWidth: 900, margin: '0 auto' }}>
+      {(dashInst.blsTonen || dashInst.catTonen) && <div style={{ maxWidth: 'fit-content', margin: '0 auto' }}>
 
       {/* BLS Sectie */}
       {dashInst.blsTonen && <><p className="section-title">Balans Budgetten en Potjes</p>
@@ -709,28 +709,40 @@ export default function DashboardPage() {
             <colgroup>
               <col style={{ width: 'auto' }} />
               <col />
-              <col style={{ width: 120 }} />
-              <col style={{ width: 120 }} />
+              <col style={{ width: 12 }} />
+              <col />
+              <col style={{ width: 12 }} />
+              <col />
+              <col style={{ width: 100 }} />
+              <col style={{ width: 100 }} />
               <col style={{ width: 80 }} />
-              <col style={{ width: 36 }} />
+              <col style={{ width: 20 }} />
+              <col style={{ width: 12 }} />
+              <col style={{ width: 20 }} />
+              <col style={{ width: 12 }} />
+              <col style={{ width: 15 }} />
             </colgroup>
             <thead>
               <tr>
                 <th>Categorie</th>
-                <th>Correctie richting</th>
+                <th colSpan={5}>Correctie richting</th>
                 <th style={{ textAlign: 'right' }}>Bedrag</th>
                 <th style={{ textAlign: 'right' }}>Gecorrigeerd</th>
-                <th style={{ textAlign: 'right' }}>Saldo</th>
-                <th style={{ width: 36, padding: 0, position: 'relative' }}>
-                  <button onClick={() => setSettingsPanel(settingsPanel === 'bls' ? null : 'bls')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-dim)', fontSize: 13, display: 'flex', justifyContent: 'center', paddingRight: 9, width: '100%' }} title="Tabel instellingen">⚙</button>
+                <th style={{ textAlign: 'right', padding: 0, whiteSpace: 'nowrap', minWidth: 80, maxWidth: 80 }}>Saldo</th>
+                <th style={{ padding: 0, minWidth: 20, maxWidth: 20 }} />
+                <th style={{ padding: 0 }}><svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ verticalAlign: 'middle' }}><rect x="1" y="1" width="9.5" height="9.5" rx="3" /><rect x="5.5" y="5.5" width="9.5" height="9.5" rx="3" fill="var(--bg-card)" /></svg></th>
+                <th style={{ padding: 0, minWidth: 20, maxWidth: 20 }} />
+                <th style={{ padding: 0, position: 'relative' }}>
+                  <button onClick={() => setSettingsPanel(settingsPanel === 'bls' ? null : 'bls')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-dim)', display: 'flex', alignItems: 'center', padding: 0 }} title="Tabel instellingen"><svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"><path d="M6.5 1h3l.5 2.1a5.5 5.5 0 0 1 1.8 1l2-.7 1.5 2.6-1.5 1.4a5.5 5.5 0 0 1 0 2.1l1.5 1.4-1.5 2.6-2-.7a5.5 5.5 0 0 1-1.8 1L9.5 15h-3l-.5-2.1a5.5 5.5 0 0 1-1.8-1l-2 .7L.7 10l1.5-1.4a5.5 5.5 0 0 1 0-2.1L.7 5.1l1.5-2.6 2 .7a5.5 5.5 0 0 1 1.8-1z" /><circle cx="8" cy="8" r="2.5" /></svg></button>
                   {settingsPanel === 'bls' && (
                     <div ref={settingsPanelRef} style={{ position: 'absolute', top: '100%', right: 0, zIndex: 100, background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 8, padding: '12px 16px', minWidth: 260, boxShadow: '0 4px 16px rgba(0,0,0,0.4)' }}>
                       <p style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', color: 'var(--text-dim)', margin: '0 0 8px', letterSpacing: '0.5px' }}>Tabel instellingen</p>
                       <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 12, color: 'var(--text)', marginBottom: 6, gap: 12, textTransform: 'none' as const, fontWeight: 400, letterSpacing: 0 }}>Standaard uitgeklapt <MiniToggle checked={dashInst.blsUitgeklapt} onChange={v => updateDashInst({ blsUitgeklapt: v })} /></label>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 12, color: 'var(--text)', textTransform: 'none', fontWeight: 400, letterSpacing: 0 }}>Tabel verbergen <button onClick={() => { window.location.href = '/instellingen#highlight-bls'; }} style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 32, height: 18, background: 'var(--border)', borderRadius: 9, border: 'none', cursor: 'pointer', flexShrink: 0, padding: 2 }}><span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '100%', height: 14, borderRadius: 7, background: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,0.3)', fontSize: 9, color: 'var(--border)', lineHeight: 1 }}>⏻</span></button></div>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 12, color: 'var(--text)', textTransform: 'none', fontWeight: 400, letterSpacing: 0 }}>Tabel verbergen <button onClick={() => { window.location.href = '/instellingen#highlight-bls'; }} style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 32, height: 18, background: 'var(--border)', borderRadius: 9, border: 'none', cursor: 'pointer', flexShrink: 0, padding: 2 }}><span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '100%', height: 14, borderRadius: 7, background: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,0.3)', fontSize: 9, color: 'var(--red)', lineHeight: 1 }}>⏻</span></button></div>
                     </div>
                   )}
                 </th>
+                <th style={{ padding: 0, minWidth: 15, maxWidth: 15 }} />
               </tr>
             </thead>
             <tbody>
@@ -767,25 +779,26 @@ export default function DashboardPage() {
                             {rij.categorie}
                           </div>
                         </td>
-                        <td style={{ padding: '6px 8px' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                            {rekBadge(rij.gedaanOpRekening)}
-                            <RichtingsIndicator saldo={rij.saldo} />
-                            {rekBadge(rij.hoortOpRekening, hoortLabel, budgettenPotjes.find(bp => bp.naam === rij.categorie)?.kleur ?? undefined)}
-                            {rij.saldo === 0 && <span style={{ color: 'var(--green)', fontSize: 13, fontWeight: 700 }}>✓</span>}
-                          </div>
-                        </td>
+                        <td style={{ padding: '6px 0 6px 8px', whiteSpace: 'nowrap' }}>{rekBadge(rij.gedaanOpRekening)}</td>
+                        <td style={{ padding: 0, minWidth: 12, maxWidth: 12 }} />
+                        <td style={{ padding: '6px 0', whiteSpace: 'nowrap', textAlign: 'center' }}><RichtingsIndicator saldo={rij.saldo} /></td>
+                        <td style={{ padding: 0, minWidth: 12, maxWidth: 12 }} />
+                        <td style={{ padding: '6px 0', whiteSpace: 'nowrap' }}>{rekBadge(rij.hoortOpRekening, hoortLabel, budgettenPotjes.find(bp => bp.naam === rij.categorie)?.kleur ?? undefined)}{rij.saldo === 0 && <span style={{ color: 'var(--green)', fontSize: 13, fontWeight: 700, marginLeft: 6 }}>✓</span>}</td>
                         <td style={{ ...tdNum, color: bedragKleur(rij.bedrag), fontWeight: 600 }}>{formatBedrag(rij.bedrag)}</td>
                         <td style={{ ...tdNum, color: rij.gecorrigeerd !== 0 ? bedragKleur(rij.gecorrigeerd) : undefined, fontWeight: 600 }}>{rij.gecorrigeerd !== 0 ? formatBedrag(rij.gecorrigeerd) : <span style={{ color: 'var(--text-dim)' }}>—</span>}</td>
-                        <td style={{ ...tdNum, color: bedragKleur(rij.saldo), fontWeight: 600 }}>{formatBedrag(rij.saldo)}</td>
-                        <td style={{ width: 36, padding: 0, textAlign: 'center', verticalAlign: 'middle' }} onClick={e => e.stopPropagation()}>
+                        <td style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums', padding: 0, whiteSpace: 'nowrap', minWidth: 80, maxWidth: 80, color: bedragKleur(rij.saldo), fontWeight: 600 }}>{formatBedrag(rij.saldo)}</td>
+                        <td style={{ padding: 0, minWidth: 20, maxWidth: 20 }} />
+                        <td style={{ padding: 0, verticalAlign: 'middle' }} onClick={e => e.stopPropagation()}><button title="Kopieer saldo bedrag" onClick={() => { navigator.clipboard.writeText(Math.abs(rij.saldo).toFixed(2).replace('.', ',')); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-dim)', display: 'flex', alignItems: 'center', padding: 0, lineHeight: 1, opacity: 0.6 }} onMouseEnter={e => { e.currentTarget.style.opacity = '1'; }} onMouseLeave={e => { e.currentTarget.style.opacity = '0.6'; }}><svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="1" width="9.5" height="9.5" rx="3" /><rect x="5.5" y="5.5" width="9.5" height="9.5" rx="3" fill="var(--bg-card)" /></svg></button></td>
+                        <td style={{ padding: 0, minWidth: 20, maxWidth: 20 }} />
+                        <td style={{ padding: 0, verticalAlign: 'middle' }} onClick={e => e.stopPropagation()}>
                           <HamburgerBtn menuKey={`hbls-${sleutel}`} items={blsHoofdItems(rij.categorie)} onOpen={openMenu} />
                         </td>
+                        <td style={{ padding: 0, minWidth: 15, maxWidth: 15 }} />
                       </tr>
                       {/* Subtabel — aparte <tr> zodat hover niet interfereert met hoofdrij */}
                       {isOpen && rij.transacties && rij.transacties.length > 0 && (
                         <tr className="bls-expand">
-                          <td colSpan={6} style={{ padding: '0 8px 8px 28px' }}>
+                          <td colSpan={14} style={{ padding: '0 8px 8px 28px' }}>
                             <table style={{ fontSize: 11, borderCollapse: 'collapse', tableLayout: 'fixed', width: 850 }}>
                               <colgroup>
                                 <col style={{ width: 80 }} />
@@ -861,27 +874,29 @@ export default function DashboardPage() {
             const aantalAfgesloten = isAlle ? periodes.filter(p => p.jaar === geselecteerdJaar && p.status === 'afgesloten').length : 0;
             return (<table>
             <colgroup>
-              <col />
+              <col style={{ width: 'auto' }} />
               <col style={{ width: isAlle ? 150 : 120 }} />
               {isAlle && <col style={{ width: 180 }} />}
-              <col style={{ width: 36 }} />
+              <col style={{ width: 12 }} />
+              <col style={{ width: 15 }} />
             </colgroup>
             <thead>
               <tr>
                 <th>Categorie</th>
                 <th style={{ textAlign: 'right', padding: '8px 16px' }}>{isAlle ? `Totaal over ${geselecteerdJaar}` : 'Bedrag'}</th>
                 {isAlle && <th style={{ textAlign: 'right', padding: '8px 16px' }}>Gemiddeld per maand</th>}
-                <th style={{ width: 36, padding: 0, position: 'relative' }}>
-                  <button onClick={() => setSettingsPanel(settingsPanel === 'cat' ? null : 'cat')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-dim)', fontSize: 13, display: 'flex', justifyContent: 'center', paddingRight: 9, width: '100%' }} title="Tabel instellingen">⚙</button>
+                <th style={{ padding: 0, position: 'relative' }}>
+                  <button onClick={() => setSettingsPanel(settingsPanel === 'cat' ? null : 'cat')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-dim)', display: 'flex', alignItems: 'center', padding: 0 }} title="Tabel instellingen"><svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"><path d="M6.5 1h3l.5 2.1a5.5 5.5 0 0 1 1.8 1l2-.7 1.5 2.6-1.5 1.4a5.5 5.5 0 0 1 0 2.1l1.5 1.4-1.5 2.6-2-.7a5.5 5.5 0 0 1-1.8 1L9.5 15h-3l-.5-2.1a5.5 5.5 0 0 1-1.8-1l-2 .7L.7 10l1.5-1.4a5.5 5.5 0 0 1 0-2.1L.7 5.1l1.5-2.6 2 .7a5.5 5.5 0 0 1 1.8-1z" /><circle cx="8" cy="8" r="2.5" /></svg></button>
                   {settingsPanel === 'cat' && (
                     <div ref={settingsPanelRef} style={{ position: 'absolute', top: '100%', right: 0, zIndex: 100, background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 8, padding: '12px 16px', minWidth: 300, boxShadow: '0 4px 16px rgba(0,0,0,0.4)' }}>
                       <p style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', color: 'var(--text-dim)', margin: '0 0 8px', letterSpacing: '0.5px' }}>Tabel instellingen</p>
                       <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 12, color: 'var(--text)', marginBottom: 6, gap: 12, textTransform: 'none' as const, fontWeight: 400, letterSpacing: 0 }}>Categorieën standaard uitgeklapt <MiniToggle checked={dashInst.catUitgeklapt} onChange={v => updateDashInst({ catUitgeklapt: v })} /></label>
                       <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 12, color: 'var(--text)', marginBottom: 6, gap: 12, textTransform: 'none' as const, fontWeight: 400, letterSpacing: 0 }}>Transacties standaard uitgeklapt <MiniToggle checked={dashInst.catUitklappen} onChange={v => updateDashInst({ catUitklappen: v })} /></label>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 12, color: 'var(--text)', textTransform: 'none', fontWeight: 400, letterSpacing: 0 }}>Tabel verbergen <button onClick={() => { window.location.href = '/instellingen#highlight-cat'; }} style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 32, height: 18, background: 'var(--border)', borderRadius: 9, border: 'none', cursor: 'pointer', flexShrink: 0, padding: 2 }}><span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '100%', height: 14, borderRadius: 7, background: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,0.3)', fontSize: 9, color: 'var(--border)', lineHeight: 1 }}>⏻</span></button></div>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 12, color: 'var(--text)', textTransform: 'none', fontWeight: 400, letterSpacing: 0 }}>Tabel verbergen <button onClick={() => { window.location.href = '/instellingen#highlight-cat'; }} style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 32, height: 18, background: 'var(--border)', borderRadius: 9, border: 'none', cursor: 'pointer', flexShrink: 0, padding: 2 }}><span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '100%', height: 14, borderRadius: 7, background: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,0.3)', fontSize: 9, color: 'var(--red)', lineHeight: 1 }}>⏻</span></button></div>
                     </div>
                   )}
                 </th>
+                <th style={{ padding: 0, minWidth: 15, maxWidth: 15 }} />
               </tr>
             </thead>
             <tbody>
@@ -905,9 +920,10 @@ export default function DashboardPage() {
                         </td>
                         <td style={{ textAlign: 'right', padding: '8px 16px', fontVariantNumeric: 'tabular-nums', fontWeight: 700, color: bedragKleur(cat.totaal), fontSize: 14 }}>{formatBedrag(cat.totaal)}</td>
                         {isAlle && <td style={{ textAlign: 'right', padding: '8px 16px', fontVariantNumeric: 'tabular-nums', fontWeight: 700, color: aantalAfgesloten > 0 ? bedragKleur(cat.totaal / aantalAfgesloten) : 'var(--text-dim)', fontSize: 14 }}>{aantalAfgesloten > 0 ? formatBedrag(cat.totaal / aantalAfgesloten) : '—'}</td>}
-                        <td style={{ width: 36, padding: 0, textAlign: 'center', verticalAlign: 'middle' }} onClick={e => e.stopPropagation()}>
+                        <td style={{ padding: 0, verticalAlign: 'middle' }} onClick={e => e.stopPropagation()}>
                           <HamburgerBtn menuKey={`h-cat-${cat.categorie}`} items={catHoofdItems(cat.categorie)} onOpen={openMenu} />
                         </td>
+                        <td style={{ padding: 0, minWidth: 15, maxWidth: 15 }} />
                       </tr>
                       {isOpen && cat.subrijen.filter(sub => sub.bedrag !== 0).map(sub => {
                         const subKey = `${cat.categorie}::${sub.subcategorie}`;
@@ -942,13 +958,14 @@ export default function DashboardPage() {
                               </td>
                               <td style={{ textAlign: 'right', padding: '3px 16px', fontVariantNumeric: 'tabular-nums', color: 'var(--text-dim)', fontSize: 13 }}>{formatBedrag(sub.bedrag)}</td>
                               {isAlle && <td style={{ textAlign: 'right', padding: '3px 16px', fontVariantNumeric: 'tabular-nums', color: 'var(--text-dim)', fontSize: 13 }}>{aantalAfgesloten > 0 ? formatBedrag(sub.bedrag / aantalAfgesloten) : '—'}</td>}
-                              <td style={{ width: 36, padding: 0, textAlign: 'center', verticalAlign: 'middle' }} onClick={e => e.stopPropagation()}>
+                              <td style={{ padding: 0, verticalAlign: 'middle' }} onClick={e => e.stopPropagation()}>
                                 <HamburgerBtn menuKey={`h-cat-sub-${subKey}`} items={catSubMenuItems(cat.categorie, sub.subcategorie)} onOpen={openMenu} />
                               </td>
+                              <td style={{ padding: 0, minWidth: 15, maxWidth: 15 }} />
                             </tr>
                             {isSubOpen && (
                               <tr className="bls-expand">
-                                <td colSpan={isAlle ? 4 : 3} style={{ padding: '0 8px 8px 28px' }}>
+                                <td colSpan={isAlle ? 5 : 4} style={{ padding: '0 8px 8px 28px' }}>
                                   {subIsLaden ? (
                                     <div style={{ fontSize: 12, color: 'var(--text-dim)', padding: '4px 0' }}>Laden…</div>
                                   ) : subTrxs.length === 0 ? (
@@ -956,7 +973,7 @@ export default function DashboardPage() {
                                   ) : (
                                     <table style={{ fontSize: 11, borderCollapse: 'collapse', tableLayout: 'fixed', width: 850 }}>
                                       <colgroup>
-                                        <col style={{ width: 80 }} /><col style={{ width: 160 }} /><col style={{ width: 300 }} />
+                                        <col style={{ width: 80 }} /><col style={{ width: 160 }} /><col />
                                         <col style={{ width: 65 }} /><col style={{ width: 110 }} /><col style={{ width: 110 }} />
                                         <col style={{ width: 36 }} />
                                       </colgroup>

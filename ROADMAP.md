@@ -3,66 +3,74 @@
 ## Afgerond
 - CSV import (Rabobank)
 - Transactiepagina met filters, categorisatie, periodenavigatie
+- Kwartaaloverzichten (via "Alle" filter in transactiepagina)
 - Categorisatie database en matching
 - Scriptstatus pagina
 - Categorisatie flow verbeterd (popup met chips, scope keuze, omboekingen)
 - Rekening-tabs op transactiepagina (Beheerde Rekeningen + losse rekeningen)
 - Backup/restore functie in instellingen
 - Scrollbalk en sidebar verbeteringen
-- Hamburgermenu sticky rechts
-- Zoekbalk verplaatst naar tandswielbalk
-- Toelichting veld op transacties (popup, weergave boven omschrijving,
-  zoekbalk, categorieregel keten voor scope='alle')
+- Toelichting veld op transacties
 - Aangepast filterknop in categoriefilterbalk (🔒 met teller)
 - CategoriePopup geëxtraheerd als gedeeld component
-- Categorisatie pagina herbouwd: twee tabs (Categorieregels + Aangepast),
-  filterknoppen, zoekbalk, gesynchroniseerde scrollbar, CategoriePopup
-- Woordfrequentie analyseknop in categorisatie popup (tellers inline in chips)
+- Categorisatie pagina herbouwd: twee tabs (Categorieregels + Aangepast)
+- Woordfrequentie analyse in categorisatie popup
 - Genegeerde rekeningen beheer in instellingen
 - Import prompt voor onbekende rekeningen
-- Zoekwoord matching verbeterd: omschrijving_zoekwoord en naam_zoekwoord worden per woord opgeslagen en gematcht via volgorde-regex (woorden moeten in volgorde voorkomen met willekeurige tekens ertussen)
-- P2 fallthrough fix: regels met omschrijving_zoekwoord worden niet meer via P2 gematcht als de omschrijving niet overeenkomt
-- Scrollpositie behoud na categoriewijziging in de transactiespagina
-- Inline bewerking per cel in de Categorieregels tab (naam_zoekwoord, omschrijving_zoekwoord, toelichting, categorie, subcategorie)
-- Chip-lengte filter verwijderd: alle woorden beschikbaar als chip ongeacht lengte
-- Categorieregel update behoudt bestaande omschrijving_zoekwoord en naam_zoekwoord als deze niet expliciet worden meegestuurd
-- Automatische backup na elke schrijfoperatie naar backup/backup_YYYY-MM-DD_HH-MM-SS.json (max 10 bestanden)
-- Backup check bij opstarten: melding als er een nieuwere backup beschikbaar is met optie om te importeren
-- Backup synchronisatie via git mogelijk doordat backups als JSON worden opgeslagen
+- Zoekwoord matching verbeterd: AND-logica, volgorde-regex
+- P2 fallthrough fix
+- Scrollpositie behoud na categoriewijziging
+- Inline bewerking per cel in Categorieregels tab
+- Automatische backup na elke schrijfoperatie (max 10 bestanden)
+- Backup synchronisatie via git
+- Meerdere zoekwoorden selecteerbaar in categorisatie popup
+- Dashboard herbouwd met periodenavigatie
+- BLS tabel op dashboard
+- Vaste Lasten overzichtspagina (kaarten per subcategorie, heatmap, afwijkingspijlen)
+
+## In uitvoering
+- Vaste Lasten overzichtspagina verfijnen
 
 ## Te doen
-
-### Onderhoud / technische schuld
-- [ ] **Code-audit:** hele app nalopen op dode code en onnodige complexiteit (`app/`, `components/`, `features/`, `lib/`) — bevindingen eerst rapporteren, daarna pas wijzigen
 
 ### Fase 1 — Functionaliteit
 1. Ondersteuning voor andere bank CSV formaten (configureerbare kolomkoppelingen)
 2. Configureerbare kolomvolgorde in transactiepagina
-3. Meerdere omschrijving zoekwoorden selecteerbaar in categorisatie popup
-4. Woordfrequentie analyse uitbreiden: knop rechts naast label, tellers
-   inline in chips, tweede klik verbergt tellers
-5. Rekening toevoegen via transactiepagina: IBAN tegenrekening klikbaar,
-   opent zelfde prompt als bij onbekende rekening in CSV import
-6. Rekening verwijderen — data integriteit: herdetectie van omboeking-type
-   en hermatching na verwijdering van rekening uit instellingen
-7. Trendgrafieken (equivalent van Script T)
-8. Quick-question feature
+3. Trendgrafieken (equivalent van Script T)
+4. Quick-question feature
+5. Rekening toevoegen via transactiepagina (IBAN tegenrekening klikbaar)
+6. Rekening verwijderen — data integriteit
 
 ### Fase 2 — Uitstraling
-9. Section Labs branding / huisstijl
-
-### Vóór productie verwijderen
-- DEV-ONLY: /api/restore endpoint verwijderen
-- DEV-ONLY: BackupCheck component en /api/backup/check verwijderen
-- DEV-ONLY: backup/ map uit Git verwijderen en toevoegen aan .gitignore
+7. Section Labs branding / huisstijl
 
 ### Fase 3 — Uitrol
-10. Gedeelde database via netwerkpad: optie in instellingen om SQLite
-    database locatie te wijzigen naar lokaal of UNC pad (bijv. \\NAS\FBS\fbs.db).
-    Bij wijziging wordt database gekopieerd naar nieuwe locatie.
-11. Synology NAS package: app verpakken als SPK package, draait als server
-    op NAS, benaderbaar via browser vanaf meerdere apparaten
-12. Installatie op andere systemen
-13. Patching en uitrol bij andere gebruikers
-14. Login / authenticatie + MFA
-15. Encryptie / licentie
+
+Het doel is één codebase die in drie vormen gedistribueerd kan worden.
+Elke gebruiker heeft zijn eigen instantie met eigen database.
+
+```
+FBS-App (Next.js + SQLite)
+├── Synology SPK  →  draait als Node.js server op NAS, benaderbaar via browser
+├── Windows       →  Tauri wrapper (.exe installer)
+└── macOS         →  Tauri wrapper (.dmg)
+```
+
+#### 3a — Synology SPK (eerste prioriteit)
+8.  Node.js bundelen voor x86_64 (DS923+ en vergelijkbare modellen)
+9.  better-sqlite3 pre-compileren voor target architectuur
+10. SPK package structuur (INFO, installer script, start-stop-status script)
+11. Database locatie instellen tijdens installatie (bijv. `/volume1/FBS/`)
+12. QuickConnect / Tailscale toegang voor gebruik buiten thuisnetwerk
+
+#### 3b — Windows installer
+13. Tauri integratie — database-laag vervangen door Rust/SQLite
+14. Windows installer (.exe) via Tauri bundler
+
+#### 3c — macOS installer
+15. macOS installer (.dmg) via Tauri bundler
+
+#### 3d — Uitrol en beheer (alle platformen)
+16. Patching en update mechanisme
+17. Login / authenticatie + MFA
+18. Encryptie / licentie

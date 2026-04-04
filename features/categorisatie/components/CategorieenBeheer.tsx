@@ -168,11 +168,13 @@ export default function CategorieenBeheer() {
   const tableWrapperRef1  = useRef<HTMLDivElement>(null);
   const syncingRef1       = useRef(false);
   const [containerWidth1, setContainerWidth1] = useState(0);
+  const [hasOverflow1, setHasOverflow1] = useState(false);
 
   const topScrollRef2     = useRef<HTMLDivElement>(null);
   const tableWrapperRef2  = useRef<HTMLDivElement>(null);
   const syncingRef2       = useRef(false);
   const [containerWidth2, setContainerWidth2] = useState(0);
+  const [hasOverflow2, setHasOverflow2] = useState(false);
 
   // Data laden
   useEffect(() => {
@@ -190,7 +192,7 @@ export default function CategorieenBeheer() {
   useEffect(() => {
     if (!tableWrapperRef1.current) return;
     const el = tableWrapperRef1.current;
-    const obs = new ResizeObserver(() => { setContainerWidth1(el.scrollWidth); });
+    const obs = new ResizeObserver(() => { setContainerWidth1(el.scrollWidth); setHasOverflow1(el.scrollWidth > el.clientWidth); });
     obs.observe(el);
     return () => obs.disconnect();
   }, [regels, tab]);
@@ -198,7 +200,7 @@ export default function CategorieenBeheer() {
   useEffect(() => {
     if (!tableWrapperRef2.current) return;
     const el = tableWrapperRef2.current;
-    const obs = new ResizeObserver(() => { setContainerWidth2(el.scrollWidth); });
+    const obs = new ResizeObserver(() => { setContainerWidth2(el.scrollWidth); setHasOverflow2(el.scrollWidth > el.clientWidth); });
     obs.observe(el);
     return () => obs.disconnect();
   }, [transacties, tab]);
@@ -610,7 +612,7 @@ export default function CategorieenBeheer() {
   });
 
   return (
-    <div>
+    <div style={{ maxWidth: 1600, margin: '0 auto' }}>
       {/* Tab bar */}
       <div style={{ display: 'flex', marginBottom: 16, borderBottom: '2px solid var(--border)' }}>
         <button onClick={() => setTab('regels')} style={tabStijl(tab === 'regels')}>
@@ -634,15 +636,17 @@ export default function CategorieenBeheer() {
             <p className="empty">Geen categorieregels gevonden.</p>
           ) : (
             <>
-              <div
-                ref={topScrollRef1}
-                onScroll={() => syncScroll1('top')}
-                style={{ overflowX: 'scroll', overflowY: 'hidden', height: 14, scrollbarColor: 'var(--border) var(--bg-base)', scrollbarWidth: 'thin' }}
-              >
-                <div style={{ minWidth: containerWidth1 + 10, height: 1 }} />
-              </div>
+              {hasOverflow1 && (
+                <div
+                  ref={topScrollRef1}
+                  onScroll={() => syncScroll1('top')}
+                  style={{ overflowX: 'scroll', overflowY: 'hidden', height: 14, scrollbarColor: 'var(--border) var(--bg-base)', scrollbarWidth: 'thin' }}
+                >
+                  <div style={{ minWidth: containerWidth1 + 10, height: 1 }} />
+                </div>
+              )}
               <div ref={tableWrapperRef1} className="table-wrapper" onScroll={() => syncScroll1('table')}>
-                <table style={{ minWidth: 1200 }}>
+                <table style={{ width: '100%' }}>
                   <thead>
                     {renderSortHeader(REGELS_KOLOMMEN, regelsSortCol, regelsSortDir, toggleRegelsSort, true)}
                   </thead>
@@ -762,15 +766,17 @@ export default function CategorieenBeheer() {
             <p className="empty">Geen handmatig gecategoriseerde transacties gevonden.</p>
           ) : (
             <>
-              <div
-                ref={topScrollRef2}
-                onScroll={() => syncScroll2('top')}
-                style={{ overflowX: 'scroll', overflowY: 'hidden', height: 14, scrollbarColor: 'var(--border) var(--bg-base)', scrollbarWidth: 'thin' }}
-              >
-                <div style={{ minWidth: containerWidth2 + 10, height: 1 }} />
-              </div>
+              {hasOverflow2 && (
+                <div
+                  ref={topScrollRef2}
+                  onScroll={() => syncScroll2('top')}
+                  style={{ overflowX: 'scroll', overflowY: 'hidden', height: 14, scrollbarColor: 'var(--border) var(--bg-base)', scrollbarWidth: 'thin' }}
+                >
+                  <div style={{ minWidth: containerWidth2 + 10, height: 1 }} />
+                </div>
+              )}
               <div ref={tableWrapperRef2} className="table-wrapper" onScroll={() => syncScroll2('table')}>
-                <table style={{ minWidth: 1200 }}>
+                <table style={{ width: '100%' }}>
                   <thead>
                     {renderSortHeader(AANGEPAST_KOLOMMEN, aangepastSortCol, aangepastSortDir, toggleAangepastSort)}
                   </thead>
@@ -782,7 +788,7 @@ export default function CategorieenBeheer() {
                           <td style={{ color: 'var(--text-dim)', fontSize: 12, whiteSpace: 'nowrap' }}>{formatDatum(t.datum)}</td>
                           <td style={{ color: 'var(--text-dim)', fontSize: 11 }}>{t.iban_bban ?? '—'}</td>
                           <td style={{ color: 'var(--text-dim)', fontSize: 11 }}>{t.tegenrekening_iban_bban ?? '—'}</td>
-                          <td style={{ color: 'var(--text-h)', fontWeight: 500 }}>
+                          <td style={{ color: 'var(--text-h)', fontWeight: 500, fontSize: 12, width: 250, minWidth: 250, maxWidth: 250, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                             <span style={{ color: 'var(--text-dim)', marginRight: 4, fontSize: 11 }}>🔒</span>
                             {t.naam_tegenpartij ?? '—'}
                           </td>
@@ -799,7 +805,7 @@ export default function CategorieenBeheer() {
                               : <span style={{ color: 'var(--text-dim)', fontSize: 12 }}>—</span>}
                           </td>
                           <td style={{ fontSize: 12, color: 'var(--accent)' }}>{t.toelichting || <span style={{ color: 'var(--text-dim)' }}>—</span>}</td>
-                          <td style={{ fontSize: 12, color: 'var(--text-dim)', minWidth: 200, whiteSpace: 'normal', wordBreak: 'break-word' }}>{t.omschrijving_1 ?? '—'}</td>
+                          <td style={{ fontSize: 12, color: 'var(--text-dim)', minWidth: 150, maxWidth: 350, whiteSpace: 'normal', wordBreak: 'break-word', overflow: 'hidden' }}>{t.omschrijving_1 ?? '—'}</td>
                         </tr>
                       );
                     })}

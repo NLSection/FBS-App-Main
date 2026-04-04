@@ -261,6 +261,7 @@ const [patronModal, setPatronModal]                   = useState<PatronModalData
   const tableWrapperRef                                 = useRef<HTMLDivElement>(null);
   const syncingRef                                      = useRef(false);
   const [containerWidth, setContainerWidth] = useState(0);
+  const [hasOverflow, setHasOverflow] = useState(false);
   const { setTableRequiredWidth } = useSidebar();
 
   // Stap 1: laad periodes op mount, stel actuele in als standaard; verwerk URL params
@@ -366,6 +367,7 @@ const [patronModal, setPatronModal]                   = useState<PatronModalData
     const el = tableWrapperRef.current;
     const obs = new ResizeObserver(() => {
       setContainerWidth(el.scrollWidth);
+      setHasOverflow(el.scrollWidth > el.clientWidth);
       if (el.scrollWidth > el.clientWidth) setTableRequiredWidth(el.scrollWidth);
     });
     obs.observe(el);
@@ -715,7 +717,6 @@ const [patronModal, setPatronModal]                   = useState<PatronModalData
 
   // Aantal zichtbare kolommen (data + actie + lege buffer)
   const aantalKolommen = ALLE_KOLOMMEN.filter(k => zichtbareKolommen.has(k.id)).length;
-  const tabelMinWidth  = 1200;
 
   // Kolommen toggle helper
   function toggleKolom(id: string, aan: boolean) {
@@ -773,7 +774,7 @@ const [patronModal, setPatronModal]                   = useState<PatronModalData
   });
 
   return (
-    <div>
+    <div style={{ maxWidth: 1600, margin: '0 auto' }}>
       {/* Rekening-tabs */}
       {(beheerdeRekeningen.length > 0 ? 1 : 0) + losseRekeningen.length > 1 && (
         <div style={{ display: 'flex', marginBottom: 16, borderBottom: '2px solid var(--border)' }}>
@@ -1021,17 +1022,19 @@ const [patronModal, setPatronModal]                   = useState<PatronModalData
       ) : (
         <div style={{ opacity: isHerladen.current ? 0.5 : 1, pointerEvents: isHerladen.current ? 'none' : 'auto', transition: 'opacity 0.15s' }}>
 
-          {/* Scrollbalk bovenaan (gesynchroniseerd) */}
-          <div
-            ref={topScrollRef}
-            onScroll={() => syncScroll('top')}
-            style={{ overflowX: 'scroll', overflowY: 'hidden', height: 14, scrollbarColor: 'var(--border) var(--bg-base)', scrollbarWidth: 'thin' }}
-          >
-            <div style={{ minWidth: containerWidth + 10, height: 1 }} />
-          </div>
+          {/* Scrollbalk bovenaan (alleen zichtbaar bij overflow) */}
+          {hasOverflow && (
+            <div
+              ref={topScrollRef}
+              onScroll={() => syncScroll('top')}
+              style={{ overflowX: 'scroll', overflowY: 'hidden', height: 14, scrollbarColor: 'var(--border) var(--bg-base)', scrollbarWidth: 'thin' }}
+            >
+              <div style={{ minWidth: containerWidth + 10, height: 1 }} />
+            </div>
+          )}
 
           <div ref={tableWrapperRef} className="table-wrapper" onScroll={() => syncScroll('table')}>
-            <table style={{ minWidth: tabelMinWidth }}>
+            <table style={{ width: '100%' }}>
               <thead>
                 <tr>
                   {ALLE_KOLOMMEN.filter(k => zichtbareKolommen.has(k.id)).map(k => (
@@ -1043,6 +1046,8 @@ const [patronModal, setPatronModal]                   = useState<PatronModalData
                         cursor: 'pointer',
                         userSelect: 'none',
                         ...(k.id === 'bedrag' || k.id === 'saldo_na_trn' ? { textAlign: 'right' } : {}),
+                        ...(k.id === 'naam_tegenpartij' ? { width: 250, minWidth: 250, maxWidth: 250 } : {}),
+                        ...(k.id === 'omschrijving_1' ? { minWidth: 150, maxWidth: 350 } : {}),
                       }}
                     >
                       {k.label}
@@ -1094,7 +1099,7 @@ const [patronModal, setPatronModal]                   = useState<PatronModalData
                           </td>
                         )}
                         {zk.has('naam_tegenpartij') && (
-                          <td style={{ color: 'var(--text-h)', fontWeight: 500 }}>
+                          <td style={{ color: 'var(--text-h)', fontWeight: 500, fontSize: 12, width: 250, minWidth: 250, maxWidth: 250, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                             {t.fout_geboekt === 1 && <span style={{ color: '#f76707', marginRight: 4, fontSize: 12 }}>⚠</span>}
                             {t.handmatig_gecategoriseerd === 1 && <span style={{ color: 'var(--text-dim)', marginRight: 4, fontSize: 11 }}>🔒</span>}
                             {t.naam_tegenpartij ?? '—'}
@@ -1161,7 +1166,7 @@ const [patronModal, setPatronModal]                   = useState<PatronModalData
                           </td>
                         )}
                         {zk.has('omschrijving_1') && (
-                          <td style={{ fontSize: 12, minWidth: 370, whiteSpace: 'normal', wordBreak: 'break-word', overflow: 'visible' }}>
+                          <td style={{ fontSize: 12, minWidth: 150, maxWidth: 350, whiteSpace: 'normal', wordBreak: 'break-word', overflow: 'hidden' }}>
                             {t.toelichting && <div style={{ color: 'var(--accent)', marginBottom: 2 }}>{t.toelichting}</div>}
                             <span style={{ color: 'var(--text-dim)' }}>{t.omschrijving_1 ?? '—'}</span>
                           </td>

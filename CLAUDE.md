@@ -114,6 +114,15 @@ Geen stille catches die fouten verbergen. Elke fout die de gebruiker raakt krijg
 - Geen hele bestanden herschrijven als een gerichte wijziging volstaat (zie DIR-7).
 - Geen samenvattingen of uitleg tussendoor — direct uitvoeren en committen.
 - Bij twijfel over een bestand: vraag eerst welk bestand het is, lees het niet zomaar.
-- Lees een bestand niet opnieuw als het al eerder in deze sessie gelezen is EN er 
-  geen wijzigingen op zijn doorgevoerd. Na een commit op een bestand altijd opnieuw 
+- Lees een bestand niet opnieuw als het al eerder in deze sessie gelezen is EN er
+  geen wijzigingen op zijn doorgevoerd. Na een commit op een bestand altijd opnieuw
   lezen voor verdere wijzigingen.
+- Bij het lezen van bestanden altijd `offset` + `limit` gebruiken als alleen een
+  specifiek deel nodig is — nooit hele bestanden lezen voor één wijziging.
+- Meerdere edits batchen en dan één keer builden — niet na elke kleine edit builden.
+- Geen exploratie-agents starten voor informatie die al bekend is uit de conversatie.
+- Browser-tools (screenshots, zooms, navigatie) **uitsluitend** op expliciet verzoek
+  van de gebruiker. De gebruiker test zelf in de browser. Nooit proactief screenshots
+  nemen om wijzigingen te verifiëren.
+- Commit messages kort en bondig houden.
+- Geen herhaalde grep/search rondes als de informatie al eerder in de sessie is gelezen.
