@@ -13,6 +13,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getRekeningen, insertRekening } from '@/lib/rekeningen';
 import { herclassificeerTypes } from '@/lib/herclassificeer';
+import { kiesAutomatischeKleur } from '@/lib/kleuren';
+import { getBudgettenPotjes } from '@/lib/budgettenPotjes';
 
 export function GET() {
   try {
@@ -24,7 +26,7 @@ export function GET() {
 }
 
 export async function POST(request: NextRequest) {
-  let body: { iban?: string; naam?: string; type?: string };
+  let body: { iban?: string; naam?: string; type?: string; kleur?: string | null };
   try {
     body = await request.json();
   } catch {
@@ -40,7 +42,14 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const id = insertRekening(iban, naam, type);
+    // Als geen kleur meegegeven, automatisch toewijzen uit palette
+    let kleur = body.kleur ?? null;
+    if (!kleur) {
+      const bestaandeRek = getRekeningen().map(r => r.kleur).filter((k): k is string => !!k);
+      const catKleuren = getBudgettenPotjes().map(bp => bp.kleur).filter((k): k is string => !!k);
+      kleur = kiesAutomatischeKleur([...bestaandeRek, ...catKleuren]);
+    }
+    const id = insertRekening(iban, naam, type, kleur);
     herclassificeerTypes();
     return NextResponse.json({ ok: true, id }, { status: 201 });
   } catch (err) {

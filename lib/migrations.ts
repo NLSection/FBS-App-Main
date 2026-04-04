@@ -337,6 +337,9 @@ export function runMigrations(): void {
   try { db.exec("ALTER TABLE instellingen ADD COLUMN vaste_lasten_overzicht_maanden INTEGER NOT NULL DEFAULT 4"); } catch {}
   try { db.exec("ALTER TABLE instellingen ADD COLUMN vaste_lasten_afwijking_procent INTEGER NOT NULL DEFAULT 5"); } catch {}
 
+  // ── Stap 17: Kleur kolom op rekeningen ──────────────────────────────────
+  try { db.exec("ALTER TABLE rekeningen ADD COLUMN kleur TEXT DEFAULT NULL"); } catch {}
+
   // ── Stap 7: Cleanup pre-fix imports zonder volgnummer ────────────────────
   // Transacties geïmporteerd vóór de 'Volgnr'-fix hebben volgnummer = NULL.
   // Als er transacties zijn maar geen enkel volgnummer gevuld is, zijn ze

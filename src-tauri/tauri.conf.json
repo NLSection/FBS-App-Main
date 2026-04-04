@@ -27,7 +27,7 @@
     "active": true,
     "targets": "all",
     "publisher": "Section Labs",
-    "externalBin": ["binaries/node"],
+    "externalBin": ["node"],
     "resources": [
       "app/**/*"
     ],

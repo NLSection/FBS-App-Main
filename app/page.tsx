@@ -64,6 +64,7 @@ import type { Periode } from '@/lib/maandperiodes';
 import CategoriePopup from '@/features/shared/components/CategoriePopup';
 import type { PatronModalData } from '@/features/shared/components/CategoriePopup';
 import type { TransactieMetCategorie } from '@/lib/transacties';
+import { kiesAutomatischeKleur } from '@/lib/kleuren';
 
 const MAAND_NAMEN = ['Januari','Februari','Maart','April','Mei','Juni','Juli','Augustus','September','Oktober','November','December'];
 const MAAND_KORT  = ['jan','feb','mrt','apr','mei','jun','jul','aug','sep','okt','nov','dec'];
@@ -88,7 +89,7 @@ interface BlsTransactie {
 }
 
 interface BudgetPotjeNaam { id: number; naam: string; kleur: string | null; rekening_ids: number[]; }
-interface Rekening { id: number; naam: string; iban: string; beheerd: number; }
+interface Rekening { id: number; naam: string; iban: string; beheerd: number; kleur: string | null; }
 
 interface BlsRegel {
   categorie: string;
@@ -138,19 +139,12 @@ function bedragKleur(bedrag: number): string {
   return bedrag < 0 ? 'var(--red)' : bedrag > 0 ? 'var(--green)' : 'var(--accent)';
 }
 
-const REKENING_KLEUREN: Record<string, string> = {
-  'Gezamenlijke Rekening': '#5b8bd4',
-  'Boodschappen Rekening': '#d4945b',
-};
-
-function naamKleur(naam: string): string {
-  if (REKENING_KLEUREN[naam]) return REKENING_KLEUREN[naam];
+function hashKleur(naam: string): string {
   let hash = 0;
   for (let i = 0; i < naam.length; i++) {
     hash = naam.charCodeAt(i) + ((hash << 5) - hash);
   }
   const h = ((Math.abs(hash) % 360) + 360) % 360;
-  // HSL naar hex: zachte tint passend bij de app (s=45%, l=55%)
   const s = 0.45, l = 0.55;
   const a = s * Math.min(l, 1 - l);
   const f = (n: number) => { const k = (n + h / 30) % 12; return l - a * Math.max(-1, Math.min(k - 3, 9 - k, 1)); };
@@ -751,8 +745,20 @@ export default function DashboardPage() {
                 for (const r of blsData) {
                   hoortTellingen.set(r.hoortOpRekening, (hoortTellingen.get(r.hoortOpRekening) ?? 0) + 1);
                 }
+                // Effectieve kleuren per rekening (rekening houdend met categorie- en andere rekeningkleuren)
+                const rekKleurMap = (() => {
+                  const catKleuren = budgettenPotjes.map(bp => bp.kleur).filter((k): k is string => !!k);
+                  const map = new Map<string, string>();
+                  const gebruikt = [...catKleuren];
+                  for (const r of rekeningen) {
+                    if (r.kleur) { map.set(r.naam, r.kleur); gebruikt.push(r.kleur); }
+                    else { const auto = kiesAutomatischeKleur(gebruikt); map.set(r.naam, auto); gebruikt.push(auto); }
+                  }
+                  return map;
+                })();
+
                 const rekBadge = (naam: string, label?: string, kleurOverride?: string): React.ReactNode => {
-                  const kleur = kleurOverride ?? naamKleur(naam);
+                  const kleur = kleurOverride ?? rekKleurMap.get(naam) ?? hashKleur(naam);
                   return (
                     <span style={{ display: 'inline-block', fontSize: 11, borderRadius: 3, padding: '0px 6px', fontWeight: 600, border: `1px solid ${kleur}`, color: kleur, whiteSpace: 'nowrap', textAlign: 'center' }}>
                       {label ?? naam}

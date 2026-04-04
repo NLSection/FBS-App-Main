@@ -23,6 +23,7 @@
 'use client';
 
 import { Fragment, useEffect, useState } from 'react';
+import { kiesAutomatischeKleur, kiesRandomKleur } from '@/lib/kleuren';
 
 interface BudgetPotje {
   id: number;
@@ -36,45 +37,13 @@ interface Rekening {
   id: number;
   iban: string;
   naam: string;
+  kleur: string | null;
 }
 
-function hexNaarHue(hex: string): number | null {
-  const m = hex.match(/^#([0-9a-fA-F]{6})$/);
-  if (!m) return null;
-  const r = parseInt(m[1].slice(0, 2), 16) / 255;
-  const g = parseInt(m[1].slice(2, 4), 16) / 255;
-  const b = parseInt(m[1].slice(4, 6), 16) / 255;
-  const max = Math.max(r, g, b), min = Math.min(r, g, b);
-  if (max === min) return 0;
-  const d = max - min;
-  let h = 0;
-  if (max === r)      h = ((g - b) / d + (g < b ? 6 : 0)) / 6;
-  else if (max === g) h = ((b - r) / d + 2) / 6;
-  else                h = ((r - g) / d + 4) / 6;
-  return h * 360;
-}
-
-function hslNaarHex(h: number, s: number, l: number): string {
-  s /= 100; l /= 100;
-  const a = s * Math.min(l, 1 - l);
-  const f = (n: number) => {
-    const k = (n + h / 30) % 12;
-    return Math.round(255 * (l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1)))
-      .toString(16).padStart(2, '0');
-  };
-  return `#${f(0)}${f(8)}${f(4)}`;
-}
-
-function kiesAutomatischeKleur(gebruikteKleuren: string[]): string {
-  const hues = gebruikteKleuren.map(hexNaarHue).filter((h): h is number => h !== null);
-  let bestHue = 0, bestDist = -1;
-  for (let h = 0; h < 360; h += 15) {
-    const minDist = hues.length === 0
-      ? 360
-      : Math.min(...hues.map(eh => { const d = Math.abs(h - eh); return Math.min(d, 360 - d); }));
-    if (minDist > bestDist) { bestDist = minDist; bestHue = h; }
-  }
-  return hslNaarHex(bestHue, 65, 60);
+function alleGebruikteKleuren(items: BudgetPotje[], rekeningen: Rekening[], excludeId?: number): string[] {
+  const catKleuren = items.filter(i => i.id !== excludeId).map(i => i.kleur).filter((k): k is string => !!k);
+  const rekKleuren = rekeningen.map(r => r.kleur).filter((k): k is string => !!k);
+  return [...catKleuren, ...rekKleuren];
 }
 
 const inputCls = 'w-full bg-[var(--bg-base)] border border-[var(--border)] rounded px-2 py-1.5 text-sm text-[var(--text-h)] focus:outline-none focus:border-[var(--accent)]';
@@ -104,11 +73,29 @@ export default function BudgettenPotjesBeheer() {
 
   useEffect(() => { laad(); }, []);
 
+  // Bereken effectieve kleuren per categorie, rekening houdend met alle andere kleuren
+  const effectieveCatKleuren = (() => {
+    const rekKleuren = rekeningen.map(r => r.kleur).filter((k): k is string => !!k);
+    const map = new Map<number, string>();
+    const gebruikt = [...rekKleuren];
+    for (const item of items) {
+      if (item.kleur) {
+        map.set(item.id, item.kleur);
+        gebruikt.push(item.kleur);
+      } else {
+        const auto = kiesAutomatischeKleur(gebruikt);
+        map.set(item.id, auto);
+        gebruikt.push(auto);
+      }
+    }
+    return map;
+  })();
+
   function openBewerk(item: BudgetPotje) {
     if (bewerkId === item.id) { setBewerkId(null); return; }
     setBewerkId(item.id);
     const kleurAutomatisch = !item.kleur;
-    const kleur = item.kleur ?? kiesAutomatischeKleur(items.filter(i => i.id !== item.id).map(i => i.kleur).filter((k): k is string => !!k));
+    const kleur = item.kleur ?? kiesAutomatischeKleur(alleGebruikteKleuren(items, rekeningen, item.id));
     setBewerkForm({ naam: item.naam, rekening_id: item.rekening_ids[0] ?? null, kleur, kleurAutomatisch });
     setBewerkFout(null);
   }
@@ -176,9 +163,7 @@ export default function BudgettenPotjesBeheer() {
                         : item.naam}
                     </td>
                     <td>
-                      {item.kleur
-                        ? <span style={{ display: 'inline-block', width: 20, height: 20, borderRadius: 4, background: item.kleur, border: '1px solid var(--border)', verticalAlign: 'middle' }} />
-                        : <span style={{ color: 'var(--text-dim)', fontSize: 12 }}>—</span>}
+                      <span style={{ display: 'inline-block', width: 20, height: 20, borderRadius: 4, background: effectieveCatKleuren.get(item.id) ?? '#748ffc', border: '1px solid var(--border)', verticalAlign: 'middle' }} />
                     </td>
                     <td style={{ color: 'var(--text-dim)', fontSize: 12 }}>
                       {item.rekening_ids.length === 0
@@ -216,25 +201,15 @@ export default function BudgettenPotjesBeheer() {
                                 value={bewerkForm.kleur || '#748ffc'}
                                 disabled={bewerkForm.kleurAutomatisch}
                                 onChange={e => setBewerkForm(f => ({ ...f, kleur: e.target.value }))}
-                                style={{ width: 40, height: 34, padding: 2, borderRadius: 4, border: '1px solid var(--border)', background: 'var(--bg-base)', cursor: bewerkForm.kleurAutomatisch ? 'not-allowed' : 'pointer', opacity: bewerkForm.kleurAutomatisch ? 0.4 : 1 }}
+                                style={{ width: 40, height: 34, padding: 2, borderRadius: 4, border: '1px solid var(--border)', background: 'var(--bg-base)', cursor: bewerkForm.kleurAutomatisch ? 'default' : 'pointer', pointerEvents: bewerkForm.kleurAutomatisch ? 'none' : 'auto' }}
                               />
-                              <input
-                                type="text"
-                                value={bewerkForm.kleur}
-                                disabled={bewerkForm.kleurAutomatisch}
-                                onChange={e => {
-                                  const val = e.target.value.startsWith('#') ? e.target.value : '#' + e.target.value;
-                                  setBewerkForm(f => ({ ...f, kleur: val }));
-                                }}
-                                onBlur={() => {
-                                  if (!/^#[0-9a-fA-F]{6}$/.test(bewerkForm.kleur)) {
-                                    setBewerkForm(f => ({ ...f, kleur: '' }));
-                                  }
-                                }}
-                                placeholder="#748ffc"
-                                maxLength={7}
-                                style={{ width: 80, background: 'var(--bg-base)', border: '1px solid var(--border)', borderRadius: 4, padding: '4px 8px', fontSize: 12, color: 'var(--text-h)', fontFamily: 'monospace', opacity: bewerkForm.kleurAutomatisch ? 0.4 : 1, cursor: bewerkForm.kleurAutomatisch ? 'not-allowed' : 'text' }}
-                              />
+                              <button type="button" title="Andere kleur"
+                                onClick={() => setBewerkForm(f => ({ ...f, kleur: kiesRandomKleur(alleGebruikteKleuren(items, rekeningen, bewerkId ?? undefined), f.kleur) }))}
+                                disabled={!bewerkForm.kleurAutomatisch}
+                                style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 4, padding: '4px 8px', cursor: bewerkForm.kleurAutomatisch ? 'pointer' : 'not-allowed', color: 'var(--text-dim)', display: 'flex', alignItems: 'center', opacity: bewerkForm.kleurAutomatisch ? 1 : 0.3 }}
+                              >
+                                <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M1 1v5h5" /><path d="M3.5 10a5 5 0 1 0 1-7L1 6" /></svg>
+                              </button>
                             </div>
                             <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--text-dim)', cursor: 'pointer', width: 'fit-content' }}>
                               <input
@@ -243,7 +218,7 @@ export default function BudgettenPotjesBeheer() {
                                 onChange={e => {
                                   const auto = e.target.checked;
                                   const kleur = auto
-                                    ? kiesAutomatischeKleur(items.filter(i => i.id !== bewerkId).map(i => i.kleur).filter((k): k is string => !!k))
+                                    ? kiesAutomatischeKleur(alleGebruikteKleuren(items, rekeningen, bewerkId ?? undefined))
                                     : bewerkForm.kleur;
                                   setBewerkForm(f => ({ ...f, kleurAutomatisch: auto, kleur }));
                                 }}

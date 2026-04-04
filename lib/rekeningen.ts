@@ -20,27 +20,28 @@ export interface Rekening {
   naam: string;
   type: 'betaal' | 'spaar';
   beheerd: number;
+  kleur: string | null;
 }
 
 export function getRekeningen(): Rekening[] {
   return getDb()
-    .prepare('SELECT id, iban, naam, type, beheerd FROM rekeningen ORDER BY type, naam')
+    .prepare('SELECT id, iban, naam, type, beheerd, kleur FROM rekeningen ORDER BY type, naam')
     .all() as Rekening[];
 }
 
-export function insertRekening(iban: string, naam: string, type: 'betaal' | 'spaar'): number {
+export function insertRekening(iban: string, naam: string, type: 'betaal' | 'spaar', kleur?: string | null): number {
   const result = getDb()
-    .prepare('INSERT INTO rekeningen (iban, naam, type) VALUES (?, ?, ?)')
-    .run(iban.trim().toUpperCase(), naam.trim(), type);
+    .prepare('INSERT INTO rekeningen (iban, naam, type, kleur) VALUES (?, ?, ?, ?)')
+    .run(iban.trim().toUpperCase(), naam.trim(), type, kleur ?? null);
   return Number(result.lastInsertRowid);
 }
 
-export function updateRekening(id: number, iban: string, naam: string, type: 'betaal' | 'spaar'): void {
+export function updateRekening(id: number, iban: string, naam: string, type: 'betaal' | 'spaar', kleur?: string | null): void {
   if (!iban.trim()) throw new Error('IBAN mag niet leeg zijn.');
   if (!naam.trim()) throw new Error('Naam mag niet leeg zijn.');
   getDb()
-    .prepare('UPDATE rekeningen SET iban = ?, naam = ?, type = ? WHERE id = ?')
-    .run(iban.trim().toUpperCase(), naam.trim(), type, id);
+    .prepare('UPDATE rekeningen SET iban = ?, naam = ?, type = ?, kleur = ? WHERE id = ?')
+    .run(iban.trim().toUpperCase(), naam.trim(), type, kleur ?? null, id);
 }
 
 export function updateBeheerd(id: number, beheerd: number): void {

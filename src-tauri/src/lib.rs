@@ -29,9 +29,8 @@ pub fn run() {
                 let _ = writeln!(f, "server_js pad: {:?}", server_js);
                 let _ = writeln!(f, "server_js bestaat: {}", server_js.exists());
                 let _ = writeln!(f, "server_js genormaliseerd: {}", server_js_str);
-                let _ = writeln!(f, "exe dir: {:?}", app.path().resource_dir());
                 let sidecar_path = app.path()
-                    .resolve("binaries/node-x86_64-pc-windows-msvc.exe",
+                    .resolve("node-x86_64-pc-windows-msvc.exe",
                              tauri::path::BaseDirectory::Resource);
                 let _ = writeln!(f, "sidecar pad: {:?}", sidecar_path);
                 if let Ok(ref p) = sidecar_path {
@@ -41,7 +40,7 @@ pub fn run() {
 
             // Start Next.js server via Tauri sidecar (resolvet automatisch het juiste pad)
             let result = app.shell()
-                .sidecar("binaries/node")
+                .sidecar("node")
                 .map_err(|e| format!("Kan sidecar niet aanmaken: {e}"))?
                 .args([server_js_str.as_str()])
                 .env("PORT", "3000")
