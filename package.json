@@ -11,6 +11,7 @@
     "build:spk:docker": "bash scripts/spk/build-spk-docker.sh"
   },
   "dependencies": {
+    "@tauri-apps/api": "^2.10.1",
     "better-sqlite3": "^12.8.0",
     "lucide-react": "^1.7.0",
     "next": "16.2.1",
@@ -19,6 +20,7 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@tauri-apps/cli": "^2.10.1",
     "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^20",
     "@types/react": "^19",

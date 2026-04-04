@@ -1,14 +1,15 @@
 // FILE: next.config.ts
 // AANGEMAAKT: 26-03-2026 00:00
 // VERSIE: 1
-// GEWIJZIGD: 26-03-2026 00:00
+// GEWIJZIGD: 04-04-2026 22:30
 //
-// WIJZIGINGEN (26-03-2026 00:00):
-// - ngrok-skip-browser-warning header toegevoegd aan alle responses
+// WIJZIGINGEN (04-04-2026 22:30):
+// - output: 'standalone' toegevoegd voor Tauri bundeling
 
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  output: 'standalone',
   async headers() {
     return [
       {
