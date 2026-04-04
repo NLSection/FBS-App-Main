@@ -15,6 +15,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
 
 interface ImportResultaat {
   importId: number;
@@ -81,6 +82,7 @@ const labelStyle: React.CSSProperties = {
 };
 
 export default function ImportForm() {
+  const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
   const [bezig, setBezig] = useState(false);
   const [dragOver, setDragOver] = useState(false);
@@ -137,6 +139,14 @@ export default function ImportForm() {
           naam: b.name, status: 'klaar', resultaat: resultaten[i],
         })));
         laadGeschiedenis();
+        router.refresh();
+        const vd = data.vroegsteDatum as string | null;
+        if (vd) {
+          const d = new Date(vd);
+          router.push(`/transacties?maand=${d.getFullYear()}-${d.getMonth() + 1}`);
+        } else {
+          router.push('/transacties');
+        }
       }
     } catch {
       setFout('Verbindingsfout — import niet voltooid.');
@@ -349,7 +359,7 @@ export default function ImportForm() {
                         <div style={{ gridColumn: '1 / -1' }}>
                           <label style={labelStyle}>Koppel aan categorieën (optioneel)</label>
                           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px 20px', marginTop: 4 }}>
-                            {categorieen.map(c => (
+                            {categorieen.filter(c => c.naam !== 'Aangepast' && c.naam !== 'Omboekingen').map(c => (
                               <label key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 13, color: 'var(--text-h)', cursor: 'pointer' }}>
                                 <input
                                   type="checkbox"

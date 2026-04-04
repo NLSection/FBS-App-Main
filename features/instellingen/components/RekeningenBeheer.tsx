@@ -258,11 +258,11 @@ export default function RekeningenBeheer() {
               /> Automatisch
             </label>
           </div>
-          {categorieen.length > 0 && (
+          {categorieen.filter(c => c.naam !== 'Aangepast' && c.naam !== 'Omboekingen').length > 0 && (
             <div style={{ marginBottom: 16 }}>
               <p className={labelCls} style={{ marginBottom: 8 }}>Gekoppelde categorieën</p>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                {categorieen.map(c => (
+                {categorieen.filter(c => c.naam !== 'Aangepast' && c.naam !== 'Omboekingen').map(c => (
                   <button key={c.id} type="button" onClick={() => toggleFormCat(c.id)}
                     style={{ background: formCats.has(c.id) ? 'var(--accent)' : 'none', color: formCats.has(c.id) ? '#fff' : 'var(--text)', border: `1px solid ${formCats.has(c.id) ? 'var(--accent)' : 'var(--border)'}`, borderRadius: 20, padding: '4px 12px', fontSize: 13, cursor: 'pointer' }}>
                     {c.naam}
@@ -374,11 +374,11 @@ export default function RekeningenBeheer() {
                             /> Automatisch
                           </label>
                         </div>
-                        {categorieen.length > 0 && (
+                        {categorieen.filter(c => c.naam !== 'Aangepast' && c.naam !== 'Omboekingen').length > 0 && (
                           <div style={{ marginBottom: 16 }}>
                             <p className={labelCls} style={{ marginBottom: 8 }}>Gekoppelde categorieën</p>
                             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                              {categorieen.map(c => (
+                              {categorieen.filter(c => c.naam !== 'Aangepast' && c.naam !== 'Omboekingen').map(c => (
                                 <button key={c.id} type="button" onClick={() => toggleBewerkCat(c.id)}
                                   style={{ background: bewerkCats.has(c.id) ? 'var(--accent)' : 'none', color: bewerkCats.has(c.id) ? '#fff' : 'var(--text)', border: `1px solid ${bewerkCats.has(c.id) ? 'var(--accent)' : 'var(--border)'}`, borderRadius: 20, padding: '4px 12px', fontSize: 13, cursor: 'pointer' }}>
                                   {c.naam}

@@ -27,9 +27,11 @@ import { matchTransactie } from '@/features/import/utils/matchTransactie';
 import { getMatchConfig } from '@/lib/configStore';
 import { insertImport, insertTransacties } from '@/lib/imports';
 import { categoriseerTransacties } from '@/lib/categorisatie';
-import { insertRekening, updateBeheerd } from '@/lib/rekeningen';
+import { getRekeningen, insertRekening, updateBeheerd } from '@/lib/rekeningen';
 import getDb from '@/lib/db';
 import { triggerBackup } from '@/lib/backup';
+import { kiesAutomatischeKleur } from '@/lib/kleuren';
+import { getBudgettenPotjes } from '@/lib/budgettenPotjes';
 
 interface BevestigdeRekening {
   iban: string;
@@ -130,7 +132,10 @@ export async function POST(request: NextRequest) {
   // Fase 3: Bevestigde rekeningen opslaan
   for (const r of bevestigdeRekeningen) {
     try {
-      insertRekening(r.iban, r.naam, r.type);
+      const bestaandeRek = getRekeningen().map(rk => rk.kleur).filter((k): k is string => !!k);
+      const catKleuren = getBudgettenPotjes().map(bp => bp.kleur).filter((k): k is string => !!k);
+      const kleur = kiesAutomatischeKleur([...bestaandeRek, ...catKleuren]);
+      insertRekening(r.iban, r.naam, r.type, kleur);
       const rec = db
         .prepare('SELECT id FROM rekeningen WHERE iban = ?')
         .get(r.iban.trim().toUpperCase()) as { id: number } | undefined;
@@ -197,6 +202,14 @@ export async function POST(request: NextRequest) {
     });
   }
 
+  // Vroegste datum bepalen voor redirect
+  let vroegsteDatum: string | null = null;
+  for (const { ruweTransacties } of geParste) {
+    for (const t of ruweTransacties) {
+      if (t.datum && (!vroegsteDatum || t.datum < vroegsteDatum)) vroegsteDatum = t.datum;
+    }
+  }
+
   triggerBackup();
-  return NextResponse.json({ resultaten });
+  return NextResponse.json({ resultaten, vroegsteDatum });
 }

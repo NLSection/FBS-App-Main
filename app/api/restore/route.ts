@@ -1,8 +1,12 @@
 // FILE: route.ts (api/restore)
 // AANGEMAAKT: 29-03-2026 15:00
 // VERSIE: 1
-// GEWIJZIGD: 03-04-2026 16:45
+// GEWIJZIGD: 05-04-2026 00:00
 //
+// WIJZIGINGEN (05-04-2026 00:00):
+// - Fix: onbekende kolommen uit backup negeren via PRAGMA table_info (Too many parameter values)
+// WIJZIGINGEN (04-04-2026 23:45):
+// - Fix: fallback type='potje' voor budgetten_potjes bij backup import (NOT NULL constraint)
 // WIJZIGINGEN (03-04-2026 16:45):
 // - Na herstel: laatst_herstelde_backup opslaan in instellingen (cross-device sync)
 // WIJZIGINGEN (02-04-2026 19:00):
@@ -82,13 +86,22 @@ export async function POST(req: NextRequest) {
       for (const tabel of tabellen) {
         const records = backupData[tabel];
         if (!Array.isArray(records) || records.length === 0) continue;
-        const kolommen = Object.keys(records[0] as Record<string, unknown>);
+        // Filter kolommen: alleen kolommen die in de huidige tabel bestaan
+        const tabelKolommen = new Set(
+          (db.prepare(`PRAGMA table_info("${tabel}")`).all() as { name: string }[]).map(r => r.name)
+        );
+        const kolommen = Object.keys(records[0] as Record<string, unknown>).filter(k => tabelKolommen.has(k));
+        if (kolommen.length === 0) continue;
         const placeholders = kolommen.map(() => '?').join(', ');
         const insert = db.prepare(
           `INSERT INTO "${tabel}" (${kolommen.map(k => `"${k}"`).join(', ')}) VALUES (${placeholders})`
         );
         for (const record of records as Record<string, unknown>[]) {
-          insert.run(Object.values(record));
+          // Fallback voor budgetten_potjes.type: voorkom NOT NULL constraint fout
+          if (tabel === 'budgetten_potjes' && !record['type']) {
+            record['type'] = 'potje';
+          }
+          insert.run(kolommen.map(k => record[k]));
         }
       }
     })();
