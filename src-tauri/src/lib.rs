@@ -1,3 +1,5 @@
+use std::fs::OpenOptions;
+use std::io::Write;
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
 use tauri::Manager;
@@ -17,9 +19,12 @@ pub fn run() {
 
             let server_js = resource_path.join("app").join("server.js");
 
-            eprintln!("resource_dir: {:?}", app.path().resource_dir());
-            eprintln!("server_js pad: {:?}", server_js);
-            eprintln!("server_js bestaat: {}", server_js.exists());
+            let log_path = std::env::temp_dir().join("fbs-debug.log");
+            if let Ok(mut f) = OpenOptions::new().create(true).append(true).open(&log_path) {
+                let _ = writeln!(f, "resource_dir: {:?}", app.path().resource_dir());
+                let _ = writeln!(f, "server_js pad: {:?}", server_js);
+                let _ = writeln!(f, "server_js bestaat: {}", server_js.exists());
+            }
 
             // Start Next.js server via Tauri sidecar (resolvet automatisch het juiste pad)
             let result = app.shell()

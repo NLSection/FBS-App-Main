@@ -661,7 +661,7 @@ export default function CategorieenBeheer() {
                           {/* IBAN — read-only */}
                           <td style={{ fontSize: 11, fontFamily: 'monospace' }}>{r.iban || <em style={{ color: 'var(--text-dim)' }}>—</em>}</td>
                           {/* Naam origineel — editable */}
-                          <td style={{ color: 'var(--text-h)', fontWeight: 500, cursor: 'pointer' }} onClick={() => !isEditing('naam_origineel') && setEditingRegelCell({ id: r.id, veld: 'naam_origineel', waarde: r.naam_origineel ?? '' })}>
+                          <td style={{ color: 'var(--text-h)', fontWeight: 500, fontSize: 12, width: 250, minWidth: 250, maxWidth: 250, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', cursor: 'pointer' }} title={r.naam_origineel ?? undefined} onClick={() => !isEditing('naam_origineel') && setEditingRegelCell({ id: r.id, veld: 'naam_origineel', waarde: r.naam_origineel ?? '' })}>
                             {isEditing('naam_origineel') ? (
                               <input autoFocus style={inputStijl} value={editingRegelCell!.waarde}
                                 onChange={e => setEditingRegelCell({ ...editingRegelCell!, waarde: e.target.value })}
@@ -671,7 +671,7 @@ export default function CategorieenBeheer() {
                             ) : (r.naam_origineel || <em style={{ color: 'var(--text-dim)' }}>—</em>)}
                           </td>
                           {/* Naam zoekwoord — editable */}
-                          <td style={{ fontSize: 11, fontFamily: 'monospace', cursor: 'pointer' }} onClick={() => !isEditing('naam_zoekwoord') && setEditingRegelCell({ id: r.id, veld: 'naam_zoekwoord', waarde: r.naam_zoekwoord ?? '' })}>
+                          <td style={{ fontSize: 11, fontFamily: 'monospace', width: 250, minWidth: 250, maxWidth: 250, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', cursor: 'pointer' }} title={r.naam_zoekwoord ?? undefined} onClick={() => !isEditing('naam_zoekwoord') && setEditingRegelCell({ id: r.id, veld: 'naam_zoekwoord', waarde: r.naam_zoekwoord ?? '' })}>
                             {isEditing('naam_zoekwoord') ? (
                               <input autoFocus style={inputStijl} value={editingRegelCell!.waarde}
                                 onChange={e => setEditingRegelCell({ ...editingRegelCell!, waarde: e.target.value })}
