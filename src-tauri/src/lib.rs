@@ -23,12 +23,18 @@ pub fn run() {
                 .trim_start_matches("\\\\?\\")
                 .to_string();
 
+            let db_path = format!(
+                "{}\\fbs.db",
+                server_js_str.trim_end_matches("\\app\\server.js")
+            );
+
             let log_path = std::env::temp_dir().join("fbs-debug.log");
             if let Ok(mut f) = OpenOptions::new().create(true).append(true).open(&log_path) {
                 let _ = writeln!(f, "resource_dir: {:?}", app.path().resource_dir());
                 let _ = writeln!(f, "server_js pad: {:?}", server_js);
                 let _ = writeln!(f, "server_js bestaat: {}", server_js.exists());
                 let _ = writeln!(f, "server_js genormaliseerd: {}", server_js_str);
+                let _ = writeln!(f, "db_path: {}", db_path);
                 let sidecar_path = app.path()
                     .resolve("node-x86_64-pc-windows-msvc.exe",
                              tauri::path::BaseDirectory::Resource);
@@ -45,6 +51,7 @@ pub fn run() {
                 .args([server_js_str.as_str()])
                 .env("PORT", "3000")
                 .env("NODE_ENV", "production")
+                .env("DB_PATH", &db_path)
                 .spawn();
 
             let child = match result {
