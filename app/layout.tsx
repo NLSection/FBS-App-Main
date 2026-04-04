@@ -14,6 +14,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import Sidebar from "@/components/Sidebar";
 import BackupCheck from "@/components/BackupCheck";
+import UpdateMelding from "@/components/UpdateMelding";
 import { SidebarProvider } from "@/lib/sidebar-context";
 import "./globals.css";
 
@@ -44,7 +45,10 @@ export default function RootLayout({
         <SidebarProvider>
           <div className="app">
             <Sidebar />
-            <main className="main">{children}</main>
+            <main className="main">
+              <UpdateMelding />
+              {children}
+            </main>
           </div>
           <BackupCheck />
         </SidebarProvider>
