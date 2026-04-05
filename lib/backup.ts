@@ -13,8 +13,8 @@ import path from 'path';
 import { exec } from 'child_process';
 import getDb from './db';
 
-const BACKUP_DIR = path.join(process.cwd(), 'backup');
-const DB_PATH    = path.join(process.cwd(), 'fbs.db');
+const DB_PATH    = process.env.DB_PATH ?? path.join(process.cwd(), 'fbs.db');
+const BACKUP_DIR = path.join(path.dirname(DB_PATH), 'backup');
 const TABELLEN   = ['transacties', 'transactie_aanpassingen', 'imports', 'categorieen', 'budgetten_potjes', 'rekeningen', 'instellingen'];
 const MAX_BACKUPS = 10;
 

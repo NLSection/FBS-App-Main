@@ -11,8 +11,11 @@
 $ErrorActionPreference = "Stop"
 $ProjectRoot = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
 
-Write-Host "=== Next.js build ===" -ForegroundColor Cyan
+Write-Host "=== Rebuild better-sqlite3 ===" -ForegroundColor Cyan
 Push-Location $ProjectRoot
+npm rebuild better-sqlite3
+
+Write-Host "=== Next.js build ===" -ForegroundColor Cyan
 npm run build
 Pop-Location
 
