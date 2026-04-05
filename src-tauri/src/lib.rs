@@ -166,6 +166,13 @@ pub fn run() {
                     match update.download_and_install(|_, _| {}, || {}).await {
                         Ok(_) => {
                             log("download voltooid, installatie gestart");
+                            let np = app_handle.state::<NodeProcess>();
+                            let mut guard = np.0.lock().unwrap();
+                            if let Some(child) = guard.take() {
+                                std::thread::sleep(Duration::from_millis(2000));
+                                let _ = child.kill();
+                            }
+                            drop(guard);
                             app_handle.restart();
                         }
                         Err(e) => log(&format!("download/install fout: {e}")),
