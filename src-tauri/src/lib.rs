@@ -182,6 +182,8 @@ pub fn run() {
                 let np = window.state::<NodeProcess>();
                 let mut guard = np.0.lock().unwrap();
                 if let Some(child) = guard.take() {
+                    // Graceful shutdown: wacht max 2 seconden
+                    std::thread::sleep(Duration::from_millis(2000));
                     let _ = child.kill();
                 }
             }
