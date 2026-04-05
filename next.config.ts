@@ -8,13 +8,12 @@
 
 import type { NextConfig } from "next";
 
-const { version } = require('./package.json');
-
 const nextConfig: NextConfig = {
   output: 'standalone',
+  transpilePackages: ['lucide-react'],
   devIndicators: false,
   env: {
-    NEXT_PUBLIC_APP_VERSION: version,
+    NEXT_PUBLIC_APP_VERSION: process.env.npm_package_version,
   },
   async headers() {
     return [

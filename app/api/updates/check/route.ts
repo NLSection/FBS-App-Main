@@ -1,38 +1,34 @@
 // FILE: route.ts (updates/check)
 // AANGEMAAKT: 05-04-2026 01:15
 // VERSIE: 1
-// GEWIJZIGD: 05-04-2026 01:15
+// GEWIJZIGD: 04-04-2026 22:00
 //
-// WIJZIGINGEN (05-04-2026 01:15):
-// - Initieel: GitHub release check tegen huidige app versie
+// WIJZIGINGEN (04-04-2026 22:00):
+// - changelog veld doorgeven vanuit Worker response
+// WIJZIGINGEN (04-04-2026 21:30):
+// - Omgebouwd naar Cloudflare Worker endpoint i.p.v. directe GitHub API
 
 import { NextResponse } from 'next/server';
 
+const WORKER_URL = 'https://fbs-update-worker.section-labs.workers.dev/latest';
+
 export async function GET() {
-  const repo = process.env.GITHUB_REPO;
-  const token = process.env.GITHUB_TOKEN;
   const huidig = process.env.NEXT_PUBLIC_APP_VERSION ?? 'onbekend';
 
-  if (!repo) {
-    return NextResponse.json({ huidig, nieuwste: huidig, updateBeschikbaar: false });
-  }
-
   try {
-    const headers: Record<string, string> = { Accept: 'application/vnd.github+json' };
-    if (token) headers.Authorization = `Bearer ${token}`;
-
-    const res = await fetch(`https://api.github.com/repos/${repo}/releases/latest`, { headers });
-
-    if (res.status === 404) {
-      return NextResponse.json({ huidig, nieuwste: huidig, updateBeschikbaar: false });
-    }
+    const res = await fetch(WORKER_URL);
 
     if (!res.ok) {
       return NextResponse.json({ huidig, nieuwste: huidig, updateBeschikbaar: false });
     }
 
-    const data = await res.json();
-    const nieuwste = (data.tag_name ?? '').replace(/^v/, '');
+    const data: { versie: string | null; url: string | null; changelog: string | null } = await res.json();
+
+    if (!data.versie) {
+      return NextResponse.json({ huidig, nieuwste: huidig, updateBeschikbaar: false });
+    }
+
+    const nieuwste = data.versie.replace(/^v/, '');
     const huidige = huidig.replace(/^v/, '');
     const updateBeschikbaar = nieuwste !== '' && nieuwste !== huidige;
 
@@ -40,7 +36,8 @@ export async function GET() {
       huidig: `v${huidige}`,
       nieuwste: `v${nieuwste}`,
       updateBeschikbaar,
-      releaseUrl: data.html_url ?? null,
+      releaseUrl: data.url ?? null,
+      changelog: data.changelog ?? null,
     });
   } catch {
     return NextResponse.json({ huidig, nieuwste: huidig, updateBeschikbaar: false });

@@ -18,29 +18,6 @@ Alle bestanden zijn UTF-8. Euro-teken, em-dash en andere speciale tekens mogen l
 
 ---
 
-## DIR-3 — Bestandsheaders en wijzigingslog
-Elk bestand bevat een korte header als commentaarblok bovenaan:
-
-```
-// FILE: <bestandsnaam>
-// AANGEMAAKT: DD-MM-YYYY HH:MM
-// VERSIE: N
-// GEWIJZIGD: DD-MM-YYYY HH:MM
-//
-// WIJZIGINGEN (DD-MM-YYYY HH:MM):
-// - Omschrijving van wijziging
-// - Eventuele tweede wijziging
-```
-
-Regels:
-- `GEWIJZIGD` en `WIJZIGINGEN` datum worden bij elke levering bijgewerkt naar de actuele Amsterdam-tijd
-- Binnen een sessie **accumuleert** het WIJZIGINGEN-blok: elke levering voegt een `// -` regel toe
-- Bij versie-ophogen (sessieafsluiting) wordt het blok overschreven met alleen de wijzigingen van de nieuwe sessie
-- Precies EEN wijzigingenblok per bestand — nooit meerdere datumblokken naast elkaar
-- Overige headervelden (FILE, AANGEMAAKT) blijven ongewijzigd
-
----
-
 ## DIR-4 — Aanpak eerst, code daarna
 Geen code-wijzigingen zonder expliciete instructie. Altijd eerst bevindingen en aanpak presenteren — implementeer **pas na akkoord**. Niet beginnen met coderen voordat de aanpak helder en afgestemd is.
 
@@ -65,21 +42,13 @@ Alleen de regels die daadwerkelijk veranderen worden aangepast. Alles eromheen w
 
 ---
 
-## DIR-8 — Versioning per bestand
-Elke bestandsheader bevat een `VERSIE: N` regel.
-- De teller reflecteert het aantal voltooide werksessies op dat bestand
-- Bij sessieafsluiting vraagt Claude expliciet: **"Mag deze versie als definitief worden beschouwd?"**
-- Bij bevestiging: bestand opnieuw geleverd met `VERSIE: N+1` en een nieuw WIJZIGINGEN-blok met alleen de wijzigingen van de zojuist afgesloten sessie
-- De teller wordt **nooit** opgehoogd zonder expliciete bevestiging van de gebruiker
-
----
-
 ## DIR-9 — Projectstructuur (Next.js + SQLite)
 Stack: **Next.js** (frontend + API routes) + **SQLite** (via better-sqlite3). Één project, één proces (`npm run dev`), geen aparte backend.
 
 ```
 fbs-app/
 ├── CLAUDE.md
+├── SESSION.md
 ├── app/                  ← Next.js App Router: pagina's en layouts
 │   └── api/              ← API routes (vervangen de FastAPI endpoints)
 ├── components/           ← herbruikbare UI-componenten (geen data-logica)
@@ -114,15 +83,50 @@ Geen stille catches die fouten verbergen. Elke fout die de gebruiker raakt krijg
 - Geen hele bestanden herschrijven als een gerichte wijziging volstaat (zie DIR-7).
 - Geen samenvattingen of uitleg tussendoor — direct uitvoeren en committen.
 - Bij twijfel over een bestand: vraag eerst welk bestand het is, lees het niet zomaar.
-- Lees een bestand niet opnieuw als het al eerder in deze sessie gelezen is EN er
-  geen wijzigingen op zijn doorgevoerd. Na een commit op een bestand altijd opnieuw
-  lezen voor verdere wijzigingen.
-- Bij het lezen van bestanden altijd `offset` + `limit` gebruiken als alleen een
-  specifiek deel nodig is — nooit hele bestanden lezen voor één wijziging.
+- Lees een bestand niet opnieuw als het al eerder in deze sessie gelezen is EN er geen wijzigingen op zijn doorgevoerd. Na een commit op een bestand altijd opnieuw lezen voor verdere wijzigingen.
+- Bij het lezen van bestanden altijd `offset` + `limit` gebruiken als alleen een specifiek deel nodig is — nooit hele bestanden lezen voor één wijziging.
 - Meerdere edits batchen en dan één keer builden — niet na elke kleine edit builden.
 - Geen exploratie-agents starten voor informatie die al bekend is uit de conversatie.
-- Browser-tools (screenshots, zooms, navigatie) **uitsluitend** op expliciet verzoek
-  van de gebruiker. De gebruiker test zelf in de browser. Nooit proactief screenshots
-  nemen om wijzigingen te verifiëren.
+- Browser-tools (screenshots, zooms, navigatie) **uitsluitend** op expliciet verzoek van de gebruiker. De gebruiker test zelf in de browser. Nooit proactief screenshots nemen om wijzigingen te verifiëren.
 - Commit messages kort en bondig houden.
 - Geen herhaalde grep/search rondes als de informatie al eerder in de sessie is gelezen.
+
+---
+
+## DIR-12 — Dev/Main repo structuur en buildproces
+
+FBS-App bestaat uit twee losse lokale repo's die naar verschillende GitHub remotes wijzen:
+
+- **FBS-App-Dev** (`C:\Users\Section\Documents\_Mijn Documenten\_Finance\FBS-App-Dev`)
+  - Remote: `https://github.com/NLSection/FBS-App-Dev.git` (privé)
+  - Hier wordt alle ontwikkeling gedaan — Claude Code werkt altijd in deze repo
+  - `npm run dev` draait op poort 3000
+
+- **FBS-App-Main** (`C:\Users\Section\Documents\_Mijn Documenten\_Finance\FBS-App-Main`)
+  - Remote: `https://github.com/NLSection/FBS-App-Main.git` (privé)
+  - Wordt gesynchroniseerd vanuit Dev via `sync.ps1`
+  - Hier worden builds gemaakt via `build.ps1` en `cargo tauri build`
+  - `npm run dev` draait op poort 3001 (productie preview)
+
+### Uitrolproces nieuwe versie
+1. Wijzigingen maken en pushen in **FBS-App-Dev**
+2. `sync.ps1` uitvoeren — kopieert Dev naar Main (exclusief `fbs.db`, `.env.local`, `node_modules`, `.git`, `src-tauri\target\`)
+3. Versie ophogen in `package.json`, `src-tauri/tauri.conf.json`, `src-tauri/Cargo.toml`
+4. Committen en pushen van **FBS-App-Main**
+5. `.\build.ps1` uitvoeren in FBS-App-Main (genereert installer + .sig)
+6. GitHub Release aanmaken met tag `vX.Y.Z`, installer en .sig uploaden
+7. Cloudflare Worker pikt automatisch de nieuwe versie op
+
+### Signing
+- Private key: `~/.tauri/fbs-app.key`
+- Wachtwoord: in Bitwarden onder "FBS Tauri Signing Key"
+- Env vars worden gezet door `build.ps1` (staat in .gitignore)
+
+---
+
+## DIR-13 — Sessielog
+Bij elke sessiestart: lees `SESSION.md` als eerste bestand.
+Na elke sessie wordt `SESSION.md` bijgewerkt met:
+- Huidige focus (feature/pagina waar aan gewerkt wordt)
+- Gewijzigde bestanden in deze sessie
+- Volgende stap

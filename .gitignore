@@ -60,7 +60,5 @@ spk-build/
 src-tauri/binaries/
 src-tauri/app/
 
-# Tauri signing
+# Build script met credentials
 build.ps1
-*.key
-.tauri/

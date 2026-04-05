@@ -43,6 +43,7 @@
 
 ### Fase 2 — Uitstraling
 7. Section Labs branding / huisstijl
+8. Code review en refactoring sessie: dode code verwijderen, complexe logica vereenvoudigen (uit te voeren wanneer core features stabiel zijn)
 
 ### Fase 3 — Uitrol
 

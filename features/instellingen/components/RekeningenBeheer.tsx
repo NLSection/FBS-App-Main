@@ -1,8 +1,10 @@
 // FILE: RekeningenBeheer.tsx
 // AANGEMAAKT: 25-03-2026 11:30
 // VERSIE: 1
-// GEWIJZIGD: 03-04-2026 10:30
+// GEWIJZIGD: 04-04-2026 21:45
 //
+// WIJZIGINGEN (04-04-2026 21:45):
+// - Filter op Aangepast/Omboekingen verwijderd uit categoriechips
 // WIJZIGINGEN (03-04-2026 10:30):
 // - Categorie selectie vervangen door klikbare chips (add + bewerk formulier)
 // WIJZIGINGEN (30-03-2026 00:15):
@@ -258,11 +260,11 @@ export default function RekeningenBeheer() {
               /> Automatisch
             </label>
           </div>
-          {categorieen.filter(c => c.naam !== 'Aangepast' && c.naam !== 'Omboekingen').length > 0 && (
+          {categorieen.length > 0 && (
             <div style={{ marginBottom: 16 }}>
               <p className={labelCls} style={{ marginBottom: 8 }}>Gekoppelde categorieën</p>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                {categorieen.filter(c => c.naam !== 'Aangepast' && c.naam !== 'Omboekingen').map(c => (
+                {categorieen.map(c => (
                   <button key={c.id} type="button" onClick={() => toggleFormCat(c.id)}
                     style={{ background: formCats.has(c.id) ? 'var(--accent)' : 'none', color: formCats.has(c.id) ? '#fff' : 'var(--text)', border: `1px solid ${formCats.has(c.id) ? 'var(--accent)' : 'var(--border)'}`, borderRadius: 20, padding: '4px 12px', fontSize: 13, cursor: 'pointer' }}>
                     {c.naam}
@@ -374,11 +376,11 @@ export default function RekeningenBeheer() {
                             /> Automatisch
                           </label>
                         </div>
-                        {categorieen.filter(c => c.naam !== 'Aangepast' && c.naam !== 'Omboekingen').length > 0 && (
+                        {categorieen.length > 0 && (
                           <div style={{ marginBottom: 16 }}>
                             <p className={labelCls} style={{ marginBottom: 8 }}>Gekoppelde categorieën</p>
                             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                              {categorieen.filter(c => c.naam !== 'Aangepast' && c.naam !== 'Omboekingen').map(c => (
+                              {categorieen.map(c => (
                                 <button key={c.id} type="button" onClick={() => toggleBewerkCat(c.id)}
                                   style={{ background: bewerkCats.has(c.id) ? 'var(--accent)' : 'none', color: bewerkCats.has(c.id) ? '#fff' : 'var(--text)', border: `1px solid ${bewerkCats.has(c.id) ? 'var(--accent)' : 'var(--border)'}`, borderRadius: 20, padding: '4px 12px', fontSize: 13, cursor: 'pointer' }}>
                                   {c.naam}

@@ -1,0 +1,24 @@
+rekening kleuren in instellingen - DONE
+inline tabel instellingen refresh - DONE
+kopieerknop naast saldo bedragen bls tabel (altijd positief) - DONE
+tabel verbergen moet echte knop zijn - DONE
+alle rekeningen een eigen tab in transacties pagina
+optie om zelf rekeningroepen te maken incl. instellingen knop in transacties pagina
+kolommen in transacties pagina iets dichter op elkaar
+instellingen knop in transactie tabel om startdag in te kunnen stellen
+melding bij aanpassen categoriesatie bij dubbele categorie in database
+versioning - DONE
+OTA git - DONE
+Voorbereidingen uitrol en installatie in WIndows of MacOS - DONE
+Uitrol updates - DONE
+Subcategorien matrix - DONE
+Na import neiuwe categorien bekijken - Nog niet de juiste pagina
+geimporteerde transacties uitklapbaar in import historie
+sortering transacties bls en cat tabellen hetzelfde als transactie pagina tabel
+kleuren subcategorie badge bij omboekingen
+
+
+
+FBS synology app:
+alleen benaderbaar via Synology VPN
+updaten via Git?
