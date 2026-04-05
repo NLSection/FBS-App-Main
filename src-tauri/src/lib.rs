@@ -16,19 +16,11 @@ async fn install_update(app: tauri::AppHandle) -> Result<(), String> {
         .check().await.map_err(|e| e.to_string())?
         .ok_or("Geen update beschikbaar")?;
     update.download_and_install(|_, _| {}, || {}).await.map_err(|e| e.to_string())?;
-    // Node process killen voor restart
-    let np = app.state::<NodeProcess>();
-    let mut guard = np.0.lock().unwrap();
-    if let Some(child) = guard.take() {
-        let pid = child.pid();
-        drop(guard);
-        let _ = std::process::Command::new("taskkill")
-            .args(["/F", "/PID", &pid.to_string()])
-            .spawn();
-        std::thread::sleep(Duration::from_millis(1000));
-    } else {
-        drop(guard);
-    }
+    // Kill wat er op poort 3001 draait
+    let _ = std::process::Command::new("cmd")
+        .args(["/C", "for /f \"tokens=5\" %a in ('netstat -aon ^| findstr :3001 ^| findstr LISTENING') do taskkill /F /PID %a"])
+        .spawn();
+    std::thread::sleep(Duration::from_millis(1500));
     app.restart();
 }
 
@@ -144,15 +136,11 @@ pub fn run() {
         })
         .on_window_event(|window, event| {
             if let tauri::WindowEvent::Destroyed = event {
-                let np = window.state::<NodeProcess>();
-                let mut guard = np.0.lock().unwrap();
-                if let Some(child) = guard.take() {
-                    let pid = child.pid();
-                    let _ = std::process::Command::new("taskkill")
-                        .args(["/F", "/PID", &pid.to_string()])
-                        .spawn();
-                    std::thread::sleep(Duration::from_millis(1000));
-                }
+                // Kill wat er op poort 3001 draait
+                let _ = std::process::Command::new("cmd")
+                    .args(["/C", "for /f \"tokens=5\" %a in ('netstat -aon ^| findstr :3001 ^| findstr LISTENING') do taskkill /F /PID %a"])
+                    .spawn();
+                std::thread::sleep(Duration::from_millis(1500));
             }
         })
         .invoke_handler(tauri::generate_handler![install_update])
