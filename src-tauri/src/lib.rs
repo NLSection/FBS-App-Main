@@ -4,11 +4,9 @@ use std::sync::Mutex;
 use std::time::{Duration, Instant};
 use tauri::Manager;
 use tauri_plugin_dialog::DialogExt;
-use tauri_plugin_updater::UpdaterExt;
 use tauri_plugin_shell::ShellExt;
 use tauri_plugin_shell::process::CommandChild;
-
-struct NodeProcess(Mutex<Option<CommandChild>>);
+use tauri_plugin_updater::UpdaterExt;
 
 #[tauri::command]
 async fn install_update(app: tauri::AppHandle) -> Result<(), String> {
@@ -16,13 +14,15 @@ async fn install_update(app: tauri::AppHandle) -> Result<(), String> {
         .check().await.map_err(|e| e.to_string())?
         .ok_or("Geen update beschikbaar")?;
     update.download_and_install(|_, _| {}, || {}).await.map_err(|e| e.to_string())?;
-    // Kill wat er op poort 3001 draait
+    // Kill wat er op poort 3000 draait
     let _ = std::process::Command::new("cmd")
         .args(["/C", "for /f \"tokens=5\" %a in ('netstat -aon ^| findstr :3001 ^| findstr LISTENING') do taskkill /F /PID %a"])
         .spawn();
     std::thread::sleep(Duration::from_millis(1500));
     app.restart();
 }
+
+struct NodeProcess(Mutex<Option<CommandChild>>);
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -127,16 +127,11 @@ pub fn run() {
                 std::thread::sleep(Duration::from_millis(500));
             }
 
-            // Update check wordt afgehandeld door de frontend (UpdateMelding component)
-            if let Ok(mut f) = OpenOptions::new().create(true).append(true).open(&log_path) {
-                let _ = writeln!(f, "[updater] update check via frontend");
-            }
-
             Ok(())
         })
         .on_window_event(|_window, event| {
             if let tauri::WindowEvent::Destroyed = event {
-                // Kill wat er op poort 3001 draait
+                // Kill wat er op poort 3000 draait
                 let _ = std::process::Command::new("cmd")
                     .args(["/C", "for /f \"tokens=5\" %a in ('netstat -aon ^| findstr :3001 ^| findstr LISTENING') do taskkill /F /PID %a"])
                     .spawn();

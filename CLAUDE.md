@@ -109,18 +109,39 @@ FBS-App bestaat uit twee losse lokale repo's die naar verschillende GitHub remot
   - `npm run dev` draait op poort 3001 (productie preview)
 
 ### Uitrolproces nieuwe versie
-1. Wijzigingen maken en pushen in **FBS-App-Dev**
-2. `sync.ps1` uitvoeren — kopieert Dev naar Main (exclusief `fbs.db`, `.env.local`, `node_modules`, `.git`, `src-tauri\target\`)
-3. Versie ophogen in `package.json`, `src-tauri/tauri.conf.json`, `src-tauri/Cargo.toml`
-4. Committen en pushen van **FBS-App-Main**
-5. `.\build.ps1` uitvoeren in FBS-App-Main (genereert installer + .sig)
-6. GitHub Release aanmaken met tag `vX.Y.Z`, installer en .sig uploaden
-7. Cloudflare Worker pikt automatisch de nieuwe versie op
+1. Wijzigingen maken en testen in FBS-App-Dev (poort 3000)
+2. Versie ophogen in FBS-App-Dev: package.json + src-tauri/tauri.conf.json + src-tauri/Cargo.toml
+3. Commit en push FBS-App-Dev
+4. sync.ps1 uitvoeren — kopieert Dev naar Main (exclusief fbs.db, .env.local, node_modules, .git, src-tauri\target\)
+5. In FBS-App-Main controleren: poort in src-tauri/src/lib.rs moet 3001 zijn (sync overschrijft met 3000)
+6. Versie ophogen in FBS-App-Main: zelfde drie bestanden
+7. Commit en push FBS-App-Main
+8. .\build.ps1 uitvoeren in FBS-App-Main (genereert installer + .sig)
+9. GitHub Release aanmaken met tag vX.Y.Z, installer en .sig uploaden
+10. Cloudflare Worker pikt automatisch de nieuwe versie op
 
 ### Signing
-- Private key: `~/.tauri/fbs-app.key`
+- Private key: ~/.tauri/fbs-app.key
+- Public key: staat in src-tauri/tauri.conf.json (plugins.updater.pubkey)
 - Wachtwoord: in Bitwarden onder "FBS Tauri Signing Key"
-- Env vars worden gezet door `build.ps1` (staat in .gitignore)
+- Env vars worden gezet door build.ps1 (staat in .gitignore)
+
+### Poort-verschil Dev vs Main
+- Dev gebruikt poort 3000 in lib.rs
+- Main gebruikt poort 3001 in lib.rs
+- Na elke sync.ps1: controleer poort in src-tauri/src/lib.rs in Main
+
+### Main-only bestanden
+Deze bestanden leven alleen in Main en worden nooit overschreven door sync.ps1:
+- src-tauri/src/lib.rs
+- build.ps1
+- src-tauri/tauri.conf.json
+
+### Teststrategie auto-updater
+- testVM heeft altijd de vorige versie geïnstalleerd
+- Nieuwe build uploaden als GitHub Release
+- App op testVM toont banner → "Nu installeren" → Tauri updater downloadt en installeert
+- Node kill via netstat/taskkill op poort 3001 (Main) of 3000 (Dev)
 
 ---
 

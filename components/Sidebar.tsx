@@ -26,7 +26,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { usePathname } from 'next/navigation';
 import { useSidebar } from '@/lib/sidebar-context';
 import { APP_VERSION } from '@/lib/version';
@@ -134,7 +134,6 @@ function SectionLabsLogo() {
 export default function Sidebar() {
   const pathname = usePathname();
   const { collapsed, setCollapsed, tableRequiredWidth } = useSidebar();
-  const [runtimeVersion, setRuntimeVersion] = useState(APP_VERSION);
   const manualOverrideRef = useRef<number | null>(null);
   const tableReqWidthRef = useRef(tableRequiredWidth);
   const pathnameRef = useRef(pathname);
@@ -145,13 +144,6 @@ export default function Sidebar() {
     pathnameRef.current = pathname;
     if (pathname !== '/transacties') tableWidthInitializedRef.current = false;
   }, [pathname]);
-
-  // Versienummer runtime ophalen (na auto-update kan dit afwijken van build-time waarde)
-  useEffect(() => {
-    fetch('/api/version').then(r => r.ok ? r.json() : null)
-      .then(data => { if (data?.version) setRuntimeVersion(data.version); })
-      .catch(() => {});
-  }, []);
 
   // Op mount: stored pref gebruiken als initiële staat (geen manual override — resize overschrijft altijd)
   useEffect(() => {
@@ -260,7 +252,7 @@ export default function Sidebar() {
       <div className="sidebar-footer" style={{ justifyContent: collapsed ? 'center' : undefined }}>
         <SectionLabsLogo />
         {!collapsed && <span>Section Labs</span>}
-        {!collapsed && <span style={{ fontSize: 9, color: 'var(--text-dim)', opacity: 0.5, marginLeft: 'auto' }}>v{runtimeVersion}</span>}
+        {!collapsed && <span style={{ fontSize: 9, color: 'var(--text-dim)', opacity: 0.5, marginLeft: 'auto' }}>v{APP_VERSION}</span>}
       </div>
     </nav>
     {/* Toggle knop — ronde knop half buiten de sidebar */}

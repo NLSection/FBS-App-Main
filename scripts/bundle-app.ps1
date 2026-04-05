@@ -11,11 +11,8 @@
 $ErrorActionPreference = "Stop"
 $ProjectRoot = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
 
-Write-Host "=== Rebuild better-sqlite3 ===" -ForegroundColor Cyan
-Push-Location $ProjectRoot
-npm rebuild better-sqlite3
-
 Write-Host "=== Next.js build ===" -ForegroundColor Cyan
+Push-Location $ProjectRoot
 npm run build
 Pop-Location
 
@@ -29,7 +26,7 @@ if (-Not (Test-Path $StandalonePath)) {
 
 Write-Host "=== Verwijder oude src-tauri/app/ ===" -ForegroundColor Cyan
 if (Test-Path $TauriAppPath) {
-    cmd /c "rd /s /q `"$TauriAppPath`"" 2>$null
+    Remove-Item -Recurse -Force $TauriAppPath
 }
 
 Write-Host "=== Kopieer standalone → src-tauri/app/ ===" -ForegroundColor Cyan
