@@ -16,19 +16,25 @@ async fn install_update(app: tauri::AppHandle) -> Result<(), String> {
     let update = app.updater().map_err(|e| e.to_string())?
         .check().await.map_err(|e| e.to_string())?
         .ok_or("Geen update beschikbaar")?;
-    update.download_and_install(|_, _| {}, || {}).await.map_err(|e| e.to_string())?;
-    let np = app.state::<NodeProcess>();
-    let mut guard = np.0.lock().unwrap();
-    if let Some(child) = guard.take() {
-        let pid = child.pid();
-        drop(guard);
-        let _ = std::process::Command::new("taskkill")
-            .args(["/F", "/PID", &pid.to_string()])
-            .output();
-    } else {
-        drop(guard);
+
+    // Kill node VOOR de install
+    {
+        let np = app.state::<NodeProcess>();
+        let mut guard = np.0.lock().unwrap();
+        if let Some(child) = guard.take() {
+            let pid = child.pid();
+            drop(guard);
+            let _ = std::process::Command::new("taskkill")
+                .args(["/F", "/PID", &pid.to_string()])
+                .output();
+            std::thread::sleep(std::time::Duration::from_millis(500));
+        }
     }
-    app.restart();
+
+    // Dan pas downloaden en installeren — NSIS herstart de app zelf
+    update.download_and_install(|_, _| {}, || {}).await.map_err(|e| e.to_string())?;
+
+    Ok(())
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
