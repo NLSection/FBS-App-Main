@@ -11,7 +11,7 @@ export default function LoadingScreen({ children }: { children: React.ReactNode 
     async function poll() {
       while (!cancelled) {
         try {
-          const res = await fetch('/api/periodes');
+          const res = await fetch('/api/health');
           if (res.ok) {
             if (!cancelled) setReady(true);
             return;

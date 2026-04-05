@@ -35,7 +35,10 @@ async fn install_update(app: tauri::AppHandle) -> Result<(), String> {
     update.download_and_install(|_, _| {}, || {}).await.map_err(|e| e.to_string())?;
 
     std::thread::sleep(std::time::Duration::from_millis(2000));
-    app.restart();
+    let exe = std::env::current_exe().map_err(|e| e.to_string())?;
+    std::process::Command::new(exe).spawn().map_err(|e| e.to_string())?;
+    app.exit(0);
+    Ok(())
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
