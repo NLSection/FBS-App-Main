@@ -40,10 +40,11 @@ export default function UpdateMelding() {
     if (!isTauri) return;
     setInstalling(true);
     try {
-      const { invoke } = await import('@tauri-apps/api/core');
-      await invoke('install_update');
+      const tauri = await import('@tauri-apps/api/core');
+      await tauri.invoke('install_update');
     } catch (e) {
       console.error('Update mislukt:', e);
+      alert('Update fout: ' + String(e));
       setInstalling(false);
     }
   };
@@ -63,7 +64,7 @@ export default function UpdateMelding() {
         </span>
         {isTauri ? (
           <button
-            onClick={handleInstall}
+            onClick={() => { console.log('install clicked, isTauri:', isTauri); handleInstall(); }}
             disabled={installing}
             style={{
               background: '#89b4fa',
