@@ -133,9 +133,10 @@ FBS-App bestaat uit twee losse lokale repo's die naar verschillende GitHub remot
 
 ### Main-only bestanden
 Deze bestanden leven alleen in Main en worden nooit overschreven door sync.ps1:
-- src-tauri/src/lib.rs
 - build.ps1
 - src-tauri/tauri.conf.json
+
+lib.rs wordt gesynced vanuit Dev — geen poort-verschil meer dankzij PORT=0 (dynamische poort).
 
 ### Teststrategie auto-updater
 - testVM heeft altijd de vorige versie geïnstalleerd

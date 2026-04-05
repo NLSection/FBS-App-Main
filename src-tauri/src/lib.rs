@@ -1,12 +1,15 @@
 use std::fs::OpenOptions;
 use std::io::Write;
 use std::sync::Mutex;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 use tauri::Manager;
 use tauri_plugin_dialog::DialogExt;
 use tauri_plugin_shell::ShellExt;
 use tauri_plugin_shell::process::CommandChild;
 use tauri_plugin_updater::UpdaterExt;
+
+struct NodeProcess(Mutex<Option<CommandChild>>);
+struct AppPort(Mutex<Option<u16>>);
 
 #[tauri::command]
 async fn install_update(app: tauri::AppHandle) -> Result<(), String> {
@@ -14,20 +17,25 @@ async fn install_update(app: tauri::AppHandle) -> Result<(), String> {
         .check().await.map_err(|e| e.to_string())?
         .ok_or("Geen update beschikbaar")?;
     update.download_and_install(|_, _| {}, || {}).await.map_err(|e| e.to_string())?;
-    // Kill wat er op poort 3000 draait
-    let _ = std::process::Command::new("cmd")
-        .args(["/C", "for /f \"tokens=5\" %a in ('netstat -aon ^| findstr :3001 ^| findstr LISTENING') do taskkill /F /PID %a"])
-        .spawn();
-    std::thread::sleep(Duration::from_millis(1500));
+    let np = app.state::<NodeProcess>();
+    let mut guard = np.0.lock().unwrap();
+    if let Some(child) = guard.take() {
+        let pid = child.pid();
+        drop(guard);
+        let _ = std::process::Command::new("taskkill")
+            .args(["/F", "/PID", &pid.to_string()])
+            .output();
+    } else {
+        drop(guard);
+    }
     app.restart();
 }
-
-struct NodeProcess(Mutex<Option<CommandChild>>);
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .manage(NodeProcess(Mutex::new(None)))
+        .manage(AppPort(Mutex::new(None)))
         .setup(|app| {
             let resource_path = app.path().resource_dir()
                 .map_err(|e| format!("Kan resource map niet vinden: {e}"))?;
@@ -59,12 +67,12 @@ pub fn run() {
                 }
             }
 
-            // Start Next.js server via Tauri sidecar (resolvet automatisch het juiste pad)
+            // Start Next.js server via Tauri sidecar met PORT=0 (OS kiest vrije poort)
             let result = app.shell()
                 .sidecar("node")
                 .map_err(|e| format!("Kan sidecar niet aanmaken: {e}"))?
                 .args([server_js_str.as_str()])
-                .env("PORT", "3001")
+                .env("PORT", "0")
                 .env("NODE_ENV", "production")
                 .env("DB_PATH", &db_path)
                 .spawn();
@@ -80,62 +88,110 @@ pub fn run() {
                 }
             };
 
-            // Node stdout/stderr loggen naar fbs-debug.log
+            // Sla child process op voor cleanup
+            let state = app.state::<NodeProcess>();
+            *state.0.lock().unwrap() = Some(child);
+
+            // Node stdout/stderr loggen + poort detecteren
             let log_path_clone = log_path.clone();
+            let app_handle = app.handle().clone();
+            let (port_tx, port_rx) = std::sync::mpsc::channel::<u16>();
+            let port_tx = std::sync::Arc::new(Mutex::new(Some(port_tx)));
+
             tauri::async_runtime::spawn(async move {
                 let mut rx = rx;
                 while let Some(event) = rx.recv().await {
                     if let tauri_plugin_shell::process::CommandEvent::Stdout(line)
                         | tauri_plugin_shell::process::CommandEvent::Stderr(line) = event
                     {
+                        let line_str = String::from_utf8_lossy(&line);
                         if let Ok(mut f) = OpenOptions::new()
                             .create(true).append(true).open(&log_path_clone)
                         {
-                            let _ = writeln!(f, "[node] {}", String::from_utf8_lossy(&line));
+                            let _ = writeln!(f, "[node] {}", line_str);
+                        }
+                        // Poort detecteren uit Next.js output (bijv. "http://localhost:12345")
+                        for part in line_str.split_whitespace() {
+                            if part.starts_with("http://localhost:") {
+                                if let Some(port_str) = part
+                                    .trim_start_matches("http://localhost:")
+                                    .split('/')
+                                    .next()
+                                {
+                                    if let Ok(port) = port_str.parse::<u16>() {
+                                        let state = app_handle.state::<AppPort>();
+                                        *state.0.lock().unwrap() = Some(port);
+                                        if let Some(tx) = port_tx.lock().unwrap().take() {
+                                            let _ = tx.send(port);
+                                        }
+                                        break;
+                                    }
+                                }
+                            }
                         }
                     }
                 }
             });
 
-            // Sla child process op voor cleanup
-            let state = app.state::<NodeProcess>();
-            *state.0.lock().unwrap() = Some(child);
+            // Wacht op poort van Node stdout (max 30s)
+            let port = port_rx.recv_timeout(Duration::from_secs(30));
 
-            // Health check: wacht tot server bereikbaar is (max 30s)
-            let client = reqwest::blocking::Client::builder()
-                .timeout(Duration::from_millis(500))
-                .build()
-                .unwrap();
-
-            let start = Instant::now();
-            let max_wait = Duration::from_secs(30);
-
-            loop {
-                if client.get("http://localhost:3001").send().is_ok() {
-                    break;
-                }
-                if start.elapsed() > max_wait {
+            let port = match port {
+                Ok(p) => p,
+                _ => {
                     app.dialog()
                         .message("De server is niet opgestart binnen 30 seconden.\nDe app wordt afgesloten.")
                         .blocking_show();
-                    // Kill child process
                     if let Some(child) = app.state::<NodeProcess>().0.lock().unwrap().take() {
                         let _ = child.kill();
                     }
                     std::process::exit(1);
                 }
-                std::thread::sleep(Duration::from_millis(500));
+            };
+
+            if let Ok(mut f) = OpenOptions::new().create(true).append(true).open(&log_path) {
+                let _ = writeln!(f, "[app] server gedetecteerd op poort {}", port);
             }
+
+            // Health check op gedetecteerde poort
+            let client = reqwest::blocking::Client::builder()
+                .timeout(Duration::from_millis(500))
+                .build()
+                .unwrap();
+
+            let url = format!("http://localhost:{}", port);
+            let start = std::time::Instant::now();
+            let max_wait = Duration::from_secs(10);
+
+            loop {
+                if client.get(&url).send().is_ok() {
+                    break;
+                }
+                if start.elapsed() > max_wait {
+                    break; // Poort was al gedetecteerd, server is waarschijnlijk ready
+                }
+                std::thread::sleep(Duration::from_millis(200));
+            }
+
+            // Navigeer webview naar de dynamische poort
+            let window = app.get_webview_window("main")
+                .ok_or("Kan hoofdvenster niet vinden")?;
+            window.navigate(url.parse().map_err(|e| format!("Ongeldige URL: {e}"))?)
+                .map_err(|e| format!("Navigatie mislukt: {e}"))?;
 
             Ok(())
         })
-        .on_window_event(|_window, event| {
+        .on_window_event(|window, event| {
             if let tauri::WindowEvent::Destroyed = event {
-                // Kill wat er op poort 3000 draait
-                let _ = std::process::Command::new("cmd")
-                    .args(["/C", "for /f \"tokens=5\" %a in ('netstat -aon ^| findstr :3001 ^| findstr LISTENING') do taskkill /F /PID %a"])
-                    .spawn();
-                std::thread::sleep(Duration::from_millis(1500));
+                let np = window.state::<NodeProcess>();
+                let mut guard = np.0.lock().unwrap();
+                if let Some(child) = guard.take() {
+                    let pid = child.pid();
+                    drop(guard);
+                    let _ = std::process::Command::new("taskkill")
+                        .args(["/F", "/PID", &pid.to_string()])
+                        .output();
+                }
             }
         })
         .invoke_handler(tauri::generate_handler![install_update])
