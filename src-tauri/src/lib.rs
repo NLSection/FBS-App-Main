@@ -114,6 +114,9 @@ pub fn run() {
             }
 
             // Update check na succesvolle start
+            if let Ok(mut f) = OpenOptions::new().create(true).append(true).open(&log_path) {
+                let _ = writeln!(f, "[updater] update check spawn wordt gestart");
+            }
             let app_handle = app.handle().clone();
             let log_path_update = log_path.clone();
             tauri::async_runtime::spawn(async move {
