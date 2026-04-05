@@ -31,10 +31,11 @@ async fn install_update(app: tauri::AppHandle) -> Result<(), String> {
         }
     }
 
-    // Dan pas downloaden en installeren — NSIS herstart de app zelf
+    // Dan pas downloaden en installeren
     update.download_and_install(|_, _| {}, || {}).await.map_err(|e| e.to_string())?;
 
-    Ok(())
+    std::thread::sleep(std::time::Duration::from_millis(2000));
+    app.restart();
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
