@@ -3,7 +3,8 @@ use std::io::Write;
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
 use tauri::Manager;
-use tauri_plugin_dialog::DialogExt;
+use tauri_plugin_dialog::{DialogExt, MessageDialogButtons};
+use tauri_plugin_updater::UpdaterExt;
 use tauri_plugin_shell::ShellExt;
 use tauri_plugin_shell::process::CommandChild;
 
@@ -111,6 +112,35 @@ pub fn run() {
                 }
                 std::thread::sleep(Duration::from_millis(500));
             }
+
+            // Update check na succesvolle start
+            let app_handle = app.handle().clone();
+            tauri::async_runtime::spawn(async move {
+                let updater = match app_handle.updater() {
+                    Ok(u) => u,
+                    Err(_) => return,
+                };
+                let update = match updater.check().await {
+                    Ok(Some(update)) => update,
+                    _ => return,
+                };
+                let version = update.version.clone();
+                let body = update.body.clone().unwrap_or_default();
+                let msg = format!(
+                    "Versie {} is beschikbaar.\n\n{}\n\nNu installeren?",
+                    version, body
+                );
+                let confirmed = app_handle.dialog()
+                    .message(msg)
+                    .title("Update beschikbaar")
+                    .buttons(MessageDialogButtons::OkCancelCustom("Ja".into(), "Later".into()))
+                    .blocking_show();
+                if confirmed {
+                    if update.download_and_install(|_, _| {}, || {}).await.is_ok() {
+                        app_handle.restart();
+                    }
+                }
+            });
 
             Ok(())
         })
