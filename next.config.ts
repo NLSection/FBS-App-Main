@@ -8,11 +8,13 @@
 
 import type { NextConfig } from "next";
 
+const { version } = require('./package.json');
+
 const nextConfig: NextConfig = {
   output: 'standalone',
   devIndicators: false,
   env: {
-    NEXT_PUBLIC_APP_VERSION: process.env.npm_package_version,
+    NEXT_PUBLIC_APP_VERSION: version,
   },
   async headers() {
     return [
