@@ -67,12 +67,25 @@ pub fn run() {
                 }
             }
 
-            // Start Next.js server via Tauri sidecar met PORT=0 (OS kiest vrije poort)
+            // Zoek een vrije poort
+            let listener = std::net::TcpListener::bind("127.0.0.1:0")
+                .map_err(|e| format!("Kan geen vrije poort vinden: {e}"))?;
+            let port = listener.local_addr()
+                .map_err(|e| format!("Kan poort niet lezen: {e}"))?.port();
+            drop(listener);
+
+            *app.state::<AppPort>().0.lock().unwrap() = Some(port);
+
+            if let Ok(mut f) = OpenOptions::new().create(true).append(true).open(&log_path) {
+                let _ = writeln!(f, "[app] vrije poort gekozen: {}", port);
+            }
+
+            // Start Next.js server via Tauri sidecar op de gekozen poort
             let result = app.shell()
                 .sidecar("node")
                 .map_err(|e| format!("Kan sidecar niet aanmaken: {e}"))?
                 .args([server_js_str.as_str()])
-                .env("PORT", "0")
+                .env("PORT", &port.to_string())
                 .env("NODE_ENV", "production")
                 .env("DB_PATH", &db_path)
                 .spawn();
@@ -92,53 +105,38 @@ pub fn run() {
             let state = app.state::<NodeProcess>();
             *state.0.lock().unwrap() = Some(child);
 
-            // Node stdout/stderr loggen + poort detecteren
+            // Node stdout/stderr loggen naar fbs-debug.log
             let log_path_clone = log_path.clone();
-            let app_handle = app.handle().clone();
-            let (port_tx, port_rx) = std::sync::mpsc::channel::<u16>();
-            let port_tx = std::sync::Arc::new(Mutex::new(Some(port_tx)));
-
             tauri::async_runtime::spawn(async move {
                 let mut rx = rx;
                 while let Some(event) = rx.recv().await {
                     if let tauri_plugin_shell::process::CommandEvent::Stdout(line)
                         | tauri_plugin_shell::process::CommandEvent::Stderr(line) = event
                     {
-                        let line_str = String::from_utf8_lossy(&line);
                         if let Ok(mut f) = OpenOptions::new()
                             .create(true).append(true).open(&log_path_clone)
                         {
-                            let _ = writeln!(f, "[node] {}", line_str);
-                        }
-                        // Poort detecteren uit Next.js output (bijv. "http://localhost:12345")
-                        for part in line_str.split_whitespace() {
-                            if part.starts_with("http://localhost:") {
-                                if let Some(port_str) = part
-                                    .trim_start_matches("http://localhost:")
-                                    .split('/')
-                                    .next()
-                                {
-                                    if let Ok(port) = port_str.parse::<u16>() {
-                                        let state = app_handle.state::<AppPort>();
-                                        *state.0.lock().unwrap() = Some(port);
-                                        if let Some(tx) = port_tx.lock().unwrap().take() {
-                                            let _ = tx.send(port);
-                                        }
-                                        break;
-                                    }
-                                }
-                            }
+                            let _ = writeln!(f, "[node] {}", String::from_utf8_lossy(&line));
                         }
                     }
                 }
             });
 
-            // Wacht op poort van Node stdout (max 30s)
-            let port = port_rx.recv_timeout(Duration::from_secs(30));
+            // Health check: wacht tot server bereikbaar is (max 30s)
+            let client = reqwest::blocking::Client::builder()
+                .timeout(Duration::from_millis(500))
+                .build()
+                .unwrap();
 
-            let port = match port {
-                Ok(p) => p,
-                _ => {
+            let url = format!("http://localhost:{}", port);
+            let start = std::time::Instant::now();
+            let max_wait = Duration::from_secs(30);
+
+            loop {
+                if client.get(&url).send().is_ok() {
+                    break;
+                }
+                if start.elapsed() > max_wait {
                     app.dialog()
                         .message("De server is niet opgestart binnen 30 seconden.\nDe app wordt afgesloten.")
                         .blocking_show();
@@ -147,30 +145,7 @@ pub fn run() {
                     }
                     std::process::exit(1);
                 }
-            };
-
-            if let Ok(mut f) = OpenOptions::new().create(true).append(true).open(&log_path) {
-                let _ = writeln!(f, "[app] server gedetecteerd op poort {}", port);
-            }
-
-            // Health check op gedetecteerde poort
-            let client = reqwest::blocking::Client::builder()
-                .timeout(Duration::from_millis(500))
-                .build()
-                .unwrap();
-
-            let url = format!("http://localhost:{}", port);
-            let start = std::time::Instant::now();
-            let max_wait = Duration::from_secs(10);
-
-            loop {
-                if client.get(&url).send().is_ok() {
-                    break;
-                }
-                if start.elapsed() > max_wait {
-                    break; // Poort was al gedetecteerd, server is waarschijnlijk ready
-                }
-                std::thread::sleep(Duration::from_millis(200));
+                std::thread::sleep(Duration::from_millis(500));
             }
 
             // Navigeer webview naar de dynamische poort
