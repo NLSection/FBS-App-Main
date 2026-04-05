@@ -134,7 +134,7 @@ pub fn run() {
 
             Ok(())
         })
-        .on_window_event(|window, event| {
+        .on_window_event(|_window, event| {
             if let tauri::WindowEvent::Destroyed = event {
                 // Kill wat er op poort 3001 draait
                 let _ = std::process::Command::new("cmd")
