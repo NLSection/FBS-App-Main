@@ -178,7 +178,7 @@ pub fn run() {
             Ok(())
         })
         .on_window_event(|window, event| {
-            if let tauri::WindowEvent::CloseRequested { .. } = event {
+            if let tauri::WindowEvent::Destroyed = event {
                 let np = window.state::<NodeProcess>();
                 let mut guard = np.0.lock().unwrap();
                 if let Some(child) = guard.take() {
