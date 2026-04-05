@@ -3,7 +3,7 @@ use std::io::Write;
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
 use tauri::Manager;
-use tauri_plugin_dialog::{DialogExt, MessageDialogButtons};
+use tauri_plugin_dialog::DialogExt;
 use tauri_plugin_updater::UpdaterExt;
 use tauri_plugin_shell::ShellExt;
 use tauri_plugin_shell::process::CommandChild;
@@ -16,6 +16,14 @@ async fn install_update(app: tauri::AppHandle) -> Result<(), String> {
         .check().await.map_err(|e| e.to_string())?
         .ok_or("Geen update beschikbaar")?;
     update.download_and_install(|_, _| {}, || {}).await.map_err(|e| e.to_string())?;
+    // Node process killen voor restart
+    let np = app.state::<NodeProcess>();
+    let mut guard = np.0.lock().unwrap();
+    if let Some(child) = guard.take() {
+        std::thread::sleep(Duration::from_millis(2000));
+        let _ = child.kill();
+    }
+    drop(guard);
     app.restart();
 }
 
@@ -122,65 +130,10 @@ pub fn run() {
                 std::thread::sleep(Duration::from_millis(500));
             }
 
-            // Update check na succesvolle start
+            // Update check wordt afgehandeld door de frontend (UpdateMelding component)
             if let Ok(mut f) = OpenOptions::new().create(true).append(true).open(&log_path) {
-                let _ = writeln!(f, "[updater] update check spawn wordt gestart");
+                let _ = writeln!(f, "[updater] update check via frontend");
             }
-            let app_handle = app.handle().clone();
-            let log_path_update = log_path.clone();
-            tauri::async_runtime::spawn(async move {
-                let log = |msg: &str| {
-                    if let Ok(mut f) = OpenOptions::new()
-                        .create(true).append(true).open(&log_path_update)
-                    {
-                        let _ = writeln!(f, "[updater] {}", msg);
-                    }
-                };
-
-                log("update check gestart");
-                let updater = match app_handle.updater() {
-                    Ok(u) => u,
-                    Err(e) => { log(&format!("updater init fout: {e}")); return; }
-                };
-                let update = match updater.check().await {
-                    Ok(Some(update)) => {
-                        log(&format!("update gevonden: {}", update.version));
-                        update
-                    }
-                    Ok(None) => { log("geen update"); return; }
-                    Err(e) => { log(&format!("update check fout: {e}")); return; }
-                };
-                let version = update.version.clone();
-                let body = update.body.clone().unwrap_or_default();
-                let msg = format!(
-                    "Versie {} is beschikbaar.\n\n{}\n\nNu installeren?",
-                    version, body
-                );
-                let confirmed = app_handle.dialog()
-                    .message(msg)
-                    .title("Update beschikbaar")
-                    .buttons(MessageDialogButtons::OkCancelCustom("Ja".into(), "Later".into()))
-                    .blocking_show();
-                if confirmed {
-                    log("download gestart");
-                    match update.download_and_install(|_, _| {}, || {}).await {
-                        Ok(_) => {
-                            log("download voltooid, installatie gestart");
-                            let np = app_handle.state::<NodeProcess>();
-                            let mut guard = np.0.lock().unwrap();
-                            if let Some(child) = guard.take() {
-                                std::thread::sleep(Duration::from_millis(2000));
-                                let _ = child.kill();
-                            }
-                            drop(guard);
-                            app_handle.restart();
-                        }
-                        Err(e) => log(&format!("download/install fout: {e}")),
-                    }
-                } else {
-                    log("gebruiker koos 'Later'");
-                }
-            });
 
             Ok(())
         })

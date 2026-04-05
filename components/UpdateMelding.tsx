@@ -24,6 +24,7 @@ export default function UpdateMelding() {
   const [info, setInfo] = useState<UpdateInfo | null>(null);
   const [installing, setInstalling] = useState(false);
   const isTauri = typeof window !== 'undefined' && !!(window as any).__TAURI_INTERNALS__;
+  console.log('[UpdateMelding] isTauri:', isTauri);
 
   useEffect(() => {
     // Check localStorage cache
