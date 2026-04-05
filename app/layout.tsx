@@ -15,6 +15,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import Sidebar from "@/components/Sidebar";
 import BackupCheck from "@/components/BackupCheck";
 import UpdateMelding from "@/components/UpdateMelding";
+import TauriUpdater from "@/components/TauriUpdater";
 import { SidebarProvider } from "@/lib/sidebar-context";
 import "./globals.css";
 
@@ -42,6 +43,7 @@ export default function RootLayout({
   return (
     <html lang="nl" className={`${geistSans.variable} ${geistMono.variable}`}>
       <body>
+        <TauriUpdater />
         <SidebarProvider>
           <div className="app">
             <Sidebar />
