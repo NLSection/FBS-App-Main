@@ -12,14 +12,17 @@ export default function TauriUpdater() {
   const [installing, setInstalling] = useState(false);
 
   useEffect(() => {
-    if (!(window as any).__TAURI__) return;
+    const isTauri = !!(window as any).__TAURI_INTERNALS__ || !!(window as any).__TAURI__;
+    console.log('[TauriUpdater] gestart, isTauri:', isTauri);
+    if (!isTauri) return;
 
     import('@tauri-apps/api/core').then(({ invoke }) => {
       invoke<UpdateInfo | null>('check_for_update')
         .then((result) => {
+          console.log('[TauriUpdater] check_for_update resultaat:', result);
           if (result) setUpdate(result);
         })
-        .catch(() => {});
+        .catch((err) => console.error('[TauriUpdater] fout:', err));
     });
   }, []);
 
