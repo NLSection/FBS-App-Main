@@ -16,6 +16,7 @@ import Sidebar from "@/components/Sidebar";
 import BackupCheck from "@/components/BackupCheck";
 import UpdateMelding from "@/components/UpdateMelding";
 import UpdatePopup from "@/components/UpdatePopup";
+import LoadingScreen from "@/components/LoadingScreen";
 import { SidebarProvider } from "@/lib/sidebar-context";
 import "./globals.css";
 
@@ -43,17 +44,19 @@ export default function RootLayout({
   return (
     <html lang="nl" className={`${geistSans.variable} ${geistMono.variable}`}>
       <body>
-        <UpdatePopup />
-        <SidebarProvider>
-          <div className="app">
-            <Sidebar />
-            <main className="main">
-              <UpdateMelding />
-              {children}
-            </main>
-          </div>
-          <BackupCheck />
-        </SidebarProvider>
+        <LoadingScreen>
+          <UpdatePopup />
+          <SidebarProvider>
+            <div className="app">
+              <Sidebar />
+              <main className="main">
+                <UpdateMelding />
+                {children}
+              </main>
+            </div>
+            <BackupCheck />
+          </SidebarProvider>
+        </LoadingScreen>
       </body>
     </html>
   );
