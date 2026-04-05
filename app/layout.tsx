@@ -15,7 +15,6 @@ import { Geist, Geist_Mono } from "next/font/google";
 import Sidebar from "@/components/Sidebar";
 import BackupCheck from "@/components/BackupCheck";
 import UpdateMelding from "@/components/UpdateMelding";
-import UpdatePopup from "@/components/UpdatePopup";
 import LoadingScreen from "@/components/LoadingScreen";
 import { SidebarProvider } from "@/lib/sidebar-context";
 import "./globals.css";
@@ -45,7 +44,6 @@ export default function RootLayout({
     <html lang="nl" className={`${geistSans.variable} ${geistMono.variable}`}>
       <body>
         <LoadingScreen>
-          <UpdatePopup />
           <SidebarProvider>
             <div className="app">
               <Sidebar />

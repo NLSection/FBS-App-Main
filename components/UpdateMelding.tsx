@@ -1,102 +1,94 @@
-// FILE: UpdateMelding.tsx
-// AANGEMAAKT: 05-04-2026 01:15
-// VERSIE: 1
-// GEWIJZIGD: 04-04-2026 22:00
-//
-// WIJZIGINGEN (04-04-2026 22:00):
-// - changelog tekst onder de banner tonen
-// WIJZIGINGEN (05-04-2026 01:15):
-// - Initieel: update-check banner met 24-uur cache
-
 'use client';
-
 import { useEffect, useState } from 'react';
 
 interface UpdateInfo {
   huidig: string;
   nieuwste: string;
   updateBeschikbaar: boolean;
-  releaseUrl: string | null;
-  changelog: string | null;
+  releaseUrl: string;
+  changelog?: string;
 }
 
-const CACHE_KEY = 'fbs-update-check';
-const CACHE_DUUR_MS = 24 * 60 * 60 * 1000; // 24 uur
-
 export default function UpdateMelding() {
-  const [info, setInfo] = useState<UpdateInfo | null>(null);
-  const isTauri = true; // TIJDELIJK voor dev testing
+  const [update, setUpdate] = useState<UpdateInfo | null>(null);
+  const [installing, setInstalling] = useState(false);
+  const isTauri = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
 
   useEffect(() => {
-    // Check localStorage cache
-    try {
-      const cached = localStorage.getItem(CACHE_KEY);
-      if (cached) {
-        const { data, timestamp } = JSON.parse(cached);
-        if (Date.now() - timestamp < CACHE_DUUR_MS) {
-          if (data.updateBeschikbaar) setInfo(data);
+    const cached = localStorage.getItem('fbs-update-check');
+    if (cached) {
+      try {
+        const { data, ts } = JSON.parse(cached);
+        if (Date.now() - ts < 3600000) {
+          if (data.updateBeschikbaar) setUpdate(data);
           return;
         }
-      }
-    } catch { /* cache corrupt, opnieuw ophalen */ }
-
+      } catch {}
+    }
     fetch('/api/updates/check')
-      .then(r => r.ok ? r.json() : null)
-      .then((data: UpdateInfo | null) => {
-        if (!data) return;
-        try {
-          localStorage.setItem(CACHE_KEY, JSON.stringify({ data, timestamp: Date.now() }));
-        } catch { /* localStorage vol */ }
-        if (data.updateBeschikbaar) setInfo(data);
+      .then(r => r.json())
+      .then((data: UpdateInfo) => {
+        localStorage.setItem('fbs-update-check', JSON.stringify({ data, ts: Date.now() }));
+        if (data.updateBeschikbaar) setUpdate(data);
       })
       .catch(() => {});
   }, []);
 
-  if (!info) return null;
+  if (!update) return null;
+
+  const handleInstall = async () => {
+    if (!isTauri) return;
+    setInstalling(true);
+    try {
+      const { invoke } = await import('@tauri-apps/api/core');
+      await invoke('install_update');
+    } catch (e) {
+      console.error('Update mislukt:', e);
+      setInstalling(false);
+    }
+  };
 
   return (
     <div style={{
-      background: 'var(--accent-dim)',
-      border: '1px solid var(--accent)',
-      borderRadius: 6,
-      padding: '6px 16px',
-      margin: '0 0 12px',
-      fontSize: 12,
-      color: 'var(--text)',
+      background: '#1e1e2e',
+      borderBottom: '1px solid #313244',
+      padding: '10px 20px',
+      display: 'flex',
+      flexDirection: 'column',
+      gap: '4px',
     }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <span>Nieuwe versie beschikbaar: <strong>{info.nieuwste}</strong></span>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <span style={{ color: '#cdd6f4', fontSize: '13px' }}>
+          Nieuwe versie beschikbaar: <strong>{update.nieuwste}</strong>
+        </span>
         {isTauri ? (
           <button
+            onClick={handleInstall}
+            disabled={installing}
             style={{
-              background: 'none', border: 'none', padding: 0,
-              color: 'var(--accent)', fontWeight: 600, cursor: 'pointer',
-              fontSize: 'inherit',
+              background: '#89b4fa',
+              color: '#1e1e2e',
+              border: 'none',
+              borderRadius: '6px',
+              padding: '4px 14px',
+              cursor: installing ? 'wait' : 'pointer',
+              fontWeight: 600,
+              fontSize: '13px',
             }}
           >
-            Nu installeren
+            {installing ? 'Installeren...' : 'Nu installeren'}
           </button>
-        ) : info.releaseUrl && (
-          <a
-            href={info.releaseUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{ color: 'var(--accent)', fontWeight: 600, textDecoration: 'none' }}
-          >
-            Download
+        ) : (
+          <a href={update.releaseUrl} target="_blank" rel="noreferrer"
+            style={{ color: '#89b4fa', fontSize: '13px' }}>
+            Naar download
           </a>
         )}
       </div>
-      {info.changelog && (
-        <p style={{
-          margin: '6px 0 2px',
-          fontSize: 11,
-          color: 'var(--text-dimmed)',
-          whiteSpace: 'pre-line',
-          lineHeight: 1.4,
-        }}>
-          {info.changelog}
-        </p>
+      {update.changelog && (
+        <div style={{ color: '#a6adc8', fontSize: '12px' }}>
+          {update.changelog.split('\n').map((r, i) => <div key={i}>{r}</div>)}
+        </div>
       )}
     </div>
   );
