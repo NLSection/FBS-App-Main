@@ -115,14 +115,28 @@ pub fn run() {
 
             // Update check na succesvolle start
             let app_handle = app.handle().clone();
+            let log_path_update = log_path.clone();
             tauri::async_runtime::spawn(async move {
+                let log = |msg: &str| {
+                    if let Ok(mut f) = OpenOptions::new()
+                        .create(true).append(true).open(&log_path_update)
+                    {
+                        let _ = writeln!(f, "[updater] {}", msg);
+                    }
+                };
+
+                log("update check gestart");
                 let updater = match app_handle.updater() {
                     Ok(u) => u,
-                    Err(_) => return,
+                    Err(e) => { log(&format!("updater init fout: {e}")); return; }
                 };
                 let update = match updater.check().await {
-                    Ok(Some(update)) => update,
-                    _ => return,
+                    Ok(Some(update)) => {
+                        log(&format!("update gevonden: {}", update.version));
+                        update
+                    }
+                    Ok(None) => { log("geen update"); return; }
+                    Err(e) => { log(&format!("update check fout: {e}")); return; }
                 };
                 let version = update.version.clone();
                 let body = update.body.clone().unwrap_or_default();
@@ -136,9 +150,16 @@ pub fn run() {
                     .buttons(MessageDialogButtons::OkCancelCustom("Ja".into(), "Later".into()))
                     .blocking_show();
                 if confirmed {
-                    if update.download_and_install(|_, _| {}, || {}).await.is_ok() {
-                        app_handle.restart();
+                    log("download gestart");
+                    match update.download_and_install(|_, _| {}, || {}).await {
+                        Ok(_) => {
+                            log("download voltooid, installatie gestart");
+                            app_handle.restart();
+                        }
+                        Err(e) => log(&format!("download/install fout: {e}")),
                     }
+                } else {
+                    log("gebruiker koos 'Later'");
                 }
             });
 
