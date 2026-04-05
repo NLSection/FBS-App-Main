@@ -29,7 +29,7 @@ if (-Not (Test-Path $StandalonePath)) {
 
 Write-Host "=== Verwijder oude src-tauri/app/ ===" -ForegroundColor Cyan
 if (Test-Path $TauriAppPath) {
-    Remove-Item -Recurse -Force $TauriAppPath
+    cmd /c "rd /s /q `"$TauriAppPath`"" 2>$null
 }
 
 Write-Host "=== Kopieer standalone → src-tauri/app/ ===" -ForegroundColor Cyan
