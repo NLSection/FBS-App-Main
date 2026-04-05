@@ -20,10 +20,15 @@ async fn install_update(app: tauri::AppHandle) -> Result<(), String> {
     let np = app.state::<NodeProcess>();
     let mut guard = np.0.lock().unwrap();
     if let Some(child) = guard.take() {
-        std::thread::sleep(Duration::from_millis(2000));
-        let _ = child.kill();
+        let pid = child.pid();
+        drop(guard);
+        let _ = std::process::Command::new("taskkill")
+            .args(["/F", "/PID", &pid.to_string()])
+            .spawn();
+        std::thread::sleep(Duration::from_millis(1000));
+    } else {
+        drop(guard);
     }
-    drop(guard);
     app.restart();
 }
 
@@ -142,9 +147,11 @@ pub fn run() {
                 let np = window.state::<NodeProcess>();
                 let mut guard = np.0.lock().unwrap();
                 if let Some(child) = guard.take() {
-                    // Graceful shutdown: wacht max 2 seconden
-                    std::thread::sleep(Duration::from_millis(2000));
-                    let _ = child.kill();
+                    let pid = child.pid();
+                    let _ = std::process::Command::new("taskkill")
+                        .args(["/F", "/PID", &pid.to_string()])
+                        .spawn();
+                    std::thread::sleep(Duration::from_millis(1000));
                 }
             }
         })
