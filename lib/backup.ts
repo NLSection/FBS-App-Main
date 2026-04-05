@@ -13,14 +13,17 @@ import path from 'path';
 import { exec } from 'child_process';
 import getDb from './db';
 
-const DB_PATH    = process.env.DB_PATH ?? path.join(process.cwd(), 'fbs.db');
-const BACKUP_DIR = path.join(path.dirname(DB_PATH), 'backup');
+function getBackupPaths() {
+  const dbPath = process.env.DB_PATH ?? path.join(process.cwd(), 'fbs.db');
+  return { dbPath, backupDir: path.join(path.dirname(dbPath), 'backup') };
+}
 const TABELLEN   = ['transacties', 'transactie_aanpassingen', 'imports', 'categorieen', 'budgetten_potjes', 'rekeningen', 'instellingen'];
 const MAX_BACKUPS = 10;
 
 export function triggerBackup(): void {
   setImmediate(() => {
     try {
+      const { dbPath: DB_PATH, backupDir: BACKUP_DIR } = getBackupPaths();
       fs.mkdirSync(BACKUP_DIR, { recursive: true });
 
       const db = getDb();
@@ -43,7 +46,7 @@ export function triggerBackup(): void {
       fs.writeFileSync(path.join(BACKUP_DIR, naam), JSON.stringify(backup), 'utf-8');
 
       // Sla db-mtime op zodat check-endpoint weet wanneer de backup gemaakt is
-      const dbMtime = fs.statSync(DB_PATH).mtime.toISOString();
+      const dbMtime = fs.statSync(/* turbopackIgnore: true */ DB_PATH).mtime.toISOString();
       fs.writeFileSync(
         path.join(BACKUP_DIR, 'backup-meta.json'),
         JSON.stringify({ latestBackup: naam, dbMtime }),
