@@ -17,7 +17,7 @@ async fn install_update(app: tauri::AppHandle) -> Result<(), String> {
         .check().await.map_err(|e| e.to_string())?
         .ok_or("Geen update beschikbaar")?;
 
-    // Kill node VOOR de install
+    // Kill node voor de install
     {
         let np = app.state::<NodeProcess>();
         let mut guard = np.0.lock().unwrap();
@@ -31,12 +31,24 @@ async fn install_update(app: tauri::AppHandle) -> Result<(), String> {
         }
     }
 
-    // Dan pas downloaden en installeren
+    // Schrijf een PowerShell script dat de app herstart na de installer
+    let exe = std::env::current_exe().map_err(|e| e.to_string())?;
+    let exe_str = exe.to_string_lossy().to_string();
+    let script = format!(
+        "Start-Sleep -Seconds 6\nStart-Process '{}'\n",
+        exe_str.replace("'", "''")
+    );
+    let script_path = std::env::temp_dir().join("fbs_restart.ps1");
+    std::fs::write(&script_path, &script).map_err(|e| e.to_string())?;
+    std::process::Command::new("powershell")
+        .args(["-WindowStyle", "Hidden", "-ExecutionPolicy", "Bypass", "-File"])
+        .arg(&script_path)
+        .spawn()
+        .map_err(|e| e.to_string())?;
+
+    // Download en installeer — app wordt afgesloten door Tauri/NSIS
     update.download_and_install(|_, _| {}, || {}).await.map_err(|e| e.to_string())?;
 
-    std::thread::sleep(std::time::Duration::from_millis(2000));
-    let exe = std::env::current_exe().map_err(|e| e.to_string())?;
-    std::process::Command::new(exe).spawn().map_err(|e| e.to_string())?;
     app.exit(0);
     Ok(())
 }
