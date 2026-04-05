@@ -59,3 +59,8 @@ spk-build/
 # Tauri generated bundles
 src-tauri/binaries/
 src-tauri/app/
+
+# Tauri signing
+build.ps1
+*.key
+.tauri/
