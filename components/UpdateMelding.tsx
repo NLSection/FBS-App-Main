@@ -22,6 +22,8 @@ const CACHE_DUUR_MS = 24 * 60 * 60 * 1000; // 24 uur
 
 export default function UpdateMelding() {
   const [info, setInfo] = useState<UpdateInfo | null>(null);
+  const [installing, setInstalling] = useState(false);
+  const isTauri = typeof window !== 'undefined' && !!(window as any).__TAURI_INTERNALS__;
 
   useEffect(() => {
     // Check localStorage cache
@@ -64,7 +66,27 @@ export default function UpdateMelding() {
       justifyContent: 'space-between',
     }}>
       <span>Nieuwe versie beschikbaar: <strong>{info.nieuwste}</strong></span>
-      {info.releaseUrl && (
+      {isTauri ? (
+        <button
+          disabled={installing}
+          onClick={async () => {
+            setInstalling(true);
+            try {
+              const { invoke } = await import('@tauri-apps/api/core');
+              await invoke('install_update');
+            } catch {
+              setInstalling(false);
+            }
+          }}
+          style={{
+            background: 'none', border: 'none', padding: 0,
+            color: 'var(--accent)', fontWeight: 600, cursor: installing ? 'wait' : 'pointer',
+            fontSize: 'inherit', opacity: installing ? 0.6 : 1,
+          }}
+        >
+          {installing ? 'Installeren...' : 'Nu installeren'}
+        </button>
+      ) : info.releaseUrl && (
         <a
           href={info.releaseUrl}
           target="_blank"

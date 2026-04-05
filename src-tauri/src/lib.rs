@@ -10,6 +10,15 @@ use tauri_plugin_shell::process::CommandChild;
 
 struct NodeProcess(Mutex<Option<CommandChild>>);
 
+#[tauri::command]
+async fn install_update(app: tauri::AppHandle) -> Result<(), String> {
+    let update = app.updater().map_err(|e| e.to_string())?
+        .check().await.map_err(|e| e.to_string())?
+        .ok_or("Geen update beschikbaar")?;
+    update.download_and_install(|_, _| {}, || {}).await.map_err(|e| e.to_string())?;
+    app.restart();
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -177,6 +186,7 @@ pub fn run() {
                 }
             }
         })
+        .invoke_handler(tauri::generate_handler![install_update])
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
