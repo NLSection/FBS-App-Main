@@ -12,6 +12,7 @@ interface UpdateInfo {
 export default function UpdateMelding() {
   const [update, setUpdate] = useState<UpdateInfo | null>(null);
   const [installing, setInstalling] = useState(false);
+  const [uitgeklapt, setUitgeklapt] = useState(false);
   const isTauri = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
 
   useEffect(() => {
@@ -49,46 +50,68 @@ export default function UpdateMelding() {
     }
   };
 
+  const regels = update.changelog?.split('\n').filter(r => r.trim()) || [];
+  const heeftMeer = regels.length > 2;
+
   return (
     <div style={{
       background: '#1e1e2e',
       borderBottom: '1px solid #313244',
-      padding: '10px 20px',
-      display: 'flex',
-      flexDirection: 'column',
-      gap: '4px',
     }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div style={{
+        padding: '10px 20px',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+      }}>
         <span style={{ color: '#cdd6f4', fontSize: '13px' }}>
           Nieuwe versie beschikbaar: <strong>{update.nieuwste}</strong>
         </span>
-        {isTauri ? (
-          <button
-            onClick={() => { console.log('install clicked, isTauri:', isTauri); handleInstall(); }}
-            disabled={installing}
-            style={{
-              background: '#89b4fa',
-              color: '#1e1e2e',
-              border: 'none',
-              borderRadius: '6px',
-              padding: '4px 14px',
-              cursor: installing ? 'wait' : 'pointer',
-              fontWeight: 600,
-              fontSize: '13px',
-            }}
-          >
-            {installing ? 'Installeren...' : 'Nu installeren'}
-          </button>
-        ) : (
-          <a href={update.releaseUrl} target="_blank" rel="noreferrer"
-            style={{ color: '#89b4fa', fontSize: '13px' }}>
-            Naar download
-          </a>
-        )}
+        <button
+          onClick={handleInstall}
+          disabled={installing}
+          style={{
+            background: '#89b4fa',
+            color: '#1e1e2e',
+            border: 'none',
+            borderRadius: '6px',
+            padding: '4px 14px',
+            cursor: installing ? 'wait' : 'pointer',
+            fontWeight: 600,
+            fontSize: '13px',
+          }}
+        >
+          {installing ? 'Installeren...' : 'Nu installeren'}
+        </button>
       </div>
-      {update.changelog && (
-        <div style={{ color: '#a6adc8', fontSize: '12px' }}>
-          {update.changelog.split('\n').map((r, i) => <div key={i}>{r}</div>)}
+      {regels.length > 0 && (
+        <div style={{ padding: '0 20px 10px' }}>
+          <div style={{
+            color: '#a6adc8',
+            fontSize: '12px',
+            lineHeight: '1.5',
+            ...(uitgeklapt ? { maxHeight: '40vh', overflowY: 'auto' as const } : {}),
+          }}>
+            {(uitgeklapt ? regels : regels.slice(0, 2)).map((r, i) => (
+              <div key={i}>{r}</div>
+            ))}
+          </div>
+          {heeftMeer && (
+            <button
+              onClick={() => setUitgeklapt(!uitgeklapt)}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: '#89b4fa',
+                cursor: 'pointer',
+                fontSize: '12px',
+                padding: '4px 0 0',
+                textDecoration: 'underline',
+              }}
+            >
+              {uitgeklapt ? 'Toon minder' : 'Toon meer'}
+            </button>
+          )}
         </div>
       )}
     </div>

@@ -13,7 +13,6 @@ const nextConfig: NextConfig = {
   outputFileTracingExcludes: {
     '*': [
       './src-tauri/**',
-      './node_modules/**',
       './backup/**',
       './VMDebugLog/**',
       './docs/**',
