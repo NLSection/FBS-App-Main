@@ -33,17 +33,21 @@ Write-Host "=== Kopieer standalone → src-tauri/app/ ===" -ForegroundColor Cyan
 Copy-Item -Recurse $StandalonePath $TauriAppPath
 
 Write-Host "=== Verwijder overbodige bestanden ===" -ForegroundColor Cyan
-$Cleanup = @(
-    (Join-Path $TauriAppPath "fbs.db"),
-    (Join-Path $TauriAppPath "fbs.db-shm"),
-    (Join-Path $TauriAppPath "fbs.db-wal"),
-    (Join-Path $TauriAppPath "backup")
-)
-foreach ($item in $Cleanup) {
-    if (Test-Path $item) {
-        Remove-Item -Recurse -Force $item
-        Write-Host "  Verwijderd: $item"
+# Mappen die niet in de bundle horen
+$CleanupDirs = @('src-tauri', 'backup', 'VMDebugLog', 'docs', '.claude', '.next', 'scripts')
+foreach ($dir in $CleanupDirs) {
+    $path = Join-Path $TauriAppPath $dir
+    if (Test-Path $path) {
+        Remove-Item -Recurse -Force $path
+        Write-Host "  Verwijderd: $dir/" -ForegroundColor Gray
     }
+}
+# Bestanden die niet in de bundle horen
+Get-ChildItem $TauriAppPath -File | Where-Object {
+    $_.Extension -in '.md','.txt','.lnk','.bat','.ps1' -or $_.Name -like 'fbs.db*'
+} | ForEach-Object {
+    Remove-Item $_.FullName -Force
+    Write-Host "  Verwijderd: $($_.Name)" -ForegroundColor Gray
 }
 
 Write-Host "=== Kopieer public/ → src-tauri/app/public/ ===" -ForegroundColor Cyan

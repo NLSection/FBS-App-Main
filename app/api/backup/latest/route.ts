@@ -11,8 +11,10 @@
 import { NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
+import { DB_PATH } from '@/lib/db';
+import { leesBackupBestand } from '@/lib/backup';
 
-const BACKUP_DIR = path.join(process.cwd(), 'backup');
+const BACKUP_DIR = path.join(path.dirname(DB_PATH), 'backup');
 
 export function GET() {
   try {
@@ -23,8 +25,8 @@ export function GET() {
 
     const meta = JSON.parse(fs.readFileSync(metaPath, 'utf-8')) as { latestBackup: string };
 
-    // Valideer bestandsnaam (alleen backup_*.json uit BACKUP_DIR)
-    if (!/^backup_[\d_-]+\.json$/.test(meta.latestBackup)) {
+    // Valideer bestandsnaam (alleen backup_*.json of .json.gz uit BACKUP_DIR)
+    if (!/^backup_[\d_-]+\.json(\.gz)?$/.test(meta.latestBackup)) {
       return NextResponse.json({ error: 'Ongeldig backup-bestandsnaam.' }, { status: 400 });
     }
 
@@ -33,7 +35,7 @@ export function GET() {
       return NextResponse.json({ error: 'Backup-bestand niet gevonden.' }, { status: 404 });
     }
 
-    const inhoud = JSON.parse(fs.readFileSync(bestandsPad, 'utf-8'));
+    const inhoud = leesBackupBestand(bestandsPad);
     return NextResponse.json(inhoud);
   } catch (err) {
     const bericht = err instanceof Error ? err.message : 'Fout bij lezen backup.';

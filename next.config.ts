@@ -10,6 +10,23 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   output: 'standalone',
+  outputFileTracingExcludes: {
+    '*': [
+      './src-tauri/**',
+      './node_modules/**',
+      './backup/**',
+      './VMDebugLog/**',
+      './docs/**',
+      './.claude/**',
+      './.next/**',
+      './*.md',
+      './*.txt',
+      './*.lnk',
+      './*.bat',
+      './*.ps1',
+      './fbs.db*',
+    ],
+  },
   turbopack: {
     root: __dirname,
   },
