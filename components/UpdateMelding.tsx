@@ -9,6 +9,79 @@ interface UpdateInfo {
   changelog?: string;
 }
 
+function renderMarkdown(text: string) {
+  const lines = text.split('\n');
+  const elements: React.ReactNode[] = [];
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+
+    // Lege regel → witruimte
+    if (!line.trim()) {
+      elements.push(<div key={i} style={{ height: '6px' }} />);
+      continue;
+    }
+
+    // ## Kop
+    const kopMatch = line.match(/^#{1,3}\s+(.+)/);
+    if (kopMatch) {
+      elements.push(
+        <div key={i} style={{ fontWeight: 700, color: '#cdd6f4', fontSize: '13px', marginTop: i > 0 ? '8px' : 0 }}>
+          {formatInline(kopMatch[1])}
+        </div>
+      );
+      continue;
+    }
+
+    // - of * opsommingsteken
+    const lijstMatch = line.match(/^\s*[-*]\s+(.+)/);
+    if (lijstMatch) {
+      elements.push(
+        <div key={i} style={{ paddingLeft: '12px', display: 'flex', gap: '6px' }}>
+          <span>•</span>
+          <span>{formatInline(lijstMatch[1])}</span>
+        </div>
+      );
+      continue;
+    }
+
+    // Gewone tekst
+    elements.push(<div key={i}>{formatInline(line)}</div>);
+  }
+
+  return elements;
+}
+
+function formatInline(text: string): React.ReactNode {
+  // **vet** en `code`
+  const parts: React.ReactNode[] = [];
+  const regex = /(\*\*(.+?)\*\*|`(.+?)`)/g;
+  let lastIndex = 0;
+  let match;
+
+  while ((match = regex.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      parts.push(text.slice(lastIndex, match.index));
+    }
+    if (match[2]) {
+      parts.push(<strong key={match.index}>{match[2]}</strong>);
+    } else if (match[3]) {
+      parts.push(
+        <code key={match.index} style={{ background: '#313244', padding: '1px 4px', borderRadius: '3px', fontSize: '11px' }}>
+          {match[3]}
+        </code>
+      );
+    }
+    lastIndex = match.index + match[0].length;
+  }
+
+  if (lastIndex < text.length) {
+    parts.push(text.slice(lastIndex));
+  }
+
+  return parts.length === 1 ? parts[0] : <>{parts}</>;
+}
+
 export default function UpdateMelding() {
   const [update, setUpdate] = useState<UpdateInfo | null>(null);
   const [installing, setInstalling] = useState(false);
@@ -50,8 +123,13 @@ export default function UpdateMelding() {
     }
   };
 
-  const regels = update.changelog?.split('\n').filter(r => r.trim()) || [];
-  const heeftMeer = regels.length > 2;
+  const regels = update.changelog?.split('\n') || [];
+  const nietLegeRegels = regels.filter(r => r.trim());
+  const heeftMeer = nietLegeRegels.length > 2;
+  const previewRegels = regels.slice(0, regels.findIndex((_, i) => {
+    const nietLeeg = regels.slice(0, i + 1).filter(r => r.trim());
+    return nietLeeg.length > 2;
+  }));
 
   return (
     <div style={{
@@ -84,7 +162,7 @@ export default function UpdateMelding() {
           {installing ? 'Installeren...' : 'Nu installeren'}
         </button>
       </div>
-      {regels.length > 0 && (
+      {nietLegeRegels.length > 0 && (
         <div style={{ padding: '0 20px 10px' }}>
           <div style={{
             color: '#a6adc8',
@@ -92,9 +170,7 @@ export default function UpdateMelding() {
             lineHeight: '1.5',
             ...(uitgeklapt ? { maxHeight: '40vh', overflowY: 'auto' as const } : {}),
           }}>
-            {(uitgeklapt ? regels : regels.slice(0, 2)).map((r, i) => (
-              <div key={i}>{r}</div>
-            ))}
+            {renderMarkdown(uitgeklapt ? regels.join('\n') : previewRegels.join('\n'))}
           </div>
           {heeftMeer && (
             <button

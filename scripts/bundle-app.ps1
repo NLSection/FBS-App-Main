@@ -57,12 +57,16 @@ if (Test-Path $PublicSrc) {
     Copy-Item -Recurse -Force $PublicSrc $PublicDst
 }
 
-Write-Host "=== Kopieer .next/static/ → src-tauri/app/.next/static/ ===" -ForegroundColor Cyan
-$StaticSrc = Join-Path $ProjectRoot ".next\static"
-$StaticDst = Join-Path $TauriAppPath ".next\static"
-if (Test-Path $StaticSrc) {
-    New-Item -ItemType Directory -Force -Path (Join-Path $TauriAppPath ".next") | Out-Null
-    Copy-Item -Recurse -Force $StaticSrc $StaticDst
+Write-Host "=== Aanvullen ontbrekende server bestanden ===" -ForegroundColor Cyan
+# Standalone build mist soms server chunks die wel in de full build staan
+$serverDirs = @('static', 'server')
+foreach ($dir in $serverDirs) {
+    $src = Join-Path $ProjectRoot ".next\$dir"
+    $dst = Join-Path $TauriAppPath ".next\$dir"
+    if (Test-Path $src) {
+        Copy-Item -Recurse -Force $src $dst
+        Write-Host "  Gekopieerd: .next/$dir/" -ForegroundColor Gray
+    }
 }
 
 Write-Host "=== Bundle compleet ===" -ForegroundColor Green
