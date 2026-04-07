@@ -26,9 +26,9 @@ const nextConfig: NextConfig = {
       './fbs.db*',
     ],
   },
-  turbopack: {
-    root: __dirname,
-  },
+  ...(process.env.NODE_ENV === 'development' ? {
+    turbopack: { root: __dirname },
+  } : {}),
   transpilePackages: ['lucide-react'],
   devIndicators: false,
   env: {

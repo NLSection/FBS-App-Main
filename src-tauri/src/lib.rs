@@ -59,6 +59,12 @@ pub fn run() {
         .manage(NodeProcess(Mutex::new(None)))
         .manage(AppPort(Mutex::new(None)))
         .setup(|app| {
+            // Kill eventuele oude node-processen (na update of crash)
+            let _ = std::process::Command::new("taskkill")
+                .args(["/F", "/IM", "node.exe"])
+                .output();
+            std::thread::sleep(Duration::from_millis(500));
+
             let resource_path = app.path().resource_dir()
                 .map_err(|e| format!("Kan resource map niet vinden: {e}"))?;
 
