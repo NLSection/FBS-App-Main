@@ -34,7 +34,7 @@ Copy-Item -Recurse $StandalonePath $TauriAppPath
 
 Write-Host "=== Verwijder overbodige bestanden ===" -ForegroundColor Cyan
 # Mappen die niet in de bundle horen
-$CleanupDirs = @('src-tauri', 'backup', 'VMDebugLog', 'docs', '.claude', '.next', 'scripts')
+$CleanupDirs = @('src-tauri', 'backup', 'VMDebugLog', 'docs', '.claude', 'scripts')
 foreach ($dir in $CleanupDirs) {
     $path = Join-Path $TauriAppPath $dir
     if (Test-Path $path) {

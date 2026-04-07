@@ -23,6 +23,8 @@ Externe backups worden NIET verwijderd." \
   removedata:
     SetShellVarContext current
     RmDir /r "$APPDATA\nl.fbs.app"
+    RmDir /r "$APPDATA\FBS"
     RmDir /r "$LOCALAPPDATA\nl.fbs.app"
+    RmDir /r "$LOCALAPPDATA\FBS"
   skipdata:
 !macroend
