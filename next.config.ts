@@ -17,7 +17,6 @@ const nextConfig: NextConfig = {
       './VMDebugLog/**',
       './docs/**',
       './.claude/**',
-      './.next/**',
       './*.md',
       './*.txt',
       './*.lnk',
