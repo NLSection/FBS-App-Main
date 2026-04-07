@@ -33,10 +33,9 @@ function getDb(): Database.Database {
         datum_toegevoegd TEXT NOT NULL DEFAULT (date('now'))
       )
     `).run();
-    // Migratie: cat_uitklappen kolom aan instellingen toevoegen indien nog niet aanwezig
-    try {
-      global._db.prepare('ALTER TABLE instellingen ADD COLUMN cat_uitklappen INTEGER DEFAULT 1').run();
-    } catch { /* kolom bestaat al */ }
+    // Idempotente kolom-checks (fallback naast runMigrations)
+    try { global._db.prepare('ALTER TABLE instellingen ADD COLUMN cat_uitklappen INTEGER DEFAULT 1').run(); } catch {}
+    try { global._db.prepare('ALTER TABLE instellingen ADD COLUMN vaste_posten_buffer REAL NOT NULL DEFAULT 0').run(); } catch {}
   }
   return global._db;
 }

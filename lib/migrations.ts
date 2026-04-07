@@ -43,7 +43,7 @@
 import getDb from '@/lib/db';
 
 // Huidig schema-versienummer. Ophogen bij elke release met schema-wijzigingen.
-export const SCHEMA_VERSION = 25;
+export const SCHEMA_VERSION = 26;
 
 // Nieuwe transacties tabel DDL — gedeeld door fresh install en migratie
 const TRANSACTIES_DDL = `
@@ -477,6 +477,9 @@ export function runMigrations(): void {
       db.exec('DELETE FROM imports');
     })();
   }
+
+  // ── Stap 26: Vaste posten buffer instelling ───────────────────────────────
+  try { db.exec('ALTER TABLE instellingen ADD COLUMN vaste_posten_buffer REAL NOT NULL DEFAULT 0'); } catch {}
 
   // Schema-versie vastleggen zodat toekomstige starts deze run overslaan
   db.pragma(`user_version = ${SCHEMA_VERSION}`);

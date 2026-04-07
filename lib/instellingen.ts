@@ -27,6 +27,7 @@ export interface Instellingen {
   backupEncryptieHash:   string | null;
   backupEncryptieHint:   string | null;
   backupEncryptieSalt:   string | null;
+  vastePostenBuffer:     number;
 }
 
 type Row = {
@@ -46,11 +47,12 @@ type Row = {
   backup_encryptie_hash:   string | null;
   backup_encryptie_hint:   string | null;
   backup_encryptie_salt:   string | null;
+  vaste_posten_buffer:     number;
 };
 
 export function getInstellingen(): Instellingen {
   const row = getDb()
-    .prepare('SELECT maand_start_dag, dashboard_bls_tonen, dashboard_cat_tonen, cat_uitklappen, cat_trx_uitgeklapt, bls_trx_uitgeklapt, vaste_posten_overzicht_maanden, vaste_posten_afwijking_procent, backup_bewaar_dagen, backup_min_bewaard, apparaat_id, backup_extern_pad, backup_versie, backup_encryptie_hash, backup_encryptie_hint, backup_encryptie_salt FROM instellingen WHERE id = 1')
+    .prepare('SELECT maand_start_dag, dashboard_bls_tonen, dashboard_cat_tonen, cat_uitklappen, cat_trx_uitgeklapt, bls_trx_uitgeklapt, vaste_posten_overzicht_maanden, vaste_posten_afwijking_procent, vaste_posten_buffer, backup_bewaar_dagen, backup_min_bewaard, apparaat_id, backup_extern_pad, backup_versie, backup_encryptie_hash, backup_encryptie_hint, backup_encryptie_salt FROM instellingen WHERE id = 1')
     .get() as Row | undefined;
   if (!row) throw new Error('Instellingen niet gevonden in database.');
   return {
@@ -70,6 +72,7 @@ export function getInstellingen(): Instellingen {
     backupEncryptieHash:   row.backup_encryptie_hash   ?? null,
     backupEncryptieHint:   row.backup_encryptie_hint   ?? null,
     backupEncryptieSalt:   row.backup_encryptie_salt   ?? null,
+    vastePostenBuffer:     row.vaste_posten_buffer      ?? 0,
   };
 }
 
@@ -100,6 +103,12 @@ export function updateInstellingen(data: Partial<Instellingen>): void {
       throw new Error('vastePostenAfwijkingProcent moet een geheel getal zijn tussen 1 en 100.');
     }
     sets.push('vaste_posten_afwijking_procent = ?'); values.push(data.vastePostenAfwijkingProcent);
+  }
+  if (data.vastePostenBuffer !== undefined) {
+    if (typeof data.vastePostenBuffer !== 'number' || data.vastePostenBuffer < 0) {
+      throw new Error('vastePostenBuffer moet een positief getal zijn.');
+    }
+    sets.push('vaste_posten_buffer = ?'); values.push(data.vastePostenBuffer);
   }
 
   if (data.backupBewaarDagen !== undefined) {
