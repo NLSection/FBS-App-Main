@@ -60,6 +60,7 @@
 'use client';
 
 import { Fragment, useEffect, useState, useCallback, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import type { Periode } from '@/lib/maandperiodes';
 import CategoriePopup from '@/features/shared/components/CategoriePopup';
 import type { PatronModalData } from '@/features/shared/components/CategoriePopup';
@@ -89,7 +90,8 @@ interface BlsTransactie {
 }
 
 interface BudgetPotjeNaam { id: number; naam: string; kleur: string | null; rekening_ids: number[]; }
-interface Rekening { id: number; naam: string; iban: string; beheerd: number; kleur: string | null; }
+interface Rekening { id: number; naam: string; iban: string; kleur: string | null; }
+interface RekeningGroep { id: number; naam: string; volgorde: number; rekening_ids: number[]; }
 
 interface BlsRegel {
   categorie: string;
@@ -231,6 +233,8 @@ function HamburgerBtn({ menuKey, items, onOpen }: { menuKey: string; items: { la
 }
 
 export default function DashboardPage() {
+  const router = useRouter();
+  const [redirecting, setRedirecting]             = useState(true);
   const [periodes, setPeriodes]                   = useState<Periode[]>([]);
   const [geselecteerdePeriode, setGeselecteerdePeriode] = useState<Periode | null>(null);
   const [geselecteerdJaar, setGeselecteerdJaar]   = useState<number>(new Date().getFullYear());
@@ -243,7 +247,7 @@ export default function DashboardPage() {
   const [openCatRijen, setOpenCatRijen]           = useState<Set<string>>(new Set());
   const [fout, setFout]                           = useState('');
   const [patronModal, setPatronModal]             = useState<PatronModalData | null>(null);
-  const dashInstRef = useRef({ blsTonen: true, catTonen: true, blsUitgeklapt: false, catUitgeklapt: true, catUitklappen: true });
+  const dashInstRef = useRef({ blsTonen: true, catTonen: true, blsTrxUitgeklapt: false, catUitklappen: true, catTrxUitgeklapt: false });
   const [dashInst, setDashInst]                   = useState(dashInstRef.current);
   const [budgettenPotjes, setBudgettenPotjes]     = useState<BudgetPotjeNaam[]>([]);
   const [rekeningen, setRekeningen]               = useState<Rekening[]>([]);
@@ -254,20 +258,34 @@ export default function DashboardPage() {
   const [catSubLaden, setCatSubLaden]             = useState<Set<string>>(new Set());
   const [settingsPanel, setSettingsPanel]         = useState<'bls' | 'cat' | null>(null);
   const settingsPanelRef = useRef<HTMLDivElement>(null);
+  const [rekeningGroepen, setRekeningGroepen]     = useState<RekeningGroep[]>([]);
+  const [actieveGroepId, setActieveGroepId]       = useState<number | null>(null);
+
+  // Redirect als app nog niet klaar is voor dashboard
+  useEffect(() => {
+    fetch('/api/app-status').then(r => r.ok ? r.json() : null).then((s: { heeftImports: boolean; heeftGecategoriseerd: boolean } | null) => {
+      if (!s || (!s.heeftImports)) { router.replace('/import'); return; }
+      if (!s.heeftGecategoriseerd) { router.replace('/transacties'); return; }
+      setRedirecting(false);
+    }).catch(() => setRedirecting(false));
+  }, [router]);
 
   // Periodes + dashboard-instellingen laden
   useEffect(() => {
     Promise.all([
       fetch('/api/periodes').then(r => r.ok ? r.json() : Promise.reject(r.statusText)),
       fetch('/api/instellingen').then(r => r.ok ? r.json() : null).catch(() => null),
-    ]).then(([periodesData, instData]: [Periode[], Record<string, unknown> | null]) => {
+      fetch('/api/rekening-groepen').then(r => r.ok ? r.json() : []).catch(() => []),
+    ]).then(([periodesData, instData, groepenData]: [Periode[], Record<string, unknown> | null, RekeningGroep[]]) => {
+      setRekeningGroepen(groepenData);
+      if (groepenData.length > 0) setActieveGroepId(groepenData[0].id);
       if (instData) {
         const inst = {
-          blsTonen:      instData.dashboardBlsTonen      !== false,
-          catTonen:      instData.dashboardCatTonen      !== false,
-          blsUitgeklapt: Boolean(instData.dashboardBlsUitgeklapt),
-          catUitgeklapt: Boolean(instData.dashboardCatUitgeklapt),
-          catUitklappen: Boolean(instData.catUitklappen),
+          blsTonen:         instData.dashboardBlsTonen      !== false,
+          catTonen:         instData.dashboardCatTonen      !== false,
+          blsTrxUitgeklapt: Boolean(instData.blsTrxUitgeklapt),
+          catUitklappen:    Boolean(instData.catUitklappen),
+          catTrxUitgeklapt: Boolean(instData.catTrxUitgeklapt),
         };
         dashInstRef.current = inst;
         setDashInst(inst);
@@ -284,7 +302,7 @@ export default function DashboardPage() {
   }, []);
 
   // BLS data laden
-  const laadBls = useCallback((periode: Periode | null, jaar: number, allesPeriodes: Periode[]) => {
+  const laadBls = useCallback((periode: Periode | null, jaar: number, allesPeriodes: Periode[], groepId?: number | null) => {
     setLaadtBls(true);
     setFout('');
     setOpenCatSubRows(new Set());
@@ -303,11 +321,12 @@ export default function DashboardPage() {
       datumTot = jaarPeriodes[jaarPeriodes.length - 1].eind;
     }
 
-    const qs = `datum_van=${datumVan}&datum_tot=${datumTot}`;
+    const groepQs = groepId ? `&groep_id=${groepId}` : '';
+    const qs = `datum_van=${datumVan}&datum_tot=${datumTot}${groepQs}`;
 
     fetch(`/api/dashboard/bls?${qs}`)
       .then(r => r.ok ? r.json() : Promise.reject(r.statusText))
-      .then((data: BlsRegel[]) => { setBlsData(data); setOpenRijen(dashInstRef.current.blsUitgeklapt ? new Set(data.map(r => `${r.categorie}::${r.gedaanOpRekening}`)) : new Set()); })
+      .then((data: BlsRegel[]) => { setBlsData(data); setOpenRijen(dashInstRef.current.blsTrxUitgeklapt ? new Set(data.map(r => `${r.categorie}::${r.gedaanOpRekening}`)) : new Set()); })
       .catch(() => setFout('Kon BLS-data niet ophalen.'))
       .finally(() => setLaadtBls(false));
 
@@ -316,9 +335,9 @@ export default function DashboardPage() {
       .then(r => r.ok ? r.json() : Promise.reject(r.statusText))
       .then((data: CatRegel[]) => {
         setCatData(data);
-        setOpenCatRijen(dashInstRef.current.catUitgeklapt ? new Set(data.map(c => c.categorie)) : new Set());
+        setOpenCatRijen(dashInstRef.current.catUitklappen ? new Set(data.map(c => c.categorie)) : new Set());
         // Subcategorieën standaard uitklappen + transacties laden
-        if (dashInstRef.current.catUitklappen) {
+        if (dashInstRef.current.catUitklappen && dashInstRef.current.catTrxUitgeklapt) {
           const subKeys = new Set<string>();
           for (const cat of data) {
             for (const sub of cat.subrijen) {
@@ -349,8 +368,8 @@ export default function DashboardPage() {
   }, []);
 
   useEffect(() => {
-    laadBls(geselecteerdePeriode, geselecteerdJaar, periodes);
-  }, [geselecteerdePeriode, geselecteerdJaar, periodes, laadBls]);
+    laadBls(geselecteerdePeriode, geselecteerdJaar, periodes, actieveGroepId);
+  }, [geselecteerdePeriode, geselecteerdJaar, periodes, laadBls, actieveGroepId]);
 
   function handleJaar(jaar: number) {
     setGeselecteerdJaar(jaar);
@@ -385,7 +404,7 @@ export default function DashboardPage() {
   }, []);
 
   function herlaadBls() {
-    laadBls(geselecteerdePeriode, geselecteerdJaar, periodes);
+    laadBls(geselecteerdePeriode, geselecteerdJaar, periodes, actieveGroepId);
   }
 
   // Menu helpers
@@ -414,14 +433,35 @@ export default function DashboardPage() {
     setDashInst(nieuw);
 
     // Direct visueel toepassen
-    if (update.blsUitgeklapt !== undefined) {
-      setOpenRijen(update.blsUitgeklapt ? new Set(blsData.map(r => `${r.categorie}::${r.gedaanOpRekening}`)) : new Set());
-    }
-    if (update.catUitgeklapt !== undefined) {
-      setOpenCatRijen(update.catUitgeklapt ? new Set(catData.map(c => c.categorie)) : new Set());
+    if (update.blsTrxUitgeklapt !== undefined) {
+      setOpenRijen(update.blsTrxUitgeklapt ? new Set(blsData.map(r => `${r.categorie}::${r.gedaanOpRekening}`)) : new Set());
     }
     if (update.catUitklappen !== undefined) {
+      setOpenCatRijen(update.catUitklappen ? new Set(catData.map(c => c.categorie)) : new Set());
       if (update.catUitklappen) {
+        if (nieuw.catTrxUitgeklapt) {
+          const subKeys = new Set<string>();
+          for (const cat of catData) {
+            for (const sub of cat.subrijen) {
+              if (sub.subcategorie.length > 0 && sub.bedrag !== 0) subKeys.add(`${cat.categorie}::${sub.subcategorie}`);
+            }
+          }
+          setOpenCatSubRows(subKeys);
+          for (const key of subKeys) {
+            if (!catSubTrx.has(key)) {
+              const [catNaam, subNaam] = key.split('::');
+              laadCatSubTrx(catNaam, subNaam);
+            }
+          }
+        } else {
+          setOpenCatSubRows(new Set());
+        }
+      } else {
+        setOpenCatSubRows(new Set());
+      }
+    }
+    if (update.catTrxUitgeklapt !== undefined) {
+      if (update.catTrxUitgeklapt && nieuw.catUitklappen) {
         const subKeys = new Set<string>();
         for (const cat of catData) {
           for (const sub of cat.subrijen) {
@@ -446,11 +486,27 @@ export default function DashboardPage() {
       body: JSON.stringify({
         dashboardBlsTonen: update.blsTonen,
         dashboardCatTonen: update.catTonen,
-        dashboardBlsUitgeklapt: update.blsUitgeklapt,
-        dashboardCatUitgeklapt: update.catUitgeklapt,
+        blsTrxUitgeklapt: update.blsTrxUitgeklapt,
         catUitklappen: update.catUitklappen,
+        catTrxUitgeklapt: update.catTrxUitgeklapt,
       }),
     });
+  }
+  async function verbergBls() {
+    await fetch('/api/instellingen', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ dashboardBlsTonen: false }),
+    });
+    window.location.href = '/instellingen#highlight-bls';
+  }
+  async function verbergCat() {
+    await fetch('/api/instellingen', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ dashboardCatTonen: false }),
+    });
+    window.location.href = '/instellingen#highlight-cat';
   }
   function blsHoofdItems(cat: string): { label: string; url: string }[] {
     const mp = maandStr();
@@ -479,7 +535,8 @@ export default function DashboardPage() {
     setCatSubLaden(prev => { const next = new Set(prev); next.add(key); return next; });
     const start = geselecteerdePeriode?.start ?? '';
     const eind  = geselecteerdePeriode?.eind  ?? '';
-    const qs = `categorie=${encodeURIComponent(catNaam)}&subcategorie=${encodeURIComponent(subNaam)}${start ? `&van=${start}&tot=${eind}` : ''}`;
+    const groepQs = actieveGroepId ? `&groep_id=${actieveGroepId}` : '';
+    const qs = `categorie=${encodeURIComponent(catNaam)}&subcategorie=${encodeURIComponent(subNaam)}${start ? `&van=${start}&tot=${eind}` : ''}${groepQs}`;
     try {
       const data = await fetch(`/api/dashboard/cat/transacties?${qs}`).then(r => r.ok ? r.json() : []) as CatSubTrx[];
       setCatSubTrx(prev => { const next = new Map(prev); next.set(key, data); return next; });
@@ -606,6 +663,8 @@ export default function DashboardPage() {
     herlaadBls();
   }
 
+  if (redirecting) return null;
+
   return (
     <>
       <div className="page-header">
@@ -688,6 +747,25 @@ export default function DashboardPage() {
         </div>
       )}
 
+      {/* Tabbalk rekeninggroepen */}
+      {rekeningGroepen.length > 1 && (
+        <div style={{ display: 'flex', gap: 0, marginBottom: 16, borderBottom: '2px solid var(--border)' }}>
+          {rekeningGroepen.map(g => (
+            <button key={g.id} onClick={() => setActieveGroepId(g.id)}
+              style={{
+                padding: '8px 20px', fontSize: 13, fontWeight: actieveGroepId === g.id ? 600 : 400,
+                background: 'none', border: 'none', cursor: 'pointer',
+                color: actieveGroepId === g.id ? 'var(--accent)' : 'var(--text-dim)',
+                borderBottom: actieveGroepId === g.id ? '2px solid var(--accent)' : '2px solid transparent',
+                marginBottom: -2, transition: 'color 0.15s, border-color 0.15s',
+              }}
+            >
+              {g.naam}
+            </button>
+          ))}
+        </div>
+      )}
+
       {/* BLS + CAT wrapper — compact als ingeklapt, breed als uitgeklapt */}
       {(dashInst.blsTonen || dashInst.catTonen) && <div style={{ maxWidth: 'fit-content', margin: '0 auto' }}>
 
@@ -731,8 +809,8 @@ export default function DashboardPage() {
                   {settingsPanel === 'bls' && (
                     <div ref={settingsPanelRef} style={{ position: 'absolute', top: '100%', right: 0, zIndex: 100, background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 8, padding: '12px 16px', minWidth: 260, boxShadow: '0 4px 16px rgba(0,0,0,0.4)' }}>
                       <p style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', color: 'var(--text-dim)', margin: '0 0 8px', letterSpacing: '0.5px' }}>Tabel instellingen</p>
-                      <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 12, color: 'var(--text)', marginBottom: 6, gap: 12, textTransform: 'none' as const, fontWeight: 400, letterSpacing: 0 }}>Standaard uitgeklapt <MiniToggle checked={dashInst.blsUitgeklapt} onChange={v => updateDashInst({ blsUitgeklapt: v })} /></label>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 12, color: 'var(--text)', textTransform: 'none', fontWeight: 400, letterSpacing: 0 }}>Tabel verbergen <button onClick={() => { window.location.href = '/instellingen#highlight-bls'; }} style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 32, height: 18, background: 'var(--border)', borderRadius: 9, border: 'none', cursor: 'pointer', flexShrink: 0, padding: 2 }}><span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '100%', height: 14, borderRadius: 7, background: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,0.3)', fontSize: 9, color: 'var(--red)', lineHeight: 1 }}>⏻</span></button></div>
+                      <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 12, color: 'var(--text)', marginBottom: 6, gap: 12, textTransform: 'none' as const, fontWeight: 400, letterSpacing: 0 }}>Transacties standaard uitgeklapt <MiniToggle checked={dashInst.blsTrxUitgeklapt} onChange={v => updateDashInst({ blsTrxUitgeklapt: v })} /></label>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 12, color: 'var(--text)', textTransform: 'none', fontWeight: 400, letterSpacing: 0 }}>Tabel verbergen <button onClick={() => verbergBls()} style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 32, height: 18, background: 'var(--border)', borderRadius: 9, border: 'none', cursor: 'pointer', flexShrink: 0, padding: 2 }}><span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '100%', height: 14, borderRadius: 7, background: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,0.3)', fontSize: 9, color: 'var(--red)', lineHeight: 1 }}>⏻</span></button></div>
                     </div>
                   )}
                 </th>
@@ -874,7 +952,7 @@ export default function DashboardPage() {
       ) : catData.length === 0 && !fout ? (
         <div className="empty">Geen categoriedata voor deze periode.</div>
       ) : (
-        <div className="table-wrapper" style={{ marginBottom: 36 }}>
+        <div className="table-wrapper" style={{ marginBottom: 36, minWidth: 895 }}>
           {(() => {
             const isAlle = geselecteerdePeriode === null;
             const aantalAfgesloten = isAlle ? periodes.filter(p => p.jaar === geselecteerdJaar && p.status === 'afgesloten').length : 0;
@@ -896,9 +974,9 @@ export default function DashboardPage() {
                   {settingsPanel === 'cat' && (
                     <div ref={settingsPanelRef} style={{ position: 'absolute', top: '100%', right: 0, zIndex: 100, background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 8, padding: '12px 16px', minWidth: 300, boxShadow: '0 4px 16px rgba(0,0,0,0.4)' }}>
                       <p style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', color: 'var(--text-dim)', margin: '0 0 8px', letterSpacing: '0.5px' }}>Tabel instellingen</p>
-                      <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 12, color: 'var(--text)', marginBottom: 6, gap: 12, textTransform: 'none' as const, fontWeight: 400, letterSpacing: 0 }}>Categorieën standaard uitgeklapt <MiniToggle checked={dashInst.catUitgeklapt} onChange={v => updateDashInst({ catUitgeklapt: v })} /></label>
-                      <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 12, color: 'var(--text)', marginBottom: 6, gap: 12, textTransform: 'none' as const, fontWeight: 400, letterSpacing: 0 }}>Transacties standaard uitgeklapt <MiniToggle checked={dashInst.catUitklappen} onChange={v => updateDashInst({ catUitklappen: v })} /></label>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 12, color: 'var(--text)', textTransform: 'none', fontWeight: 400, letterSpacing: 0 }}>Tabel verbergen <button onClick={() => { window.location.href = '/instellingen#highlight-cat'; }} style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 32, height: 18, background: 'var(--border)', borderRadius: 9, border: 'none', cursor: 'pointer', flexShrink: 0, padding: 2 }}><span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '100%', height: 14, borderRadius: 7, background: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,0.3)', fontSize: 9, color: 'var(--red)', lineHeight: 1 }}>⏻</span></button></div>
+                      <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 12, color: 'var(--text)', marginBottom: 6, gap: 12, textTransform: 'none' as const, fontWeight: 400, letterSpacing: 0 }}>Subcategorieën standaard uitgeklapt <MiniToggle checked={dashInst.catUitklappen} onChange={v => updateDashInst({ catUitklappen: v })} /></label>
+                      <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 12, color: 'var(--text)', marginBottom: 6, gap: 12, textTransform: 'none' as const, fontWeight: 400, letterSpacing: 0 }}>Transacties standaard uitgeklapt <MiniToggle checked={dashInst.catTrxUitgeklapt} onChange={v => updateDashInst({ catTrxUitgeklapt: v })} /></label>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 12, color: 'var(--text)', textTransform: 'none', fontWeight: 400, letterSpacing: 0 }}>Tabel verbergen <button onClick={() => verbergCat()} style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 32, height: 18, background: 'var(--border)', borderRadius: 9, border: 'none', cursor: 'pointer', flexShrink: 0, padding: 2 }}><span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '100%', height: 14, borderRadius: 7, background: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,0.3)', fontSize: 9, color: 'var(--red)', lineHeight: 1 }}>⏻</span></button></div>
                     </div>
                   )}
                 </th>

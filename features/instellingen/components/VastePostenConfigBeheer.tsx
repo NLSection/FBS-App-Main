@@ -1,4 +1,4 @@
-// FILE: VasteLastenConfigBeheer.tsx
+// FILE: VastePostenConfigBeheer.tsx
 // AANGEMAAKT: 25-03-2026 11:30
 // VERSIE: 1
 // GEWIJZIGD: 31-03-2026 12:00
@@ -6,7 +6,7 @@
 // WIJZIGINGEN (31-03-2026 12:00):
 // - Annuleer-knop toegevoegd naast Opslaan in bewerk-formulier
 // WIJZIGINGEN (25-03-2026 11:30):
-// - Initiële aanmaak: tabel + formulier voor vaste lasten definities
+// - Initiële aanmaak: tabel + formulier voor vaste posten definities
 // WIJZIGINGEN (25-03-2026 20:00):
 // - Bewerk-knop per rij met inline formulier (incl. verwachte_dag en verwacht_bedrag)
 // WIJZIGINGEN (25-03-2026 20:30):
@@ -15,7 +15,7 @@
 'use client';
 
 import { Fragment, useEffect, useState } from 'react';
-import type { VasteLastDefinitie } from '@/lib/vasteLastenConfig';
+import type { VastePostDefinitie } from '@/lib/vastePostenConfig';
 
 const inputCls = 'w-full bg-[var(--bg-base)] border border-[var(--border)] rounded px-2 py-1.5 text-sm text-[var(--text-h)] focus:outline-none focus:border-[var(--accent)]';
 const labelCls = 'block text-xs text-[var(--text-dim)] mb-1';
@@ -23,8 +23,8 @@ const btnBewerk  = { background: 'none', border: '1px solid var(--accent)', colo
 const btnVerwijder = { background: 'none', border: '1px solid var(--red)',  color: 'var(--red)',    fontSize: 12, padding: '3px 10px', borderRadius: 4, cursor: 'pointer', width: 76 } as const;
 const btnOpslaan = { background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 6, padding: '7px 16px', fontSize: 13, fontWeight: 600 as const, cursor: 'pointer' };
 
-export default function VasteLastenConfigBeheer() {
-  const [definities, setDefinities] = useState<VasteLastDefinitie[]>([]);
+export default function VastePostenConfigBeheer() {
+  const [definities, setDefinities] = useState<VastePostDefinitie[]>([]);
   const [form, setForm] = useState({ iban: '', naam: '', omschrijving: '', label: '' });
   const [bezig, setBezig] = useState(false);
   const [fout, setFout]   = useState<string | null>(null);
@@ -38,7 +38,7 @@ export default function VasteLastenConfigBeheer() {
   const [bewerkFout, setBewerkFout] = useState<string | null>(null);
 
   async function laad() {
-    const res = await fetch('/api/vaste-lasten-config');
+    const res = await fetch('/api/vaste-posten-config');
     if (!res.ok) { setFout('Laden mislukt.'); return; }
     setDefinities(await res.json());
   }
@@ -48,7 +48,7 @@ export default function VasteLastenConfigBeheer() {
   async function handleToevoegen(e: React.FormEvent) {
     e.preventDefault();
     setBezig(true); setFout(null);
-    const res = await fetch('/api/vaste-lasten-config', {
+    const res = await fetch('/api/vaste-posten-config', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ...form, omschrijving: form.omschrijving || null }),
@@ -63,7 +63,7 @@ export default function VasteLastenConfigBeheer() {
     laad();
   }
 
-  function openBewerk(d: VasteLastDefinitie) {
+  function openBewerk(d: VastePostDefinitie) {
     if (bewerkId === d.id) { setBewerkId(null); return; }
     setBewerkId(d.id);
     setBewerkForm({
@@ -79,7 +79,7 @@ export default function VasteLastenConfigBeheer() {
 
   async function handleBewerkOpslaan(id: number) {
     setBewerkBezig(true); setBewerkFout(null);
-    const res = await fetch(`/api/vaste-lasten-config/${id}`, {
+    const res = await fetch(`/api/vaste-posten-config/${id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -103,17 +103,17 @@ export default function VasteLastenConfigBeheer() {
 
   async function handleVerwijder(id: number) {
     setFout(null);
-    const res = await fetch(`/api/vaste-lasten-config/${id}`, { method: 'DELETE' });
+    const res = await fetch(`/api/vaste-posten-config/${id}`, { method: 'DELETE' });
     if (!res.ok) { setFout('Verwijderen mislukt.'); return; }
     laad();
   }
 
   return (
     <section>
-      <p className="section-title">Vaste lasten</p>
+      <p className="section-title">Vaste posten</p>
 
       {definities.length === 0 ? (
-        <p className="empty">Geen vaste lasten definities geconfigureerd.</p>
+        <p className="empty">Geen vaste posten definities geconfigureerd.</p>
       ) : (
         <div className="table-wrapper" style={{ marginBottom: 20 }}>
           <table>
@@ -139,8 +139,8 @@ export default function VasteLastenConfigBeheer() {
                         <button onClick={() => openBewerk(d)} style={btnBewerk}>
                           {bewerkId === d.id ? 'Annuleer' : 'Bewerk'}
                         </button>
-                        <button onClick={() => handleVerwijder(d.id)} style={btnVerwijder}>
-                          Verwijder
+                        <button onClick={() => handleVerwijder(d.id)} title="Verwijder" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--red)', padding: 4, display: 'flex', alignItems: 'center' }}>
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
                         </button>
                       </div>
                     </td>
@@ -205,7 +205,7 @@ export default function VasteLastenConfigBeheer() {
 
       {/* Toevoeg-formulier */}
       <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 10, padding: 20 }}>
-        <p style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.6px', marginBottom: 14 }}>Vaste last toevoegen</p>
+        <p style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.6px', marginBottom: 14 }}>Vaste post toevoegen</p>
         <form onSubmit={handleToevoegen}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12, marginBottom: 12 }}>
             <div>

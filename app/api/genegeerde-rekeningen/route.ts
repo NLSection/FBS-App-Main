@@ -8,6 +8,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import getDb from '@/lib/db';
+import { triggerBackup } from '@/lib/backup';
 
 export function GET() {
   try {
@@ -33,6 +34,7 @@ export async function POST(req: NextRequest) {
     getDb()
       .prepare('INSERT OR IGNORE INTO genegeerde_rekeningen (iban) VALUES (?)')
       .run(iban);
+    triggerBackup();
     return NextResponse.json({ ok: true }, { status: 201 });
   } catch (err) {
     const bericht = err instanceof Error ? err.message : 'Databasefout.';

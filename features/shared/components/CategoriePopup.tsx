@@ -39,7 +39,7 @@ export interface PatronModalData {
 }
 
 interface BudgetPotjeNaam { id: number; naam: string; kleur: string | null; rekening_ids: number[]; }
-interface Rekening { id: number; naam: string; iban: string; beheerd: number; }
+interface Rekening { id: number; naam: string; iban: string; }
 
 interface CategoriePopupProps {
   patronModal: PatronModalData;
@@ -84,6 +84,7 @@ export default function CategoriePopup({
   const [tellerLaden, setTellerLaden]       = useState(false);
   // undefined = geen lokale wijziging, null = herstel (wis datum_aanpassing), string = nieuwe datum
   const [tijdelijkeDatum, setTijdelijkeDatum] = useState<string | null | undefined>(undefined);
+  const [subVerwijderVraag, setSubVerwijderVraag] = useState<{ oudeCategorie: string; oudeSubcategorie: string } | null>(null);
   const [vrijeKeuzeOpen, setVrijeKeuzeOpen]       = useState(false);
   const [vrijeKeuzeJaarOpen, setVrijeKeuzeJaarOpen] = useState(false);
   const [vrijeKeuzeJaar, setVrijeKeuzeJaar]       = useState<number>(new Date().getFullYear());
@@ -126,11 +127,40 @@ export default function CategoriePopup({
   }
 
   async function handleBevestig() {
+    // Check of oude subcategorie ongebruikt wordt na deze wijziging
+    const oudeCategorie = patronModal.transactie.categorie;
+    const oudeSubcategorie = patronModal.transactie.subcategorie;
+    const nieuweSubcategorie = patronModal.subcategorie;
+
+    if (oudeCategorie && oudeSubcategorie && oudeSubcategorie !== nieuweSubcategorie) {
+      const res = await fetch(`/api/subcategorieen/gebruik?categorie=${encodeURIComponent(oudeCategorie)}&subcategorie=${encodeURIComponent(oudeSubcategorie)}`);
+      if (res.ok) {
+        const { aantal } = await res.json();
+        if (aantal <= 1) {
+          // Dit is de laatste — vraag de gebruiker
+          setSubVerwijderVraag({ oudeCategorie, oudeSubcategorie });
+          return;
+        }
+      }
+    }
+
+    await voltooiOpslaan(false);
+  }
+
+  async function voltooiOpslaan(verwijderOudeSubcategorie: boolean) {
     onBevestigStart?.();
     if (tijdelijkeDatum !== undefined) {
-      await onDatumWijzig(tijdelijkeDatum); // null = wis datum_aanpassing, string = stel in
+      await onDatumWijzig(tijdelijkeDatum);
     }
     onBevestig();
+
+    // Verwijder oude subcategorie als gebruiker dat heeft gekozen
+    if (verwijderOudeSubcategorie && subVerwijderVraag) {
+      const subs = await fetch(`/api/subcategorieen?categorie=${encodeURIComponent(subVerwijderVraag.oudeCategorie)}&volledig=1`).then(r => r.ok ? r.json() : []);
+      const sub = subs.find((s: { naam: string }) => s.naam === subVerwijderVraag.oudeSubcategorie);
+      if (sub) await fetch(`/api/subcategorieen/${sub.id}`, { method: 'DELETE' });
+    }
+    setSubVerwijderVraag(null);
   }
 
   const MAAND_NAMEN = ['Januari','Februari','Maart','April','Mei','Juni','Juli','Augustus','September','Oktober','November','December'];
@@ -272,9 +302,6 @@ export default function CategoriePopup({
                 <div style={{ fontSize: 10, color: 'var(--text-dim)', marginBottom: 3 }}>Eigen rekening</div>
                 <div style={{ fontSize: 13, color: 'var(--text-h)', fontWeight: 600 }}>{t.rekening_naam ?? '—'}</div>
                 <div style={{ fontSize: 11, color: 'var(--text-dim)' }}>{t.iban_bban ?? ''}</div>
-                {eigenRekening?.beheerd === 1 && (
-                  <div style={{ fontSize: 10, color: 'var(--text-dim)', marginTop: 2 }}>Beheerd</div>
-                )}
               </div>
               <div style={{ color: 'var(--text-dim)', flexShrink: 0 }}>
                 {isOmboeking
@@ -337,7 +364,7 @@ export default function CategoriePopup({
             >
               <option value="" disabled>— Selecteer categorie —</option>
               <option value="__geen__">— Geen categorie —</option>
-              {Array.from(new Set([...budgettenPotjes.map(bp => bp.naam), ...uniekeCategorieenDropdown])).sort().map(naam => <option key={naam} value={naam}>{naam}</option>)}
+              {Array.from(new Set([...budgettenPotjes.map(bp => bp.naam), ...uniekeCategorieenDropdown])).filter(n => n !== 'Aangepast').sort().map(naam => <option key={naam} value={naam}>{naam}</option>)}
               <option value="__nieuw__">Nieuwe categorie…</option>
             </select>
           )}
@@ -541,13 +568,28 @@ export default function CategoriePopup({
           </div>
         </div>
 
+        {/* Subcategorie verwijder-melding */}
+        {subVerwijderVraag && (
+          <div style={{ background: 'color-mix(in srgb, var(--accent) 8%, transparent)', border: '1px solid var(--accent)', borderRadius: 8, padding: '12px 14px', marginBottom: 12 }}>
+            <p style={{ margin: '0 0 8px', fontSize: 12, color: 'var(--text-h)' }}>
+              De subcategorie <strong>{subVerwijderVraag.oudeSubcategorie}</strong> wordt hierna niet meer gebruikt. Verwijderen?
+            </p>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button onClick={() => voltooiOpslaan(true)} style={{ background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 6, padding: '5px 12px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>Verwijderen</button>
+              <button onClick={() => voltooiOpslaan(false)} style={{ background: 'none', border: '1px solid var(--border)', color: 'var(--text)', borderRadius: 6, padding: '5px 12px', fontSize: 12, cursor: 'pointer' }}>Behouden</button>
+            </div>
+          </div>
+        )}
+
         <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
           <button onClick={onSluiten} style={{ background: 'none', border: '1px solid var(--border)', color: 'var(--text)', borderRadius: 6, padding: '6px 14px', fontSize: 13, cursor: 'pointer' }}>Annuleer</button>
-          <button
-            onClick={handleBevestig}
-            disabled={!patronModal.nieuweCat || (patronModal.catNieuw && !patronModal.nieuweCat.trim())}
-            style={{ background: 'var(--accent)', border: 'none', color: '#fff', borderRadius: 6, padding: '6px 14px', fontSize: 13, cursor: patronModal.nieuweCat ? 'pointer' : 'not-allowed', fontWeight: 600, opacity: patronModal.nieuweCat ? 1 : 0.5 }}
-          >Opslaan</button>
+          {!subVerwijderVraag && (
+            <button
+              onClick={handleBevestig}
+              disabled={!patronModal.nieuweCat || (patronModal.catNieuw && !patronModal.nieuweCat.trim())}
+              style={{ background: 'var(--accent)', border: 'none', color: '#fff', borderRadius: 6, padding: '6px 14px', fontSize: 13, cursor: patronModal.nieuweCat ? 'pointer' : 'not-allowed', fontWeight: 600, opacity: patronModal.nieuweCat ? 1 : 0.5 }}
+            >Opslaan</button>
+          )}
         </div>
       </div>
     </div>

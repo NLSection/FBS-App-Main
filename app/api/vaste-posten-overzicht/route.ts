@@ -16,8 +16,8 @@ const MAAND_LABELS = ['jan','feb','mrt','apr','mei','jun','jul','aug','sep','okt
 export function GET() {
   try {
     const inst = getInstellingen();
-    const aantalMaanden = inst.vasteLastenOverzichtMaanden;
-    const afwijkingDrempel = inst.vasteLastenAfwijkingProcent;
+    const aantalMaanden = inst.vastePostenOverzichtMaanden;
+    const afwijkingDrempel = inst.vastePostenAfwijkingProcent;
     const maandStartDag = inst.maandStartDag;
 
     // Bepaal huidige periode
@@ -56,9 +56,9 @@ export function GET() {
     const datumTot = periodes[periodes.length - 1].eind;
     const transacties = getTransacties({ datum_van: datumVan, datum_tot: datumTot });
 
-    // Filter op Vaste Lasten categorie, exclusief omboekingen
-    const vasteLasten = transacties.filter(t =>
-      t.categorie === 'Vaste Lasten' &&
+    // Filter op Vaste Posten categorie, exclusief omboekingen
+    const vastePosten = transacties.filter(t =>
+      t.categorie === 'Vaste Posten' &&
       t.type !== 'omboeking-af' && t.type !== 'omboeking-bij'
     );
 
@@ -77,7 +77,7 @@ export function GET() {
     // Groepeer: subcategorie → naam → periode → bedrag
     const groepMap = new Map<string, Map<string, Map<PeriodeKey, number>>>();
 
-    for (const t of vasteLasten) {
+    for (const t of vastePosten) {
       const datum = t.datum_aanpassing ?? t.datum;
       if (!datum) continue;
       const periodeLabel = getPeriodeLabel(datum);

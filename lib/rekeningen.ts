@@ -19,13 +19,12 @@ export interface Rekening {
   iban: string;
   naam: string;
   type: 'betaal' | 'spaar';
-  beheerd: number;
   kleur: string | null;
 }
 
 export function getRekeningen(): Rekening[] {
   return getDb()
-    .prepare('SELECT id, iban, naam, type, beheerd, kleur FROM rekeningen ORDER BY type, naam')
+    .prepare('SELECT id, iban, naam, type, kleur FROM rekeningen ORDER BY type, naam')
     .all() as Rekening[];
 }
 
@@ -42,12 +41,6 @@ export function updateRekening(id: number, iban: string, naam: string, type: 'be
   getDb()
     .prepare('UPDATE rekeningen SET iban = ?, naam = ?, type = ?, kleur = ? WHERE id = ?')
     .run(iban.trim().toUpperCase(), naam.trim(), type, kleur ?? null, id);
-}
-
-export function updateBeheerd(id: number, beheerd: number): void {
-  getDb()
-    .prepare('UPDATE rekeningen SET beheerd = ? WHERE id = ?')
-    .run(beheerd ? 1 : 0, id);
 }
 
 export function deleteRekening(id: number): void {

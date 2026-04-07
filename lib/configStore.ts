@@ -5,7 +5,7 @@
 //
 // WIJZIGINGEN (25-03-2026 18:30):
 // - Initiële aanmaak: MatchConfig type + loader vanuit config/matchConfig.json
-// - Omgebouwd naar SQLite als bron (rekeningen + vaste_lasten_config tabellen)
+// - Omgebouwd naar SQLite als bron (rekeningen + vaste_posten_config tabellen)
 // - vasteLasten verwijderd uit MatchConfig (niet meer nodig voor type-matching)
 
 import getDb from '@/lib/db';

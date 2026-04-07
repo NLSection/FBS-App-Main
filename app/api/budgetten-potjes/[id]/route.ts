@@ -7,7 +7,8 @@
 // - type parameter verwijderd uit PUT body en updateBudgetPotje aanroep
 
 import { NextRequest, NextResponse } from 'next/server';
-import { deleteBudgetPotje, updateBudgetPotje } from '@/lib/budgettenPotjes';
+import { deleteBudgetPotje, getBudgetPotje, updateBudgetPotje } from '@/lib/budgettenPotjes';
+import { triggerBackup } from '@/lib/backup';
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -20,12 +21,14 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   }
 
   try {
+    const huidig = getBudgetPotje(numId);
     updateBudgetPotje(
       numId,
-      body.naam ?? null,
-      body.rekening_ids ?? [],
-      body.kleur ?? null,
+      body.naam ?? huidig?.naam ?? null,
+      body.rekening_ids ?? huidig?.rekening_ids ?? [],
+      'kleur' in body ? (body.kleur ?? null) : (huidig?.kleur ?? null),
     );
+    triggerBackup();
     return new NextResponse(null, { status: 204 });
   } catch (err) {
     const bericht = err instanceof Error ? err.message : 'Databasefout.';
@@ -41,6 +44,7 @@ export function DELETE(_req: Request, { params }: { params: Promise<{ id: string
     }
     try {
       deleteBudgetPotje(numId);
+      triggerBackup();
       return new NextResponse(null, { status: 204 });
     } catch (err) {
       const bericht = err instanceof Error ? err.message : 'Databasefout.';

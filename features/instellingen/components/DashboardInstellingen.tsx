@@ -9,13 +9,14 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import InfoTooltip from '@/components/InfoTooltip';
 
 interface DashInst {
-  dashboardBlsTonen:      boolean;
-  dashboardCatTonen:      boolean;
-  dashboardBlsUitgeklapt: boolean;
-  dashboardCatUitgeklapt: boolean;
-  catUitklappen:          boolean;
+  dashboardBlsTonen:    boolean;
+  dashboardCatTonen:    boolean;
+  catUitklappen:        boolean;
+  catTrxUitgeklapt:     boolean;
+  blsTrxUitgeklapt:     boolean;
 }
 
 function Toggle({ checked, onChange, disabled }: { checked: boolean; onChange: (v: boolean) => void; disabled?: boolean }) {
@@ -37,8 +38,8 @@ export default function DashboardInstellingen() {
   const [bezig, setBezig] = useState(false);
   const [fout, setFout]   = useState<string | null>(null);
   const [highlight, setHighlight] = useState<'bls' | 'cat' | null>(null);
-  const blsRef = useRef<HTMLDivElement>(null);
-  const catRef = useRef<HTMLDivElement>(null);
+  const blsToggleRef = useRef<HTMLSpanElement>(null);
+  const catToggleRef = useRef<HTMLSpanElement>(null);
 
   useEffect(() => {
     const hash = window.location.hash;
@@ -46,7 +47,7 @@ export default function DashboardInstellingen() {
     if (hash === '#highlight-cat') { setHighlight('cat'); setTimeout(() => setHighlight(null), 3000); }
     if (hash.startsWith('#highlight-')) {
       setTimeout(() => {
-        const el = hash === '#highlight-bls' ? blsRef.current : catRef.current;
+        const el = hash === '#highlight-bls' ? blsToggleRef.current : catToggleRef.current;
         el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
       }, 100);
     }
@@ -56,7 +57,7 @@ export default function DashboardInstellingen() {
     fetch('/api/instellingen')
       .then(r => r.ok ? r.json() : null)
       .then((d: DashInst | null) => {
-        if (d) setInst({ dashboardBlsTonen: d.dashboardBlsTonen, dashboardCatTonen: d.dashboardCatTonen, dashboardBlsUitgeklapt: d.dashboardBlsUitgeklapt, dashboardCatUitgeklapt: d.dashboardCatUitgeklapt, catUitklappen: Boolean(d.catUitklappen) });
+        if (d) setInst({ dashboardBlsTonen: d.dashboardBlsTonen, dashboardCatTonen: d.dashboardCatTonen, catUitklappen: Boolean(d.catUitklappen), catTrxUitgeklapt: Boolean(d.catTrxUitgeklapt), blsTrxUitgeklapt: Boolean(d.blsTrxUitgeklapt) });
       })
       .catch(() => {});
   }, []);
@@ -86,31 +87,43 @@ export default function DashboardInstellingen() {
 
   return (
     <section id="dashboard">
-      <p className="section-title">Dashboard weergave</p>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
+        <p className="section-title" style={{ margin: 0 }}>Dashboard weergave</p>
+        <InfoTooltip volledigeBreedte tekst="Bepaal welke tabellen zichtbaar zijn op het Dashboard. Per tabel kun je instellen of transacties standaard uitgeklapt worden weergegeven wanneer je het Dashboard opent. Bij de Samenvatting per Categorie tabel kun je ook instellen of subcategorieën standaard uitgeklapt zijn. Deze instellingen zijn ook bereikbaar via het tandwiel-icoon in elke tabel op het Dashboard." />
+      </div>
       <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 10, padding: '4px 20px 12px' }}>
         {/* Header */}
         <div style={{ display: 'flex', alignItems: 'center', padding: '10px 0 4px', borderBottom: '1px solid var(--border)' }}>
           <div style={{ ...col1, ...dimStijl }}>Tabel</div>
           <div style={{ ...col2, ...dimStijl }}>Zichtbaar</div>
-          <div style={{ ...col3, ...dimStijl }}>Uitgeklapt</div>
+          <div style={{ ...col3, ...dimStijl }}>Standaard uitgeklapt</div>
         </div>
         {/* BLS rij */}
-        <div ref={blsRef} style={{ ...rijStijl, ...(highlight === 'bls' ? { animation: 'highlight-pulse 1s ease-in-out 3' } : {}) }}>
+        <div style={{ ...rijStijl }}>
           <span style={col1}>Balans Budgetten en Potjes</span>
-          <div style={col2}><Toggle checked={inst.dashboardBlsTonen}      onChange={v => opslaan({ dashboardBlsTonen: v })}      disabled={bezig} /></div>
-          <div style={col3}><Toggle checked={inst.dashboardBlsUitgeklapt} onChange={v => opslaan({ dashboardBlsUitgeklapt: v })} disabled={bezig} /></div>
+          <div style={col2}><span ref={blsToggleRef} style={highlight === 'bls' ? { animation: 'highlight-pulse 1s ease-in-out 3', borderRadius: 10 } : {}}><Toggle checked={inst.dashboardBlsTonen} onChange={v => opslaan({ dashboardBlsTonen: v })} disabled={bezig} /></span></div>
+          <div style={col3} />
+        </div>
+        <div style={{ ...rijStijl }}>
+          <span style={{ ...col1, paddingLeft: 16, color: 'var(--text-dim)', fontSize: 12 }}>└ Transacties standaard uitgeklapt</span>
+          <div style={col2} />
+          <div style={col3}><Toggle checked={inst.blsTrxUitgeklapt} onChange={v => opslaan({ blsTrxUitgeklapt: v })} disabled={bezig || !inst.dashboardBlsTonen} /></div>
         </div>
         {/* CAT rij */}
-        <div ref={catRef} style={{ ...rijStijl, ...(highlight === 'cat' ? { animation: 'highlight-pulse 1s ease-in-out 3' } : {}) }}>
+        <div style={{ ...rijStijl }}>
           <span style={col1}>Samenvatting per Categorie</span>
-          <div style={col2}><Toggle checked={inst.dashboardCatTonen}      onChange={v => opslaan({ dashboardCatTonen: v })}      disabled={bezig} /></div>
-          <div style={col3}><Toggle checked={inst.dashboardCatUitgeklapt} onChange={v => opslaan({ dashboardCatUitgeklapt: v })} disabled={bezig} /></div>
+          <div style={col2}><span ref={catToggleRef} style={highlight === 'cat' ? { animation: 'highlight-pulse 1s ease-in-out 3', borderRadius: 10 } : {}}><Toggle checked={inst.dashboardCatTonen} onChange={v => opslaan({ dashboardCatTonen: v })} disabled={bezig} /></span></div>
+          <div style={col3} />
         </div>
-        {/* CAT subcategorieën standaard uitgeklapt */}
-        <div style={{ ...rijStijl, borderBottom: 'none' }}>
-          <span style={{ ...col1, paddingLeft: 16, color: 'var(--text-dim)', fontSize: 12 }}>└ Transacties per subcategorie standaard uitgeklapt</span>
+        <div style={{ ...rijStijl }}>
+          <span style={{ ...col1, paddingLeft: 16, color: 'var(--text-dim)', fontSize: 12 }}>└ Subcategorieën standaard uitgeklapt</span>
           <div style={col2} />
           <div style={col3}><Toggle checked={inst.catUitklappen} onChange={v => opslaan({ catUitklappen: v })} disabled={bezig || !inst.dashboardCatTonen} /></div>
+        </div>
+        <div style={{ ...rijStijl, borderBottom: 'none' }}>
+          <span style={{ ...col1, paddingLeft: 32, color: 'var(--text-dim)', fontSize: 12 }}>└ Transacties standaard uitgeklapt</span>
+          <div style={col2} />
+          <div style={col3}><Toggle checked={inst.catTrxUitgeklapt} onChange={v => opslaan({ catTrxUitgeklapt: v })} disabled={bezig || !inst.dashboardCatTonen} /></div>
         </div>
         {fout && <p style={{ color: 'var(--red)', fontSize: 12, marginTop: 8 }}>{fout}</p>}
       </div>

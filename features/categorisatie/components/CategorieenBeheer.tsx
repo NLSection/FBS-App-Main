@@ -56,9 +56,9 @@ interface CategorieRegel {
 }
 
 interface BudgetPotjeNaam { id: number; naam: string; kleur: string | null; rekening_ids: number[]; }
-interface Rekening { id: number; naam: string; iban: string; beheerd: number; }
+interface Rekening { id: number; naam: string; iban: string; }
 
-type Tab = 'regels' | 'aangepast' | 'subcategorieen';
+type Tab = 'regels' | 'aangepast';
 
 const filterKnopStijl = (actief: boolean): React.CSSProperties => ({
   padding: '5px 14px', borderRadius: 6, fontSize: 13, cursor: 'pointer',
@@ -109,6 +109,10 @@ function analyseerOmschrijvingen(t: TransactieMetCategorie): { label: string; wa
 
 export default function CategorieenBeheer() {
   const [tab, setTab]                           = useState<Tab>('regels');
+  const [bronInstellingen, setBronInstellingen] = useState(false);
+  const [filterCategorie, setFilterCategorie]   = useState<string | null>(null);
+  const [filterSubcategorie, setFilterSubcategorie] = useState<string | null>(null);
+  const [subVerwijderMelding, setSubVerwijderMelding] = useState<{ categorie: string; subcategorie: string } | null>(null);
   const [regels, setRegels]                     = useState<CategorieRegel[]>([]);
   const [transacties, setTransacties]           = useState<TransactieMetCategorie[]>([]);
   const [budgettenPotjes, setBudgettenPotjes]   = useState<BudgetPotjeNaam[]>([]);
@@ -130,10 +134,6 @@ export default function CategorieenBeheer() {
   const [aangepastSortCol, setAangepastSortCol] = useState<string | null>(null);
   const [aangepastSortDir, setAangepastSortDir] = useState<'asc' | 'desc'>('asc');
 
-  // Subcategorieën tab state
-  const [subcatZoek, setSubcatZoek]             = useState('');
-  const [subcatEdit, setSubcatEdit]             = useState<{ cat: string; sub: string } | null>(null);
-  const [subcatEditWaarde, setSubcatEditWaarde] = useState('');
 
   // Inline edit state voor regels tab
   const [editingRegelCell, setEditingRegelCell] = useState<{ id: number; veld: string; waarde: string } | null>(null);
@@ -151,8 +151,10 @@ export default function CategorieenBeheer() {
     if (veld === 'naam_zoekwoord') body.naam_zoekwoord_raw = waarde || null;
     if (veld === 'omschrijving_zoekwoord') body.omschrijving_raw = waarde || null;
     if (veld === 'toelichting') body.toelichting = waarde || null;
+    if (veld === 'iban') body.iban = waarde || null;
     if (veld === 'categorie') body.categorie = waarde;
     if (veld === 'subcategorie') body.subcategorie = waarde || null;
+    if (veld === 'type') body.type = waarde;
 
     await fetch(`/api/categorieen/${id}`, {
       method: 'PUT',
@@ -177,6 +179,25 @@ export default function CategorieenBeheer() {
   const [hasOverflow2, setHasOverflow2] = useState(false);
 
   // Data laden
+  // URL parameters lezen (o.a. vanuit instellingen-flow)
+  useEffect(() => {
+    const sp = new URLSearchParams(window.location.search);
+    const cat = sp.get('categorie');
+    const sub = sp.get('subcategorie');
+    const bron = sp.get('bron');
+    if (cat) {
+      setFilterCategorie(cat);
+      setRegelsCatFilter(cat);
+      setAangepastCatFilter(cat);
+    }
+    if (sub) {
+      setFilterSubcategorie(sub);
+      setRegelsZoek(sub);
+      setAangepastZoek(sub);
+    }
+    if (bron === 'instellingen') setBronInstellingen(true);
+  }, []);
+
   useEffect(() => {
     fetch('/api/categorieen').then(r => r.ok ? r.json() : []).then(setRegels);
     fetch('/api/transacties').then(r => r.ok ? r.json() : []).then((all: TransactieMetCategorie[]) => {
@@ -187,6 +208,19 @@ export default function CategorieenBeheer() {
     fetch('/api/periodes').then(r => r.ok ? r.json() : []).then(setPeriodes);
     fetch('/api/categorieen/uniek').then(r => r.ok ? r.json() : []).then(setUniekeCatDropdown);
   }, [reloadTrigger]);
+
+  // Check of subcategorie nog in gebruik is (vanuit instellingen-flow)
+  useEffect(() => {
+    if (!bronInstellingen || !filterCategorie || !filterSubcategorie) return;
+    // Tel regels en aangepaste transacties die deze subcategorie gebruiken
+    const regelsInGebruik = regels.filter(r => r.categorie === filterCategorie && r.subcategorie === filterSubcategorie).length;
+    const aanpassingenInGebruik = transacties.filter(t => t.categorie === filterCategorie && t.subcategorie === filterSubcategorie).length;
+    if (regelsInGebruik === 0 && aanpassingenInGebruik === 0) {
+      setSubVerwijderMelding({ categorie: filterCategorie, subcategorie: filterSubcategorie });
+    } else {
+      setSubVerwijderMelding(null);
+    }
+  }, [regels, transacties, bronInstellingen, filterCategorie, filterSubcategorie]);
 
   // Scroll sync observers
   useEffect(() => {
@@ -484,13 +518,17 @@ export default function CategorieenBeheer() {
   // ── Render helpers ────────────────────────────────────────────────────
 
   // Unieke subcategorieën per categorie voor dropdowns
-  const subcatsPerCat: Record<string, string[]> = {};
-  for (const r of regels) {
-    if (!subcatsPerCat[r.categorie]) subcatsPerCat[r.categorie] = [];
-    if (r.subcategorie && !subcatsPerCat[r.categorie].includes(r.subcategorie)) {
-      subcatsPerCat[r.categorie].push(r.subcategorie);
-    }
-  }
+  const [subcatsPerCat, setSubcatsPerCat] = useState<Record<string, string[]>>({});
+  useEffect(() => {
+    fetch('/api/subcategorieen?volledig=1').then(r => r.ok ? r.json() : []).then((subs: { categorie: string; naam: string }[]) => {
+      const map: Record<string, string[]> = {};
+      for (const s of subs) {
+        if (!map[s.categorie]) map[s.categorie] = [];
+        map[s.categorie].push(s.naam);
+      }
+      setSubcatsPerCat(map);
+    });
+  }, [reloadTrigger]);
 
   const REGELS_KOLOMMEN = [
     { id: 'iban', label: 'IBAN' },
@@ -613,13 +651,34 @@ export default function CategorieenBeheer() {
 
   return (
     <div style={{ maxWidth: 1600, margin: '0 auto' }}>
+      {/* Subcategorie verwijder-melding (vanuit instellingen-flow) */}
+      {subVerwijderMelding && (
+        <div style={{ background: 'color-mix(in srgb, var(--accent) 8%, transparent)', border: '1px solid var(--accent)', borderRadius: 10, padding: '14px 18px', marginBottom: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+          <p style={{ margin: 0, fontSize: 13, color: 'var(--text-h)' }}>
+            De subcategorie <strong>{subVerwijderMelding.subcategorie}</strong> in <strong>{subVerwijderMelding.categorie}</strong> wordt niet meer gebruikt. Wil je deze verwijderen?
+          </p>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button onClick={async () => {
+              const subs = await fetch(`/api/subcategorieen?categorie=${encodeURIComponent(subVerwijderMelding.categorie)}&volledig=1`).then(r => r.ok ? r.json() : []);
+              const sub = subs.find((s: { naam: string }) => s.naam === subVerwijderMelding.subcategorie);
+              if (sub) await fetch(`/api/subcategorieen/${sub.id}`, { method: 'DELETE' });
+              setSubVerwijderMelding(null);
+              window.location.href = '/instellingen';
+            }} style={{ background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 6, padding: '6px 14px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+              Verwijderen
+            </button>
+            <button onClick={() => { setSubVerwijderMelding(null); setBronInstellingen(false); }}
+              style={{ background: 'none', border: '1px solid var(--border)', color: 'var(--text)', borderRadius: 6, padding: '6px 14px', fontSize: 12, cursor: 'pointer' }}>
+              Behouden
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Tab bar */}
       <div style={{ display: 'flex', marginBottom: 16, borderBottom: '2px solid var(--border)' }}>
         <button onClick={() => setTab('regels')} style={tabStijl(tab === 'regels')}>
           Categorieregels ({regels.length})
-        </button>
-        <button onClick={() => setTab('subcategorieen')} style={tabStijl(tab === 'subcategorieen')}>
-          Subcategorieën ({new Set(Object.values(subcatsPerCat).flat()).size})
         </button>
         <button onClick={() => setTab('aangepast')} style={tabStijl(tab === 'aangepast')}>
           🔒 Aangepast ({transacties.length})
@@ -658,8 +717,16 @@ export default function CategorieenBeheer() {
                       const selectStijl: React.CSSProperties = { width: '100%', background: 'var(--bg-base)', border: '1px solid var(--border)', borderRadius: 4, padding: '3px 6px', fontSize: 12, color: 'var(--text-h)', outline: 'none', cursor: 'pointer' };
                       return (
                         <tr key={r.id}>
-                          {/* IBAN — read-only */}
-                          <td style={{ fontSize: 11, fontFamily: 'monospace' }}>{r.iban || <em style={{ color: 'var(--text-dim)' }}>—</em>}</td>
+                          {/* IBAN — editable */}
+                          <td style={{ fontSize: 11, fontFamily: 'monospace', cursor: 'pointer' }} onClick={() => !isEditing('iban') && setEditingRegelCell({ id: r.id, veld: 'iban', waarde: r.iban ?? '' })}>
+                            {isEditing('iban') ? (
+                              <input autoFocus style={inputStijl} value={editingRegelCell!.waarde}
+                                onChange={e => setEditingRegelCell({ ...editingRegelCell!, waarde: e.target.value })}
+                                onBlur={() => saveRegelVeld(r.id, 'iban', editingRegelCell!.waarde, r)}
+                                onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); if (e.key === 'Escape') setEditingRegelCell(null); }}
+                              />
+                            ) : (r.iban || <em style={{ color: 'var(--text-dim)' }}>—</em>)}
+                          </td>
                           {/* Naam origineel — editable */}
                           <td style={{ color: 'var(--text-h)', fontWeight: 500, fontSize: 12, width: 250, minWidth: 250, maxWidth: 250, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', cursor: 'pointer' }} title={r.naam_origineel ?? undefined} onClick={() => !isEditing('naam_origineel') && setEditingRegelCell({ id: r.id, veld: 'naam_origineel', waarde: r.naam_origineel ?? '' })}>
                             {isEditing('naam_origineel') ? (
@@ -700,49 +767,78 @@ export default function CategorieenBeheer() {
                               />
                             ) : (r.toelichting || <em style={{ color: 'var(--text-dim)' }}>—</em>)}
                           </td>
-                          {/* Categorie — badge → dropdown bij klik */}
-                          <td style={{ cursor: 'pointer' }} onClick={() => !isEditing('categorie') && setEditingRegelCell({ id: r.id, veld: 'categorie', waarde: r.categorie })}>
+                          {/* Categorie — badge → dropdown/input bij klik */}
+                          <td style={{ cursor: 'pointer' }} onClick={() => !isEditing('categorie') && !isEditing('categorie_nieuw') && setEditingRegelCell({ id: r.id, veld: 'categorie', waarde: r.categorie })}>
                             {isEditing('categorie') ? (
                               <select autoFocus style={selectStijl} value={editingRegelCell!.waarde}
-                                onChange={e => saveRegelVeld(r.id, 'categorie', e.target.value, r)}
+                                onChange={e => {
+                                  if (e.target.value === '__nieuw__') { setEditingRegelCell({ id: r.id, veld: 'categorie_nieuw', waarde: '' }); return; }
+                                  saveRegelVeld(r.id, 'categorie', e.target.value, r);
+                                }}
                                 onBlur={() => setEditingRegelCell(null)}>
                                 {[...regelsUniekeCats].sort((a, b) => a.localeCompare(b, 'nl')).map(cat => (
                                   <option key={cat} value={cat}>{cat}</option>
                                 ))}
+                                <option value="__nieuw__">+ Nieuw…</option>
                               </select>
+                            ) : isEditing('categorie_nieuw') ? (
+                              <input autoFocus style={inputStijl} value={editingRegelCell!.waarde} placeholder="Nieuwe categorie…"
+                                onChange={e => setEditingRegelCell({ ...editingRegelCell!, waarde: e.target.value })}
+                                onBlur={() => { if (editingRegelCell!.waarde.trim()) saveRegelVeld(r.id, 'categorie', editingRegelCell!.waarde.trim(), r); else setEditingRegelCell(null); }}
+                                onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); if (e.key === 'Escape') setEditingRegelCell(null); }}
+                              />
                             ) : (
                               <span className="badge" style={{ background: kleurBg(catKleur), border: `1px solid ${catKleur}`, color: catKleur }}>{r.categorie}</span>
                             )}
                           </td>
-                          {/* Subcategorie — badge → dropdown bij klik */}
-                          <td style={{ cursor: 'pointer' }} onClick={() => !isEditing('subcategorie') && setEditingRegelCell({ id: r.id, veld: 'subcategorie', waarde: r.subcategorie ?? '' })}>
+                          {/* Subcategorie — badge → dropdown/input bij klik */}
+                          <td style={{ cursor: 'pointer' }} onClick={() => !isEditing('subcategorie') && !isEditing('subcategorie_nieuw') && setEditingRegelCell({ id: r.id, veld: 'subcategorie', waarde: r.subcategorie ?? '' })}>
                             {isEditing('subcategorie') ? (
                               <select autoFocus style={selectStijl} value={editingRegelCell!.waarde}
-                                onChange={e => saveRegelVeld(r.id, 'subcategorie', e.target.value, r)}
+                                onChange={e => {
+                                  if (e.target.value === '__nieuw__') { setEditingRegelCell({ id: r.id, veld: 'subcategorie_nieuw', waarde: '' }); return; }
+                                  saveRegelVeld(r.id, 'subcategorie', e.target.value, r);
+                                }}
                                 onBlur={() => setEditingRegelCell(null)}>
                                 <option value="">—</option>
                                 {(subcatsPerCat[r.categorie] ?? []).sort((a, b) => a.localeCompare(b, 'nl')).map(sub => (
                                   <option key={sub} value={sub}>{sub}</option>
                                 ))}
+                                <option value="__nieuw__">+ Nieuw…</option>
                               </select>
+                            ) : isEditing('subcategorie_nieuw') ? (
+                              <input autoFocus style={inputStijl} value={editingRegelCell!.waarde} placeholder="Nieuwe subcategorie…"
+                                onChange={e => setEditingRegelCell({ ...editingRegelCell!, waarde: e.target.value })}
+                                onBlur={() => { if (editingRegelCell!.waarde.trim()) saveRegelVeld(r.id, 'subcategorie', editingRegelCell!.waarde.trim(), r); else setEditingRegelCell(null); }}
+                                onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); if (e.key === 'Escape') setEditingRegelCell(null); }}
+                              />
                             ) : (
                               r.subcategorie
                                 ? <span className="badge-outline" style={{ borderColor: catKleur, color: catKleur }}>{r.subcategorie}</span>
                                 : <span style={{ color: 'var(--text-dim)', fontSize: 12 }}>—</span>
                             )}
                           </td>
-                          {/* Type — read-only */}
-                          <td><span className="badge">{formatType(r.type)}</span></td>
+                          {/* Type — editable dropdown */}
+                          <td style={{ cursor: 'pointer' }} onClick={() => !isEditing('type') && setEditingRegelCell({ id: r.id, veld: 'type', waarde: r.type })}>
+                            {isEditing('type') ? (
+                              <select autoFocus style={selectStijl} value={editingRegelCell!.waarde}
+                                onChange={e => saveRegelVeld(r.id, 'type', e.target.value, r)}
+                                onBlur={() => setEditingRegelCell(null)}>
+                                <option value="alle">Alle</option>
+                                <option value="normaal-af">Normaal af</option>
+                                <option value="normaal-bij">Normaal bij</option>
+                                <option value="omboeking-af">Omboeking af</option>
+                                <option value="omboeking-bij">Omboeking bij</option>
+                              </select>
+                            ) : (
+                              <span className="badge">{formatType(r.type)}</span>
+                            )}
+                          </td>
                           {/* Verwijder */}
                           <td>
-                            <button
-                              onClick={() => handleDelete(r.id)}
-                              style={{
-                                background: 'none', border: '1px solid var(--red)', color: 'var(--red)',
-                                fontSize: 12, cursor: 'pointer', padding: '3px 10px', borderRadius: 4,
-                              }}
-                            >
-                              Verwijder
+                            <button onClick={() => handleDelete(r.id)} title="Verwijder"
+                              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--red)', padding: 2, display: 'flex', alignItems: 'center' }}>
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
                             </button>
                           </td>
                         </tr>
@@ -851,107 +947,6 @@ export default function CategorieenBeheer() {
         />
       )}
 
-      {/* Tab 3: Subcategorieën */}
-      {tab === 'subcategorieen' && (() => {
-        // Bouw matrix: categorie → subcategorieën
-        const catMap = new Map<string, Set<string>>();
-        for (const r of regels) {
-          if (!r.subcategorie) continue;
-          if (!catMap.has(r.categorie)) catMap.set(r.categorie, new Set());
-          catMap.get(r.categorie)!.add(r.subcategorie);
-        }
-        const categorieen = [...catMap.keys()].sort((a, b) => a.localeCompare(b, 'nl'));
-        const zoekLower = subcatZoek.toLowerCase();
-
-        // Filter: alleen categorieën tonen die subcategorieën hebben die matchen
-        const gefilterd = zoekLower
-          ? categorieen.filter(cat => [...catMap.get(cat)!].some(s => s.toLowerCase().includes(zoekLower)))
-          : categorieen;
-
-        // Max aantal subcats per kolom (voor raster hoogte)
-        const kolomData = gefilterd.map(cat => {
-          const subs = [...catMap.get(cat)!]
-            .filter(s => !zoekLower || s.toLowerCase().includes(zoekLower))
-            .sort((a, b) => a.localeCompare(b, 'nl'));
-          return { cat, subs };
-        });
-        const maxRijen = Math.max(0, ...kolomData.map(k => k.subs.length));
-
-        async function opslaanSubcat(cat: string, subOud: string, subNieuw: string) {
-          if (subNieuw === subOud || !subNieuw.trim()) { setSubcatEdit(null); return; }
-          await fetch('/api/categorieen/subcategorie', {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ categorie: cat, subcategorie_oud: subOud, subcategorie_nieuw: subNieuw.trim() }),
-          });
-          setSubcatEdit(null);
-          setReloadTrigger(n => n + 1);
-        }
-
-        return (
-          <>
-            <div style={{ marginBottom: 12 }}>
-              <input
-                type="text"
-                placeholder="Zoek subcategorie…"
-                value={subcatZoek}
-                onChange={e => setSubcatZoek(e.target.value)}
-                style={{ width: '100%', padding: '8px 12px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--bg-card)', color: 'var(--text)', fontSize: 13 }}
-              />
-            </div>
-            {gefilterd.length === 0 ? (
-              <p className="empty">Geen subcategorieën gevonden.</p>
-            ) : (
-              <div className="table-wrapper">
-                <table style={{ width: '100%' }}>
-                  <thead>
-                    <tr>
-                      {kolomData.map(({ cat }) => {
-                        const kleur = budgettenPotjes.find(bp => bp.naam === cat)?.kleur ?? 'var(--accent)';
-                        return <th key={cat} style={{ color: kleur, whiteSpace: 'nowrap' }}>{cat}</th>;
-                      })}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {Array.from({ length: maxRijen }, (_, rijIdx) => (
-                      <tr key={rijIdx}>
-                        {kolomData.map(({ cat, subs }) => {
-                          const sub = subs[rijIdx];
-                          const isEditing = subcatEdit?.cat === cat && subcatEdit?.sub === sub;
-                          return (
-                            <td key={`${cat}-${rijIdx}`} style={{ fontSize: 12, color: 'var(--text)', verticalAlign: 'top' }}>
-                              {sub && isEditing ? (
-                                <input
-                                  autoFocus
-                                  value={subcatEditWaarde}
-                                  onChange={e => setSubcatEditWaarde(e.target.value)}
-                                  onKeyDown={e => {
-                                    if (e.key === 'Enter') opslaanSubcat(cat, sub, subcatEditWaarde);
-                                    if (e.key === 'Escape') setSubcatEdit(null);
-                                  }}
-                                  onBlur={() => opslaanSubcat(cat, sub, subcatEditWaarde)}
-                                  style={{ width: '100%', padding: '2px 4px', fontSize: 12, background: 'var(--bg-base)', border: '1px solid var(--accent)', borderRadius: 3, color: 'var(--text)', outline: 'none' }}
-                                />
-                              ) : sub ? (
-                                <span
-                                  onClick={() => { setSubcatEdit({ cat, sub }); setSubcatEditWaarde(sub); }}
-                                  style={{ cursor: 'pointer' }}
-                                >
-                                  {sub}
-                                </span>
-                              ) : null}
-                            </td>
-                          );
-                        })}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </>
-        );
-      })()}
     </div>
   );
 }

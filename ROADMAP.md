@@ -21,17 +21,39 @@
 - P2 fallthrough fix
 - Scrollpositie behoud na categoriewijziging
 - Inline bewerking per cel in Categorieregels tab
-- Automatische backup na elke schrijfoperatie (max 10 bestanden)
-- Backup synchronisatie via git
 - Meerdere zoekwoorden selecteerbaar in categorisatie popup
 - Dashboard herbouwd met periodenavigatie
 - BLS tabel op dashboard
-- Vaste Lasten overzichtspagina (kaarten per subcategorie, heatmap, afwijkingspijlen)
+- Vaste Posten overzichtspagina (kaarten per subcategorie, heatmap, afwijkingspijlen)
+- Rekeninggroepen: dashboard tabbladen, drag & drop volgorde, bidirectionele chips
+- Transactiepagina tabs op basis van rekeninggroepen + individuele rekeningen
+- Vaste Lasten → Vaste Posten hernoem (database, API, UI, sidebar)
+- Vaste Posten als beschermde categorie met rekening-koppeling
+- Progressieve sidebar op basis van app-status
+- Subcategorieen tabel met uitklapbare subtabel in categorieën-instellingen
+- Subcategorie verwijder-flow met redirect naar categorisatiepagina
+- Categorie hernoemen propageert automatisch naar regels en transacties
+- Gzip backup compressie (2.5MB → 186KB)
+- Backup bewaartermijn en minimum bewaard als instellingen
+- Externe backup locatie met cross-device sync en fork-detectie
+- AES-256 encryptie voor externe backups met herstelsleutel
+- Apparaat-ID per installatie
+- triggerBackup op alle mutatie-routes
+- Import flow: bron-keuze (lokaal/extern/vrij), bestanden-lijst, auto-backup vóór import
+- DB_PATH gecentraliseerd voor Tauri-compatibiliteit
+- Versioned database migraties (SCHEMA_VERSION + PRAGMA user_version)
+- Automatische schema-migratie na backup restore
+- Multi-device encryptie koppeling: backup-config.json op externe locatie, koppel/publiceer/reset flows
+- Herstelsleutel bruikbaar als alternatief bij koppelen en uitschakelen versleuteling
+- Mismatch-detectie bij gewijzigde encryptieconfiguratie op externe locatie
 
 ## In uitvoering
-- Vaste Lasten overzichtspagina verfijnen
+- Vaste Posten overzichtspagina verfijnen
 
 ## Te doen
+
+### Onderhoud
+- transactie_aanpassingen opschonen: automatische categoriseringen (categorie IS NULL, handmatig=0) verwijderen — redundant met categorieen-regels
 
 ### Fase 1 — Functionaliteit
 1. Ondersteuning voor andere bank CSV formaten (configureerbare kolomkoppelingen)

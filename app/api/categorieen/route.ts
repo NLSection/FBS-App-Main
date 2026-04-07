@@ -13,6 +13,7 @@
 // - triggerBackup() aangeroepen na succesvolle POST
 
 import { NextRequest, NextResponse } from 'next/server';
+import { insertSubcategorie } from '@/lib/subcategorieen';
 import { getCategorieRegels, insertCategorieRegel, categoriseerTransacties } from '@/lib/categorisatie';
 import { triggerBackup } from '@/lib/backup';
 
@@ -50,6 +51,9 @@ export async function POST(request: NextRequest) {
       toelichting:       'toelichting' in body ? (typeof toelichting === 'string' ? toelichting || null : null) : undefined,
       type:              typeof type === 'string'               ? type as never     : 'alle',
     });
+    if (typeof subcategorie === 'string' && subcategorie.trim()) {
+      try { insertSubcategorie(categorie as string, subcategorie as string); } catch { /* bestaat al */ }
+    }
     categoriseerTransacties();
     triggerBackup();
     return NextResponse.json({ id }, { status: 201 });

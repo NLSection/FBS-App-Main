@@ -46,8 +46,8 @@ fbs.db
 fbs.db-shm
 fbs.db-wal
 
-# persoonlijke data
-backup/*.json
+# backup bestanden (alleen root-map, niet app/api/backup/)
+/backup/
 
 # persoonlijke configuratie (legacy — nu in SQLite)
 # config/matchConfig.json

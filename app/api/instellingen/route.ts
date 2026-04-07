@@ -10,6 +10,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getInstellingen, updateInstellingen } from '@/lib/instellingen';
+import { triggerBackup } from '@/lib/backup';
 
 export function GET() {
   try {
@@ -30,15 +31,18 @@ export async function PUT(request: NextRequest) {
   if (body.maandStartDag          !== undefined) update.maandStartDag          = body.maandStartDag          as number;
   if (body.dashboardBlsTonen      !== undefined) update.dashboardBlsTonen      = Boolean(body.dashboardBlsTonen);
   if (body.dashboardCatTonen      !== undefined) update.dashboardCatTonen      = Boolean(body.dashboardCatTonen);
-  if (body.dashboardBlsUitgeklapt !== undefined) update.dashboardBlsUitgeklapt = Boolean(body.dashboardBlsUitgeklapt);
-  if (body.dashboardCatUitgeklapt !== undefined) update.dashboardCatUitgeklapt = Boolean(body.dashboardCatUitgeklapt);
   if (body.catUitklappen          !== undefined) update.catUitklappen          = Boolean(body.catUitklappen);
+  if (body.blsTrxUitgeklapt       !== undefined) update.blsTrxUitgeklapt       = Boolean(body.blsTrxUitgeklapt);
   if (body.catTrxUitgeklapt       !== undefined) update.catTrxUitgeklapt       = Boolean(body.catTrxUitgeklapt);
-  if (body.vasteLastenOverzichtMaanden !== undefined) update.vasteLastenOverzichtMaanden = Number(body.vasteLastenOverzichtMaanden);
-  if (body.vasteLastenAfwijkingProcent !== undefined) update.vasteLastenAfwijkingProcent = Number(body.vasteLastenAfwijkingProcent);
+  if (body.vastePostenOverzichtMaanden !== undefined) update.vastePostenOverzichtMaanden = Number(body.vastePostenOverzichtMaanden);
+  if (body.vastePostenAfwijkingProcent !== undefined) update.vastePostenAfwijkingProcent = Number(body.vastePostenAfwijkingProcent);
+  if (body.backupBewaarDagen    !== undefined) update.backupBewaarDagen    = Number(body.backupBewaarDagen);
+  if (body.backupMinBewaard     !== undefined) update.backupMinBewaard     = Number(body.backupMinBewaard);
+  if (body.backupExternPad      !== undefined) update.backupExternPad      = body.backupExternPad as string | null;
 
   try {
     updateInstellingen(update);
+    triggerBackup();
     return new NextResponse(null, { status: 204 });
   } catch (err) {
     const bericht = err instanceof Error ? err.message : 'Databasefout.';

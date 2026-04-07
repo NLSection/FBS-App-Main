@@ -1,4 +1,4 @@
-// FILE: VasteLastenInstellingen.tsx
+// FILE: VastePostenInstellingen.tsx
 // AANGEMAAKT: 03-04-2026 19:00
 // VERSIE: 1
 // GEWIJZIGD: 03-04-2026 19:00
@@ -9,15 +9,16 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import InfoTooltip from '@/components/InfoTooltip';
 
 interface VLInst {
-  vasteLastenOverzichtMaanden: number;
-  vasteLastenAfwijkingProcent: number;
+  vastePostenOverzichtMaanden: number;
+  vastePostenAfwijkingProcent: number;
 }
 
 const inputCls = 'w-full bg-[var(--bg-base)] border border-[var(--border)] rounded px-2 py-1.5 text-sm text-[var(--text-h)] focus:outline-none focus:border-[var(--accent)]';
 
-export default function VasteLastenInstellingen() {
+export default function VastePostenInstellingen() {
   const [inst, setInst] = useState<VLInst | null>(null);
   const [bezig, setBezig] = useState(false);
   const [fout, setFout] = useState<string | null>(null);
@@ -26,7 +27,7 @@ export default function VasteLastenInstellingen() {
     fetch('/api/instellingen')
       .then(r => r.ok ? r.json() : null)
       .then((d: VLInst | null) => {
-        if (d) setInst({ vasteLastenOverzichtMaanden: d.vasteLastenOverzichtMaanden ?? 4, vasteLastenAfwijkingProcent: d.vasteLastenAfwijkingProcent ?? 5 });
+        if (d) setInst({ vastePostenOverzichtMaanden: d.vastePostenOverzichtMaanden ?? 4, vastePostenAfwijkingProcent: d.vastePostenAfwijkingProcent ?? 5 });
       })
       .catch(() => {});
   }, []);
@@ -52,40 +53,39 @@ export default function VasteLastenInstellingen() {
 
   return (
     <section>
-      <p className="section-title">Vaste Lasten Overzicht</p>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
+        <p className="section-title" style={{ margin: 0 }}>Vaste Posten Overzicht</p>
+        <InfoTooltip volledigeBreedte tekst="Bepaal hoeveel maandkolommen zichtbaar zijn op de Vaste Posten-pagina en vanaf welk percentage een bedrag als afwijkend wordt gemarkeerd. Afwijkende bedragen worden met een gekleurde achtergrond en een pijltje weergegeven." />
+      </div>
       <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 10, padding: '16px 20px' }}>
         <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap' }}>
           <label style={{ fontSize: 13, color: 'var(--text)' }}>
             Aantal maanden in overzicht
-            <input
-              type="number"
-              min={1}
-              max={12}
-              value={inst.vasteLastenOverzichtMaanden}
-              onChange={e => {
-                const v = parseInt(e.target.value);
-                if (v >= 1 && v <= 12) opslaan({ vasteLastenOverzichtMaanden: v });
-              }}
+            <select
+              value={inst.vastePostenOverzichtMaanden}
+              onChange={e => opslaan({ vastePostenOverzichtMaanden: parseInt(e.target.value) })}
               className={inputCls}
               style={{ width: 80, marginLeft: 8 }}
               disabled={bezig}
-            />
+            >
+              {Array.from({ length: 12 }, (_, i) => i + 1).map(d => (
+                <option key={d} value={d}>{d}</option>
+              ))}
+            </select>
           </label>
           <label style={{ fontSize: 13, color: 'var(--text)' }}>
             Afwijkingsdrempel (%)
-            <input
-              type="number"
-              min={1}
-              max={100}
-              value={inst.vasteLastenAfwijkingProcent}
-              onChange={e => {
-                const v = parseInt(e.target.value);
-                if (v >= 1 && v <= 100) opslaan({ vasteLastenAfwijkingProcent: v });
-              }}
+            <select
+              value={inst.vastePostenAfwijkingProcent}
+              onChange={e => opslaan({ vastePostenAfwijkingProcent: parseInt(e.target.value) })}
               className={inputCls}
               style={{ width: 80, marginLeft: 8 }}
               disabled={bezig}
-            />
+            >
+              {[5, 10, 15, 20, 25, 30].map(d => (
+                <option key={d} value={d}>{d}%</option>
+              ))}
+            </select>
           </label>
         </div>
         {fout && <p style={{ color: 'var(--red)', fontSize: 12, marginTop: 8 }}>{fout}</p>}

@@ -9,7 +9,8 @@
 // - PUT /api/vaste-lasten-config/[id] toegevoegd
 
 import { NextRequest, NextResponse } from 'next/server';
-import { deleteVasteLastDefinitie, updateVasteLastDefinitie } from '@/lib/vasteLastenConfig';
+import { deleteVastePostDefinitie, updateVastePostDefinitie } from '@/lib/vastePostenConfig';
+import { triggerBackup } from '@/lib/backup';
 
 export async function PUT(
   request: NextRequest,
@@ -24,7 +25,7 @@ export async function PUT(
     return NextResponse.json({ error: 'Ongeldig JSON.' }, { status: 400 });
   }
   try {
-    updateVasteLastDefinitie(
+    updateVastePostDefinitie(
       numId,
       body.iban ?? '',
       body.naam ?? '',
@@ -33,6 +34,7 @@ export async function PUT(
       body.verwachte_dag ?? null,
       body.verwacht_bedrag ?? null
     );
+    triggerBackup();
     return new NextResponse(null, { status: 204 });
   } catch (err) {
     const bericht = err instanceof Error ? err.message : 'Databasefout.';
@@ -50,7 +52,8 @@ export function DELETE(
       return NextResponse.json({ error: 'Ongeldig id.' }, { status: 400 });
     }
     try {
-      deleteVasteLastDefinitie(numId);
+      deleteVastePostDefinitie(numId);
+      triggerBackup();
       return NextResponse.json({ ok: true });
     } catch (err) {
       const bericht = err instanceof Error ? err.message : 'Databasefout.';

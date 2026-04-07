@@ -137,7 +137,8 @@ import CategoriePopup from '@/features/shared/components/CategoriePopup';
 import type { PatronModalData } from '@/features/shared/components/CategoriePopup';
 
 interface BudgetPotjeNaam { id: number; naam: string; kleur: string | null; rekening_ids: number[]; }
-interface Rekening { id: number; naam: string; iban: string; beheerd: number; }
+interface Rekening { id: number; naam: string; iban: string; }
+interface RekeningGroep { id: number; naam: string; volgorde: number; rekening_ids: number[]; }
 
 interface EditingCell {
   id: number;
@@ -246,7 +247,8 @@ export default function TransactiesTabel() {
   const [zichtbareKolommen, setZichtbareKolommen]       = useState<Set<string>>(DEFAULT_KOLOMMEN);
   const [kolomMenuOpen, setKolomMenuOpen]               = useState(false);
   const [zoekterm, setZoekterm]                         = useState('');
-  const [actieveTab, setActieveTab]                     = useState<string>('beheerd');
+  const [actieveTab, setActieveTab]                     = useState<string>('');
+  const [rekeningGroepen, setRekeningGroepen]           = useState<RekeningGroep[]>([]);
 const [patronModal, setPatronModal]                   = useState<PatronModalData | null>(null);
   const [uniekeCategorieenDropdown, setUniekeCategorieenDropdown] = useState<string[]>([]);
   const [subcategorieFilter, setSubcategorieFilter]   = useState<string | null>(null);
@@ -354,10 +356,25 @@ const [patronModal, setPatronModal]                   = useState<PatronModalData
     fetch('/api/rekeningen')
       .then(r => r.ok ? r.json() : [])
       .then(setRekeningen);
+    fetch('/api/rekening-groepen')
+      .then(r => r.ok ? r.json() : [])
+      .then((g: RekeningGroep[]) => {
+        setRekeningGroepen(g);
+        if (g.length > 0) setActieveTab(`groep:${g[0].id}`);
+      });
     fetch('/api/categorieen/uniek')
       .then(r => r.ok ? r.json() : [])
       .then(setUniekeCategorieenDropdown);
   }, []);
+
+  // Default tab instellen als actieveTab leeg is en data geladen
+  useEffect(() => {
+    if (actieveTab) return;
+    if (rekeningGroepen.length > 0) { setActieveTab(`groep:${rekeningGroepen[0].id}`); return; }
+    const ibans = new Set(transacties.map(t => t.iban_bban).filter(Boolean));
+    const eerste = rekeningen.find(r => ibans.has(r.iban));
+    if (eerste) setActieveTab(eerste.iban);
+  }, [actieveTab, rekeningGroepen, rekeningen, transacties]);
 
   // Breedte van de tabel-container observeren (voor dynamische min-width scrollbalk)
   // scrollWidth ipv contentRect.width: top-scrollbar krijgt exact dezelfde scrollrange als de tabel
@@ -673,15 +690,20 @@ const [patronModal, setPatronModal]                   = useState<PatronModalData
     requestAnimationFrame(() => { syncingRef.current = false; });
   }
 
-  // Tab-logica: beheerd vlag per rekening
+  // Tab-logica: rekeninggroepen + individuele rekeningen
   const ibansMetTransacties = new Set(transacties.map(t => t.iban_bban).filter(Boolean));
-  const beheerdeRekeningen = rekeningen.filter(r => r.beheerd === 1 && ibansMetTransacties.has(r.iban));
-  const losseRekeningen    = rekeningen.filter(r => r.beheerd === 0 && ibansMetTransacties.has(r.iban));
-  const beheerdeIbans      = new Set(beheerdeRekeningen.map(r => r.iban));
+  const rekeningenMetTransacties = rekeningen.filter(r => ibansMetTransacties.has(r.iban));
 
-  const tabTransacties = actieveTab === 'beheerd'
-    ? transacties.filter(t => beheerdeIbans.has(t.iban_bban ?? ''))
-    : transacties.filter(t => t.iban_bban === actieveTab);
+  const tabTransacties = (() => {
+    if (actieveTab.startsWith('groep:')) {
+      const groepId = Number(actieveTab.slice(6));
+      const groep = rekeningGroepen.find(g => g.id === groepId);
+      if (!groep) return [];
+      const groepIbans = new Set(rekeningen.filter(r => groep.rekening_ids.includes(r.id)).map(r => r.iban));
+      return transacties.filter(t => groepIbans.has(t.iban_bban ?? ''));
+    }
+    return transacties.filter(t => t.iban_bban === actieveTab);
+  })();
 
   // Jaar- en periodefilter helpers
   const jaarOpties       = Array.from(new Set(periodes.map(p => p.jaar))).sort((a, b) => a - b);
@@ -776,41 +798,45 @@ const [patronModal, setPatronModal]                   = useState<PatronModalData
   return (
     <div style={{ maxWidth: 1600, margin: '0 auto' }}>
       {/* Rekening-tabs */}
-      {(beheerdeRekeningen.length > 0 ? 1 : 0) + losseRekeningen.length > 1 && (
-        <div style={{ display: 'flex', marginBottom: 16, borderBottom: '2px solid var(--border)' }}>
-          {beheerdeRekeningen.length > 0 && (
-            <button
-              onClick={() => setActieveTab('beheerd')}
-              style={{
-                flex: 1, padding: '10px 16px', fontSize: 14, cursor: 'pointer',
-                background: actieveTab === 'beheerd' ? 'var(--bg-card)' : 'transparent',
-                color: actieveTab === 'beheerd' ? 'var(--accent)' : 'var(--text-muted)',
-                fontWeight: actieveTab === 'beheerd' ? 600 : 400,
-                border: 'none',
-                borderBottom: actieveTab === 'beheerd' ? '2px solid var(--accent)' : '2px solid transparent',
-                marginBottom: -2,
-              }}
-            >
-              Beheerde Rekeningen
-            </button>
-          )}
-          {losseRekeningen.map(r => (
-            <button
-              key={r.id}
-              onClick={() => setActieveTab(r.iban)}
-              style={{
-                flex: 1, padding: '10px 16px', fontSize: 14, cursor: 'pointer',
-                background: actieveTab === r.iban ? 'var(--bg-card)' : 'transparent',
-                color: actieveTab === r.iban ? 'var(--accent)' : 'var(--text-muted)',
-                fontWeight: actieveTab === r.iban ? 600 : 400,
-                border: 'none',
-                borderBottom: actieveTab === r.iban ? '2px solid var(--accent)' : '2px solid transparent',
-                marginBottom: -2,
-              }}
-            >
-              {r.naam}
-            </button>
-          ))}
+      {rekeningGroepen.length + rekeningenMetTransacties.length > 1 && (
+        <div style={{ display: 'flex', marginBottom: 16, borderBottom: '2px solid var(--border)', flexWrap: 'wrap' }}>
+          {rekeningGroepen.map(g => {
+            const tabKey = `groep:${g.id}`;
+            const actief = actieveTab === tabKey;
+            return (
+              <button key={tabKey} onClick={() => setActieveTab(tabKey)}
+                style={{
+                  padding: '10px 16px', fontSize: 14, cursor: 'pointer',
+                  background: actief ? 'var(--bg-card)' : 'transparent',
+                  color: actief ? 'var(--accent)' : 'var(--text-muted)',
+                  fontWeight: actief ? 600 : 400,
+                  border: 'none',
+                  borderBottom: actief ? '2px solid var(--accent)' : '2px solid transparent',
+                  marginBottom: -2,
+                }}
+              >
+                {g.naam}
+              </button>
+            );
+          })}
+          {rekeningenMetTransacties.map(r => {
+            const actief = actieveTab === r.iban;
+            return (
+              <button key={r.id} onClick={() => setActieveTab(r.iban)}
+                style={{
+                  padding: '10px 16px', fontSize: 14, cursor: 'pointer',
+                  background: actief ? 'var(--bg-card)' : 'transparent',
+                  color: actief ? 'var(--accent)' : 'var(--text-muted)',
+                  fontWeight: actief ? 600 : 400,
+                  border: 'none',
+                  borderBottom: actief ? '2px solid var(--accent)' : '2px solid transparent',
+                  marginBottom: -2,
+                }}
+              >
+                {r.naam}
+              </button>
+            );
+          })}
         </div>
       )}
 

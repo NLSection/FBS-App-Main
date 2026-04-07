@@ -111,6 +111,10 @@ export function insertBudgetPotje(naam: string, rekening_ids: number[], kleur?: 
   return id;
 }
 
+export function getBudgetPotje(id: number): BudgetPotje | undefined {
+  return getBudgettenPotjes().find(p => p.id === id);
+}
+
 export function updateBudgetPotje(
   id: number,
   naam: string | null,
@@ -128,7 +132,13 @@ export function updateBudgetPotje(
       db.prepare('UPDATE budgetten_potjes SET kleur = ? WHERE id = ?').run(kleur, id);
     } else {
       if (!naam?.trim()) throw new Error('Naam mag niet leeg zijn.');
-      db.prepare('UPDATE budgetten_potjes SET naam = ?, kleur = ? WHERE id = ?').run(naam.trim(), kleur, id);
+      const oudeNaam = (db.prepare('SELECT naam FROM budgetten_potjes WHERE id = ?').get(id) as { naam: string }).naam;
+      const nieuweNaam = naam.trim();
+      db.prepare('UPDATE budgetten_potjes SET naam = ?, kleur = ? WHERE id = ?').run(nieuweNaam, kleur, id);
+      if (oudeNaam !== nieuweNaam) {
+        db.prepare('UPDATE categorieen SET categorie = ? WHERE categorie = ?').run(nieuweNaam, oudeNaam);
+        db.prepare('UPDATE transactie_aanpassingen SET categorie = ? WHERE categorie = ?').run(nieuweNaam, oudeNaam);
+      }
     }
     setRekeningKoppelingen(db, id, rekening_ids);
   })();

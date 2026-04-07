@@ -26,10 +26,12 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { useSidebar } from '@/lib/sidebar-context';
 import { APP_VERSION } from '@/lib/version';
+
+interface AppStatus { heeftImports: boolean; heeftGecategoriseerd: boolean; }
 
 const navItems = [
   {
@@ -43,8 +45,8 @@ const navItems = [
     ),
   },
   {
-    href: '/vaste-lasten',
-    label: 'Vaste Lasten',
+    href: '/vaste-posten',
+    label: 'Vaste Posten',
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/>
@@ -134,6 +136,7 @@ function SectionLabsLogo() {
 export default function Sidebar() {
   const pathname = usePathname();
   const { collapsed, setCollapsed, tableRequiredWidth } = useSidebar();
+  const [appStatus, setAppStatus] = useState<AppStatus>({ heeftImports: true, heeftGecategoriseerd: true });
   const manualOverrideRef = useRef<number | null>(null);
   const tableReqWidthRef = useRef(tableRequiredWidth);
   const pathnameRef = useRef(pathname);
@@ -144,6 +147,17 @@ export default function Sidebar() {
     pathnameRef.current = pathname;
     if (pathname !== '/transacties') tableWidthInitializedRef.current = false;
   }, [pathname]);
+
+  // App-status laden (progressieve sidebar)
+  useEffect(() => {
+    fetch('/api/app-status').then(r => r.ok ? r.json() : null).then((s: AppStatus | null) => { if (s) setAppStatus(s); }).catch(() => {});
+  }, [pathname]);
+
+  const zichtbareItems = navItems.filter(item => {
+    if (item.href === '/import' || item.href === '/instellingen') return true;
+    if (item.href === '/transacties') return appStatus.heeftImports;
+    return appStatus.heeftGecategoriseerd;
+  });
 
   // Op mount: stored pref gebruiken als initiële staat (geen manual override — resize overschrijft altijd)
   useEffect(() => {
@@ -216,7 +230,7 @@ export default function Sidebar() {
       </div>
 
       {/* Navigatie */}
-      {navItems.map(({ href, label, icon }) => (
+      {zichtbareItems.map(({ href, label, icon }) => (
         <Link
           key={href}
           href={href}
@@ -227,26 +241,6 @@ export default function Sidebar() {
           {!collapsed && label}
         </Link>
       ))}
-
-      {/* Ontwikkeling sectie */}
-      <div style={{ marginTop: 'auto', borderTop: '1px solid var(--border)', paddingTop: 8 }}>
-        {!collapsed && (
-          <div style={{ padding: '6px 20px 4px', fontSize: 10, fontWeight: 600, letterSpacing: '0.7px', textTransform: 'uppercase', color: 'var(--text-dim)' }}>
-            Ontwikkeling
-          </div>
-        )}
-        <Link
-          href="/scriptstatus"
-          title={collapsed ? 'Scriptstatus' : undefined}
-          className={navCls('/scriptstatus')}
-        >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="16 18 22 12 16 6"/>
-            <polyline points="8 6 2 12 8 18"/>
-          </svg>
-          {!collapsed && 'Scriptstatus'}
-        </Link>
-      </div>
 
       {/* Footer */}
       <div className="sidebar-footer" style={{ justifyContent: collapsed ? 'center' : undefined }}>

@@ -8,6 +8,8 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getTransacties } from '@/lib/transacties';
+import { getRekeningGroep } from '@/lib/rekeningGroepen';
+import { getRekeningen } from '@/lib/rekeningen';
 
 export function GET(request: NextRequest) {
   const params = request.nextUrl.searchParams;
@@ -15,6 +17,7 @@ export function GET(request: NextRequest) {
   const subcategorie = params.get('subcategorie') ?? '';
   const van = params.get('van') ?? undefined;
   const tot = params.get('tot') ?? undefined;
+  const groepIdStr = params.get('groep_id');
 
   if (!categorie) return NextResponse.json({ error: 'categorie is verplicht.' }, { status: 400 });
 
@@ -24,9 +27,19 @@ export function GET(request: NextRequest) {
 
   try {
     const transacties = getTransacties({ datum_van: van, datum_tot: tot });
+
+    const groepIbans = groepIdStr
+      ? new Set(
+          getRekeningen()
+            .filter(r => (getRekeningGroep(Number(groepIdStr))?.rekening_ids ?? []).includes(r.id))
+            .map(r => r.iban)
+        )
+      : null;
+
     const gefilterd = transacties.filter(t => {
       if (t.categorie !== categorie) return false;
       if (t.type === 'omboeking-af' || t.type === 'omboeking-bij') return false;
+      if (groepIbans && (!t.iban_bban || !groepIbans.has(t.iban_bban))) return false;
       if (subcategorie !== '') return (t.subcategorie ?? '') === subcategorie;
       return true;
     });

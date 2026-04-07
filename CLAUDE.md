@@ -152,3 +152,45 @@ Na elke sessie wordt `SESSION.md` bijgewerkt met:
 - Huidige focus (feature/pagina waar aan gewerkt wordt)
 - Gewijzigde bestanden in deze sessie
 - Volgende stap
+
+---
+
+## DIR-14 — Gebruikersgerichte naamgeving in UI-teksten
+Bij het schrijven van teksten die zichtbaar zijn voor de gebruiker (tooltips, foutmeldingen, 
+labels, uitleg, notificaties) geldt:
+- Gebruik altijd de naam die in de UI zichtbaar is — nooit interne variabele-, tabel- of 
+  kolomnamen
+- Zoek bij twijfel eerst op welke naam de betreffende sectie, tabel of pagina in de UI heeft 
+  via de zichtbare labels (<h1>, <h2>, section-title, <th>, etc.)
+- Voorbeelden:
+  - Niet: "de budgetten_potjes tabel" — wel: "de Budgetten & Potjes tabel"
+  - Niet: "de BLS- en CAT-tabellen" — wel: "de overzichtstabellen op het Dashboard"
+  - Niet: "maand_start_dag" — wel: "de Maand start dag instelling"
+
+---
+
+## DIR-15 — Werkwijze instellingenpagina analyse
+Bij het analyseren en verbeteren van instellingensecties, doorloop altijd deze stappen in volgorde:
+
+1. **Lees de component** volledig voordat je wijzigingen formuleert
+2. **Controleer bidirectionele koppeling** — zijn instellingen in de instellingenpagina en in de app zelf (tabellen, knoppen) aan elkaar gekoppeld? Wijzigingen moeten in beide richtingen werken
+3. **Controleer API volledigheid** — worden alle relevante velden opgeslagen én geladen?
+4. **UI-namen** — gebruik altijd de zichtbare UI-naam, nooit interne variabele- of tabelnamen (zie DIR-14)
+5. **InfoTooltip** — elke sectie krijgt een InfoTooltip in de koptekst. Beschrijf wat de instelling doet in termen van wat de gebruiker ziet in de app. Zoek UI-namen op in de relevante componenten
+6. **Dropdowns boven vrije invoer** — gebruik dropdowns waar een beperkt aantal waarden geldig is
+7. **Formulieren inklapbaar** — toevoegformulieren standaard verborgen achter een knop
+
+---
+
+## DIR-16 — Samenwerkingsstijl
+De gebruiker denkt graag mee over features en wil altijd eerst de aanpak bespreken voordat er gebouwd wordt (zie DIR-4). Belangrijke patronen:
+
+1. **Eerst sparren, dan bouwen** — bij complexe features: leg de aanpak voor, wacht op akkoord, bouw dan. Stel open vragen als er onduidelijkheden zijn.
+2. **Kleine iteraties** — commit en push na elke logische wijziging. De gebruiker test tussentijds in de browser.
+3. **UI-feedback serieus nemen** — als de gebruiker zegt dat iets niet klopt visueel, check het bestand en de rendering. Niet aannemen dat het goed is.
+4. **Flows doordenken** — bij elke feature: wat gebeurt er in edge cases? Wat als de gebruiker X doet vóór Y? De gebruiker is hier scherp op.
+5. **Geen overbodige abstractie** — directe implementatie, geen wrapper-lagen. Maar wél propagatie: als een naam of waarde verandert, moet dat overal doorwerken.
+6. **Beschermde categorieën** — Omboekingen, Aangepast en Vaste Posten zijn beschermd (beschermd=1). Omboekingen en Aangepast: geen rekening-koppeling, niet in CategoriePopup dropdown. Vaste Posten: wél rekening-koppeling.
+7. **Badges/chips stijl** — geselecteerd: gekleurde achtergrond + border in eigen kleur. Niet-geselecteerd: grijs, neutrale border. Consistente stijl in alle tabellen.
+8. **Prullenbak-icoontje** — alle verwijderknoppen in instellingen zijn rode prullenbak-SVG's, geen tekstknoppen.
+9. **Tauri-bewust** — alle paden, backup locaties en bestandsoperaties moeten werken in zowel dev (Next.js op poort 3000) als productie (Tauri .exe). DB_PATH is de single source of truth.

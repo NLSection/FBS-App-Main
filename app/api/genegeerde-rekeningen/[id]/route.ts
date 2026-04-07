@@ -8,6 +8,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import getDb from '@/lib/db';
+import { triggerBackup } from '@/lib/backup';
 
 export function DELETE(
   _req: NextRequest,
@@ -18,6 +19,7 @@ export function DELETE(
     if (isNaN(numId)) return NextResponse.json({ error: 'Ongeldig id.' }, { status: 400 });
     try {
       getDb().prepare('DELETE FROM genegeerde_rekeningen WHERE id = ?').run(numId);
+      triggerBackup();
       return NextResponse.json({ ok: true });
     } catch (err) {
       const bericht = err instanceof Error ? err.message : 'Databasefout.';

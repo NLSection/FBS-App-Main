@@ -12,7 +12,7 @@ OTA git - DONE
 Voorbereidingen uitrol en installatie in WIndows of MacOS - DONE
 Uitrol updates - DONE
 Subcategorien matrix - DONE
-Na import neiuwe categorien bekijken - Nog niet de juiste pagina
+Na import neiuwe categorien bekijken - DONE
 geimporteerde transacties uitklapbaar in import historie
 sortering transacties bls en cat tabellen hetzelfde als transactie pagina tabel
 kleuren subcategorie badge bij omboekingen

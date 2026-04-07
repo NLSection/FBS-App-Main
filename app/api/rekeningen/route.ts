@@ -15,6 +15,7 @@ import { getRekeningen, insertRekening } from '@/lib/rekeningen';
 import { herclassificeerTypes } from '@/lib/herclassificeer';
 import { kiesAutomatischeKleur } from '@/lib/kleuren';
 import { getBudgettenPotjes } from '@/lib/budgettenPotjes';
+import { triggerBackup } from '@/lib/backup';
 
 export function GET() {
   try {
@@ -51,6 +52,7 @@ export async function POST(request: NextRequest) {
     }
     const id = insertRekening(iban, naam, type, kleur);
     herclassificeerTypes();
+    triggerBackup();
     return NextResponse.json({ ok: true, id }, { status: 201 });
   } catch (err) {
     const bericht = err instanceof Error ? err.message : 'Databasefout.';

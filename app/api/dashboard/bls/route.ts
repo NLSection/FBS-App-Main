@@ -23,6 +23,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getTransacties } from '@/lib/transacties';
 import { getBudgettenPotjes } from '@/lib/budgettenPotjes';
 import { getRekeningen } from '@/lib/rekeningen';
+import { getRekeningGroep } from '@/lib/rekeningGroepen';
 
 interface BlsTransactie {
   id: number;
@@ -55,8 +56,9 @@ interface BlsRegel {
 
 export function GET(request: NextRequest) {
   const params = request.nextUrl.searchParams;
-  const datumVan = params.get('datum_van') ?? undefined;
-  const datumTot = params.get('datum_tot') ?? undefined;
+  const datumVan  = params.get('datum_van') ?? undefined;
+  const datumTot  = params.get('datum_tot') ?? undefined;
+  const groepIdStr = params.get('groep_id');
 
   const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
   if (datumVan && !ISO_DATE.test(datumVan)) {
@@ -68,6 +70,11 @@ export function GET(request: NextRequest) {
 
   try {
     // Stap 1 — Data ophalen
+    // Optioneel filteren op rekeninggroep
+    const groepRekeningIds = groepIdStr
+      ? new Set(getRekeningGroep(Number(groepIdStr))?.rekening_ids ?? [])
+      : null;
+
     const rekeningen = getRekeningen();
     const rekeningNaamById  = new Map<number, string>(rekeningen.map(r => [r.id,   r.naam]));
     const rekeningNaamByIban = new Map<string, string>(rekeningen.map(r => [r.iban, r.naam]));
@@ -96,6 +103,7 @@ export function GET(request: NextRequest) {
 
       const trxRekeningId = rekeningIdByIban.get(t.iban_bban);
       if (trxRekeningId === undefined) continue;
+      if (groepRekeningIds && !groepRekeningIds.has(trxRekeningId)) continue; // niet in deze groep
       if (trxRekeningId === gekoppeldeRekeningId) continue; // juiste rekening
 
       const trxDetail: BlsTransactie = {

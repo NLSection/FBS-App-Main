@@ -8,6 +8,8 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getTransacties } from '@/lib/transacties';
+import { getRekeningGroep } from '@/lib/rekeningGroepen';
+import { getRekeningen } from '@/lib/rekeningen';
 
 interface CatSubrij {
   subcategorie: string;
@@ -22,8 +24,9 @@ interface CatRegel {
 
 export function GET(request: NextRequest) {
   const params = request.nextUrl.searchParams;
-  const datumVan = params.get('datum_van') ?? undefined;
-  const datumTot = params.get('datum_tot') ?? undefined;
+  const datumVan  = params.get('datum_van') ?? undefined;
+  const datumTot  = params.get('datum_tot') ?? undefined;
+  const groepIdStr = params.get('groep_id');
 
   const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
   if (datumVan && !ISO_DATE.test(datumVan)) {
@@ -36,12 +39,22 @@ export function GET(request: NextRequest) {
   try {
     const transacties = getTransacties({ datum_van: datumVan, datum_tot: datumTot });
 
+    // Optioneel filteren op rekeninggroep
+    const groepIbans = groepIdStr
+      ? new Set(
+          getRekeningen()
+            .filter(r => (getRekeningGroep(Number(groepIdStr))?.rekening_ids ?? []).includes(r.id))
+            .map(r => r.iban)
+        )
+      : null;
+
     // Groepeer op categorie + subcategorie, sluit omboekingen uit
     const groepMap = new Map<string, Map<string, number>>();
 
     for (const t of transacties) {
       if (!t.categorie) continue;
       if (t.type === 'omboeking-af' || t.type === 'omboeking-bij') continue;
+      if (groepIbans && (!t.iban_bban || !groepIbans.has(t.iban_bban))) continue;
 
       const sub = t.subcategorie ?? '';
       if (!groepMap.has(t.categorie)) groepMap.set(t.categorie, new Map());

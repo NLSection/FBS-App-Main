@@ -25,48 +25,86 @@
 import { NextRequest, NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
-import getDb from '@/lib/db';
-
-const BACKUP_DIR = path.join(process.cwd(), 'backup');
+import getDb, { DB_PATH } from '@/lib/db';
+import { leesBackupBestand } from '@/lib/backup';
+import { runMigrations } from '@/lib/migrations';
+const BACKUP_DIR = path.join(path.dirname(DB_PATH), 'backup');
 
 // Ouder-tabellen eerst; delete in omgekeerde volgorde
-const TABEL_VOLGORDE = ['instellingen', 'rekeningen', 'categorieen', 'imports', 'budgetten_potjes', 'transacties', 'transactie_aanpassingen'];
+// Ouder-tabellen eerst; delete in omgekeerde volgorde (kind-tabellen eerst)
+const TABEL_VOLGORDE = [
+  'instellingen',
+  'rekeningen',
+  'genegeerde_rekeningen',
+  'rekening_groepen',
+  'rekening_groep_rekeningen',
+  'categorieen',
+  'imports',
+  'budgetten_potjes',
+  'budgetten_potjes_rekeningen',
+  'subcategorieen',
+  'transacties',
+  'transactie_aanpassingen',
+  'vaste_posten_config',
+];
 
 export async function POST(req: NextRequest) {
   let bestandsnaam: string | undefined;
+  let backupData: Record<string, unknown> | undefined;
 
   try {
-    const body = await req.json() as { bestandsnaam?: string };
-    bestandsnaam = body.bestandsnaam;
-  } catch {
-    // Lege body is toegestaan — gebruik dan de meest recente backup
-  }
-
-  // Bepaal welk backup-bestand geladen moet worden
-  if (!bestandsnaam) {
-    const metaPath = path.join(BACKUP_DIR, 'backup-meta.json');
-    if (!fs.existsSync(metaPath)) {
-      return NextResponse.json({ error: 'Geen backup beschikbaar.' }, { status: 404 });
+    const body = await req.json() as Record<string, unknown>;
+    if (typeof body.bestandsnaam === 'string') {
+      bestandsnaam = body.bestandsnaam;
+    } else if (TABEL_VOLGORDE.some(t => t in body)) {
+      // Component stuurde directe tabeldata
+      backupData = body;
+      bestandsnaam = '(upload)';
     }
-    const meta = JSON.parse(fs.readFileSync(metaPath, 'utf-8')) as { latestBackup: string };
-    bestandsnaam = meta.latestBackup;
-  }
-
-  // Valideer bestandsnaam (alleen backup_*.json of fbs-backup-*.json)
-  if (!/^(backup_[\d_-]+|fbs-backup-[\d-]+(\s*\(\d+\))?)\.json$/.test(bestandsnaam)) {
-    return NextResponse.json({ error: 'Ongeldig backup-bestandsnaam.' }, { status: 400 });
-  }
-
-  const bestandsPad = path.join(BACKUP_DIR, bestandsnaam);
-  if (!fs.existsSync(bestandsPad)) {
-    return NextResponse.json({ error: `Backup-bestand niet gevonden: ${bestandsnaam}` }, { status: 404 });
-  }
-
-  let backupData: Record<string, unknown>;
-  try {
-    backupData = JSON.parse(fs.readFileSync(bestandsPad, 'utf-8'));
   } catch {
-    return NextResponse.json({ error: 'Backup-bestand is geen geldige JSON.' }, { status: 400 });
+    // Lege body — gebruik meest recente backup
+  }
+
+  if (!backupData) {
+    // Bepaal welk backup-bestand geladen moet worden
+    if (!bestandsnaam) {
+      const metaPath = path.join(BACKUP_DIR, 'backup-meta.json');
+      if (!fs.existsSync(metaPath)) {
+        return NextResponse.json({ error: 'Geen backup beschikbaar.' }, { status: 404 });
+      }
+      const meta = JSON.parse(fs.readFileSync(metaPath, 'utf-8')) as { latestBackup: string };
+      bestandsnaam = meta.latestBackup;
+    }
+
+    // Valideer bestandsnaam (alleen backup_*.json/.json.gz of fbs-backup-*.json)
+    if (!/^(backup_[\d_-]+|fbs-backup-[\d_-]+(\s*\(\d+\))?)\.json(\.gz)?$/.test(bestandsnaam)) {
+      return NextResponse.json({ error: 'Ongeldig backup-bestandsnaam.' }, { status: 400 });
+    }
+
+    let bestandsPad = path.join(BACKUP_DIR, bestandsnaam);
+    if (!fs.existsSync(bestandsPad)) {
+      // Fallback: zoek meest recent backup-bestand in de map
+      const bestanden = fs.readdirSync(BACKUP_DIR)
+        .filter(f => f.startsWith('backup_') && (f.endsWith('.json') || f.endsWith('.json.gz')))
+        .sort()
+        .reverse();
+      if (bestanden.length === 0) {
+        return NextResponse.json({ error: `Backup-bestand niet gevonden: ${bestandsnaam}` }, { status: 404 });
+      }
+      bestandsnaam = bestanden[0];
+      bestandsPad = path.join(BACKUP_DIR, bestandsnaam);
+      const metaPath = path.join(BACKUP_DIR, 'backup-meta.json');
+      if (fs.existsSync(metaPath)) {
+        const bestaandeMeta = JSON.parse(fs.readFileSync(metaPath, 'utf-8'));
+        fs.writeFileSync(metaPath, JSON.stringify({ ...bestaandeMeta, latestBackup: bestandsnaam }), 'utf-8');
+      }
+    }
+
+    try {
+      backupData = leesBackupBestand(bestandsPad);
+    } catch {
+      return NextResponse.json({ error: 'Backup-bestand is geen geldige JSON.' }, { status: 400 });
+    }
   }
 
   const tabellen = TABEL_VOLGORDE.filter(t => Object.prototype.hasOwnProperty.call(backupData, t));
@@ -76,6 +114,11 @@ export async function POST(req: NextRequest) {
 
   try {
     const db = getDb();
+
+    // Bewaar device-specifieke instellingen vóór restore
+    const deviceVelden = tabellen.includes('instellingen')
+      ? db.prepare('SELECT apparaat_id, backup_extern_pad, backup_versie, backup_encryptie_hash, backup_encryptie_hint, backup_encryptie_salt, backup_herstelsleutel_hash FROM instellingen WHERE id = 1').get() as Record<string, unknown> | undefined
+      : undefined;
 
     db.transaction(() => {
       // Verwijder in omgekeerde volgorde (kind-tabellen eerst)
@@ -106,8 +149,42 @@ export async function POST(req: NextRequest) {
       }
     })();
 
-    // Onthoud welke backup hersteld is (cross-device sync check)
-    db.prepare('UPDATE instellingen SET laatst_herstelde_backup = ? WHERE id = 1').run(bestandsnaam);
+    // Herstel device-specifieke velden die door de restore zijn overschreven
+    if (deviceVelden) {
+      db.prepare(`UPDATE instellingen SET
+        apparaat_id = ?, backup_extern_pad = ?, backup_encryptie_hash = ?,
+        backup_encryptie_hint = ?, backup_encryptie_salt = ?, backup_herstelsleutel_hash = ?
+        WHERE id = 1`).run(
+        deviceVelden.apparaat_id, deviceVelden.backup_extern_pad, deviceVelden.backup_encryptie_hash,
+        deviceVelden.backup_encryptie_hint, deviceVelden.backup_encryptie_salt, deviceVelden.backup_herstelsleutel_hash
+      );
+    }
+
+    // Synchroniseer backup_versie naar max van lokale meta, externe meta en eerder bewaarde waarde
+    try {
+      let maxVersie = (deviceVelden?.backup_versie as number) ?? 0;
+      const metaPath = path.join(BACKUP_DIR, 'backup-meta.json');
+      if (fs.existsSync(metaPath)) {
+        const meta = JSON.parse(fs.readFileSync(metaPath, 'utf-8')) as { versie?: number; latestBackup?: string };
+        if ((meta.versie ?? 0) > maxVersie) maxVersie = meta.versie!;
+        db.prepare('UPDATE instellingen SET laatst_herstelde_backup = ?, backup_versie = ? WHERE id = 1')
+          .run(meta.latestBackup ?? bestandsnaam, maxVersie);
+      } else {
+        db.prepare('UPDATE instellingen SET laatst_herstelde_backup = ?, backup_versie = ? WHERE id = 1')
+          .run(bestandsnaam, maxVersie);
+      }
+    } catch {
+      db.prepare('UPDATE instellingen SET laatst_herstelde_backup = ? WHERE id = 1').run(bestandsnaam);
+    }
+
+    // Schema-versie uit de backup lezen (ontbreekt in oude backups → 0)
+    const backupSchemaVersion = typeof (backupData as Record<string, unknown>).schema_version === 'number'
+      ? (backupData as Record<string, unknown>).schema_version as number
+      : 0;
+
+    // user_version terugzetten naar backup-versie zodat runMigrations de ontbrekende stappen uitvoert
+    db.pragma(`user_version = ${backupSchemaVersion}`);
+    runMigrations();
 
     return NextResponse.json({ success: true, hersteld: bestandsnaam });
   } catch (err) {

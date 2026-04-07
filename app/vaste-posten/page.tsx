@@ -4,7 +4,7 @@
 // GEWIJZIGD: 03-04-2026 19:00
 //
 // WIJZIGINGEN (03-04-2026 19:00):
-// - Initiële aanmaak: vaste lasten overzicht pagina met kaarten per subcategorie
+// - Initiële aanmaak: vaste posten overzicht pagina met kaarten per subcategorie
 
 'use client';
 
@@ -16,20 +16,20 @@ interface PeriodeData {
   afwezig: boolean;
 }
 
-interface VasteLastenItem {
+interface VastePostenItem {
   naam: string;
   periodes: Record<string, PeriodeData>;
 }
 
-interface VasteLastenGroep {
+interface VastePostenGroep {
   subcategorie: string;
-  items: VasteLastenItem[];
+  items: VastePostenItem[];
 }
 
-interface VasteLastenData {
+interface VastePostenData {
   periodes: string[];
   afwijkingDrempel: number;
-  groepen: VasteLastenGroep[];
+  groepen: VastePostenGroep[];
 }
 
 function formatBedrag(bedrag: number) {
@@ -43,29 +43,29 @@ function celAchtergrond(data: PeriodeData, drempel: number): string {
   return 'transparent';
 }
 
-export default function VasteLastenPage() {
-  const [data, setData] = useState<VasteLastenData | null>(null);
+export default function VastePostenPage() {
+  const [data, setData] = useState<VastePostenData | null>(null);
   const [laadt, setLaadt] = useState(true);
   const [fout, setFout] = useState('');
 
   useEffect(() => {
-    fetch('/api/vaste-lasten-overzicht')
+    fetch('/api/vaste-posten-overzicht')
       .then(r => r.ok ? r.json() : Promise.reject(r.statusText))
-      .then((d: VasteLastenData) => setData(d))
-      .catch(() => setFout('Kon vaste lasten data niet ophalen.'))
+      .then((d: VastePostenData) => setData(d))
+      .catch(() => setFout('Kon vaste posten data niet ophalen.'))
       .finally(() => setLaadt(false));
   }, []);
 
   return (
     <div style={{ maxWidth: 1200, margin: '0 auto' }}>
-      <h1 className="text-xl font-semibold" style={{ marginBottom: 8 }}>Vaste Lasten</h1>
+      <h1 className="text-xl font-semibold" style={{ marginBottom: 8 }}>Vaste Posten</h1>
 
       {laadt ? (
         <div className="loading">Vaste lasten worden geladen…</div>
       ) : fout ? (
         <div className="empty" style={{ color: 'var(--red)' }}>{fout}</div>
       ) : !data || data.groepen.length === 0 ? (
-        <div className="empty">Geen vaste lasten data beschikbaar.</div>
+        <div className="empty">Geen vaste posten data beschikbaar.</div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
           {data.groepen.map(groep => (

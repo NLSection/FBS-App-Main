@@ -13,6 +13,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { updateCategorieRegel, deleteCategorieRegel } from '@/lib/categorisatie';
 import { triggerBackup } from '@/lib/backup';
+import { insertSubcategorie } from '@/lib/subcategorieen';
 
 type Params = Promise<{ id: string }>;
 
@@ -64,6 +65,10 @@ export async function PUT(request: NextRequest, { params }: { params: Params }) 
                           : undefined,
       type:              typeof type === 'string'               ? type as never     : 'alle',
     });
+    // Zorg dat subcategorie in de subcategorieen tabel staat
+    if (typeof subcategorie === 'string' && subcategorie.trim()) {
+      try { insertSubcategorie(categorie as string, subcategorie as string); } catch { /* bestaat al */ }
+    }
     triggerBackup();
     return NextResponse.json({ ok: true });
   } catch (err) {

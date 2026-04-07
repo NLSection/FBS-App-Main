@@ -7,11 +7,12 @@
 // - Initiële aanmaak: GET en POST /api/vaste-lasten-config
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getVasteLastenConfig, insertVasteLastDefinitie } from '@/lib/vasteLastenConfig';
+import { getVastePostenConfig, insertVastePostDefinitie } from '@/lib/vastePostenConfig';
+import { triggerBackup } from '@/lib/backup';
 
 export function GET() {
   try {
-    return NextResponse.json(getVasteLastenConfig());
+    return NextResponse.json(getVastePostenConfig());
   } catch (err) {
     const bericht = err instanceof Error ? err.message : 'Databasefout.';
     return NextResponse.json({ error: bericht }, { status: 500 });
@@ -32,7 +33,8 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    insertVasteLastDefinitie(iban, naam, omschrijving ?? null, label);
+    insertVastePostDefinitie(iban, naam, omschrijving ?? null, label);
+    triggerBackup();
     return NextResponse.json({ ok: true }, { status: 201 });
   } catch (err) {
     const bericht = err instanceof Error ? err.message : 'Databasefout.';

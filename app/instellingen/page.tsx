@@ -11,8 +11,9 @@
 import AlgemeneInstellingen from '@/features/instellingen/components/AlgemeneInstellingen';
 import DashboardInstellingen from '@/features/instellingen/components/DashboardInstellingen';
 import RekeningenBeheer from '@/features/instellingen/components/RekeningenBeheer';
+import RekeningGroepenBeheer from '@/features/instellingen/components/RekeningGroepenBeheer';
 import BudgettenPotjesBeheer from '@/features/instellingen/components/BudgettenPotjesBeheer';
-import VasteLastenInstellingen from '@/features/instellingen/components/VasteLastenInstellingen';
+import VastePostenInstellingen from '@/features/instellingen/components/VastePostenInstellingen';
 import BackupRestore from '@/features/instellingen/components/BackupRestore';
 
 export default function InstellingenPage() {
@@ -21,8 +22,9 @@ export default function InstellingenPage() {
       <h1 className="text-xl font-semibold">Instellingen</h1>
       <AlgemeneInstellingen />
       <DashboardInstellingen />
-      <VasteLastenInstellingen />
+      <VastePostenInstellingen />
       <RekeningenBeheer />
+      <RekeningGroepenBeheer />
       <BudgettenPotjesBeheer />
       <BackupRestore />
     </div>

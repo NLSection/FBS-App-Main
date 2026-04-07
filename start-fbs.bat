@@ -4,14 +4,13 @@
 :: GEWIJZIGD: 02-04-2026 22:00
 ::
 :: WIJZIGINGEN (02-04-2026 22:00):
-:: - git pull toegevoegd voor de app opstart
-:: - npm install check toegevoegd als node_modules ontbreekt
+:: - NAS sync vervangen door git pull voor de app opstart
 @echo off
 cd /d "C:\Users\Section\Documents\_Mijn Documenten\_Finance\FBS-App-Dev"
 echo Git pull uitvoeren...
 git pull
 echo Git pull voltooid.
-if not exist "node_modules" (
+if not exist "C:\Users\Section\Documents\_Mijn Documenten\_Finance\FBS-App-Dev\node_modules" (
     echo Node modules niet gevonden, npm install uitvoeren...
     npm install
     echo npm install voltooid.

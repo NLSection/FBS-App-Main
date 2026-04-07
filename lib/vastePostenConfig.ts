@@ -1,17 +1,6 @@
-// FILE: vasteLastenConfig.ts
-// AANGEMAAKT: 25-03-2026 11:30
-// VERSIE: 1
-// GEWIJZIGD: 25-03-2026 20:00
-//
-// WIJZIGINGEN (25-03-2026 14:00):
-// - Initiële aanmaak: CRUD-queries voor vaste_lasten_config tabel
-// - verwachte_dag en verwacht_bedrag toegevoegd aan interface en queries
-// WIJZIGINGEN (25-03-2026 20:00):
-// - updateVasteLastDefinitie toegevoegd
-
 import getDb from '@/lib/db';
 
-export interface VasteLastDefinitie {
+export interface VastePostDefinitie {
   id: number;
   iban: string;
   naam: string;
@@ -21,13 +10,13 @@ export interface VasteLastDefinitie {
   verwacht_bedrag: number | null;
 }
 
-export function getVasteLastenConfig(): VasteLastDefinitie[] {
+export function getVastePostenConfig(): VastePostDefinitie[] {
   return getDb()
-    .prepare('SELECT id, iban, naam, omschrijving, label, verwachte_dag, verwacht_bedrag FROM vaste_lasten_config ORDER BY label')
-    .all() as VasteLastDefinitie[];
+    .prepare('SELECT id, iban, naam, omschrijving, label, verwachte_dag, verwacht_bedrag FROM vaste_posten_config ORDER BY label')
+    .all() as VastePostDefinitie[];
 }
 
-export function insertVasteLastDefinitie(
+export function insertVastePostDefinitie(
   iban: string,
   naam: string,
   omschrijving: string | null,
@@ -35,12 +24,12 @@ export function insertVasteLastDefinitie(
 ): void {
   getDb()
     .prepare(
-      'INSERT INTO vaste_lasten_config (iban, naam, omschrijving, label) VALUES (?, ?, ?, ?)'
+      'INSERT INTO vaste_posten_config (iban, naam, omschrijving, label) VALUES (?, ?, ?, ?)'
     )
     .run(iban.trim().toUpperCase(), naam.trim(), omschrijving?.trim() || null, label.trim());
 }
 
-export function updateVasteLastDefinitie(
+export function updateVastePostDefinitie(
   id: number,
   iban: string,
   naam: string,
@@ -53,7 +42,7 @@ export function updateVasteLastDefinitie(
   if (!naam.trim()) throw new Error('Naam mag niet leeg zijn.');
   if (!label.trim()) throw new Error('Label mag niet leeg zijn.');
   getDb()
-    .prepare(`UPDATE vaste_lasten_config
+    .prepare(`UPDATE vaste_posten_config
               SET iban = ?, naam = ?, omschrijving = ?, label = ?,
                   verwachte_dag = ?, verwacht_bedrag = ?
               WHERE id = ?`)
@@ -61,8 +50,8 @@ export function updateVasteLastDefinitie(
          label.trim(), verwachte_dag, verwacht_bedrag, id);
 }
 
-export function deleteVasteLastDefinitie(id: number): void {
+export function deleteVastePostDefinitie(id: number): void {
   getDb()
-    .prepare('DELETE FROM vaste_lasten_config WHERE id = ?')
+    .prepare('DELETE FROM vaste_posten_config WHERE id = ?')
     .run(id);
 }

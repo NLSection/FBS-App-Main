@@ -42,6 +42,9 @@
 
 import getDb from '@/lib/db';
 
+// Huidig schema-versienummer. Ophogen bij elke release met schema-wijzigingen.
+export const SCHEMA_VERSION = 25;
+
 // Nieuwe transacties tabel DDL — gedeeld door fresh install en migratie
 const TRANSACTIES_DDL = `
   CREATE TABLE transacties (
@@ -87,6 +90,10 @@ const TRANSACTIES_DDL = `
 
 export function runMigrations(): void {
   const db = getDb();
+
+  // Sla over als schema al up-to-date is (normale app-start na eerste migratie)
+  const currentVersion = (db.pragma('user_version', { simple: true }) as number) ?? 0;
+  if (currentVersion >= SCHEMA_VERSION) return;
 
   // ── Stap 1: Type-systeem migratie (idempotent) ────────────────────────────
   // Check of de transacties tabel nog het oude type systeem heeft
@@ -142,7 +149,7 @@ export function runMigrations(): void {
       type  TEXT    NOT NULL CHECK(type IN ('betaal','spaar'))
     );
 
-    CREATE TABLE IF NOT EXISTS vaste_lasten_config (
+    CREATE TABLE IF NOT EXISTS vaste_posten_config (
       id           INTEGER PRIMARY KEY AUTOINCREMENT,
       iban         TEXT NOT NULL,
       naam         TEXT NOT NULL,
@@ -182,8 +189,8 @@ export function runMigrations(): void {
 
   // ── Stap 3: Idempotente kolom- en indexmigraties ─────────────────────────
   db.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_transacties_volgnummer ON transacties(volgnummer)');
-  try { db.exec('ALTER TABLE vaste_lasten_config ADD COLUMN verwachte_dag INTEGER'); } catch { /* bestaat al */ }
-  try { db.exec('ALTER TABLE vaste_lasten_config ADD COLUMN verwacht_bedrag REAL'); } catch { /* bestaat al */ }
+  try { db.exec('ALTER TABLE vaste_posten_config ADD COLUMN verwachte_dag INTEGER'); } catch { /* bestaat al */ }
+  try { db.exec('ALTER TABLE vaste_posten_config ADD COLUMN verwacht_bedrag REAL'); } catch { /* bestaat al */ }
   try { db.exec('ALTER TABLE transacties ADD COLUMN handmatig_gecategoriseerd INTEGER DEFAULT 0'); } catch { /* bestaat al */ }
   try { db.exec('ALTER TABLE transacties ADD COLUMN originele_datum TEXT'); } catch { /* bestaat al */ }
   try { db.exec('ALTER TABLE budgetten_potjes ADD COLUMN kleur TEXT'); } catch { /* bestaat al */ }
@@ -335,12 +342,128 @@ export function runMigrations(): void {
   // ── Stap 15: Transacties in subcategorieën standaard uitgeklapt ─────────
   try { db.exec("ALTER TABLE instellingen ADD COLUMN cat_trx_uitgeklapt INTEGER NOT NULL DEFAULT 0"); } catch {}
 
-  // ── Stap 16: Vaste lasten overzicht instellingen ───────────────────────
-  try { db.exec("ALTER TABLE instellingen ADD COLUMN vaste_lasten_overzicht_maanden INTEGER NOT NULL DEFAULT 4"); } catch {}
-  try { db.exec("ALTER TABLE instellingen ADD COLUMN vaste_lasten_afwijking_procent INTEGER NOT NULL DEFAULT 5"); } catch {}
+  // ── Stap 16: Vaste posten overzicht instellingen ───────────────────────
+  // Kolom wordt aangemaakt als vaste_lasten_* (legacy) en in stap 20 hernoemd.
+  // Als vaste_posten_* al bestaat (door eerdere migratie) slaan we over.
+  {
+    const heeftNieuw = (db.prepare("SELECT COUNT(*) AS n FROM pragma_table_info('instellingen') WHERE name = 'vaste_posten_overzicht_maanden'").get() as { n: number }).n > 0;
+    if (!heeftNieuw) {
+      try { db.exec("ALTER TABLE instellingen ADD COLUMN vaste_lasten_overzicht_maanden INTEGER NOT NULL DEFAULT 4"); } catch {}
+      try { db.exec("ALTER TABLE instellingen ADD COLUMN vaste_lasten_afwijking_procent INTEGER NOT NULL DEFAULT 5"); } catch {}
+    }
+  }
 
-  // ── Stap 17: Kleur kolom op rekeningen ──────────────────────────────────
+  // ── Stap 17: BLS transacties standaard uitgeklapt ───────────────────────
+  try { db.exec("ALTER TABLE instellingen ADD COLUMN bls_trx_uitgeklapt INTEGER NOT NULL DEFAULT 0"); } catch {}
+
+  // ── Stap 18: Kleur kolom op rekeningen ──────────────────────────────────
   try { db.exec("ALTER TABLE rekeningen ADD COLUMN kleur TEXT DEFAULT NULL"); } catch {}
+
+  // ── Stap 19: Rekeninggroepen ───────────────────────────────────────────
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS rekening_groepen (
+      id       INTEGER PRIMARY KEY AUTOINCREMENT,
+      naam     TEXT    NOT NULL,
+      volgorde INTEGER NOT NULL DEFAULT 0
+    )
+  `);
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS rekening_groep_rekeningen (
+      groep_id    INTEGER NOT NULL REFERENCES rekening_groepen(id) ON DELETE CASCADE,
+      rekening_id INTEGER NOT NULL REFERENCES rekeningen(id) ON DELETE CASCADE,
+      PRIMARY KEY (groep_id, rekening_id)
+    )
+  `);
+  // Migreer bestaande beheerde rekeningen naar een standaard groep
+  const groepenLeeg = db.prepare('SELECT COUNT(*) AS n FROM rekening_groepen').get() as { n: number };
+  const heeftBeheerd2 = (db.prepare("SELECT COUNT(*) AS n FROM pragma_table_info('rekeningen') WHERE name = 'beheerd'").get() as { n: number }).n > 0;
+  const beheerdeRekeningen = heeftBeheerd2 ? db.prepare('SELECT id FROM rekeningen WHERE beheerd = 1').all() as { id: number }[] : [];
+  if (groepenLeeg.n === 0 && beheerdeRekeningen.length > 0) {
+    const gr = db.prepare("INSERT INTO rekening_groepen (naam, volgorde) VALUES ('Samengevoegde rekeningen', 0)").run();
+    const groepId = Number(gr.lastInsertRowid);
+    const insGr = db.prepare('INSERT OR IGNORE INTO rekening_groep_rekeningen (groep_id, rekening_id) VALUES (?, ?)');
+    for (const r of beheerdeRekeningen) {
+      insGr.run(groepId, r.id);
+    }
+  }
+
+  // ── Stap 20: Vaste Lasten → Vaste Posten hernoem + vergrendeling ────────
+  // Tabel hernoemen
+  const heeftOudeTabel = db.prepare("SELECT COUNT(*) AS n FROM sqlite_master WHERE type='table' AND name='vaste_lasten_config'").get() as { n: number };
+  const heeftNieuweTabel = db.prepare("SELECT COUNT(*) AS n FROM sqlite_master WHERE type='table' AND name='vaste_posten_config'").get() as { n: number };
+  if (heeftOudeTabel.n > 0 && heeftNieuweTabel.n === 0) {
+    db.exec('ALTER TABLE vaste_lasten_config RENAME TO vaste_posten_config');
+  } else if (heeftOudeTabel.n > 0 && heeftNieuweTabel.n > 0) {
+    // Beide tabellen bestaan (door eerdere mislukte migratie) — verwijder de lege oude
+    db.exec('DROP TABLE vaste_lasten_config');
+  }
+  // Kolommen hernoemen in instellingen
+  const heeftOudeKolom = (db.prepare("SELECT COUNT(*) AS n FROM pragma_table_info('instellingen') WHERE name = 'vaste_lasten_overzicht_maanden'").get() as { n: number }).n > 0;
+  const heeftNieuweKolom = (db.prepare("SELECT COUNT(*) AS n FROM pragma_table_info('instellingen') WHERE name = 'vaste_posten_overzicht_maanden'").get() as { n: number }).n > 0;
+  if (heeftOudeKolom && !heeftNieuweKolom) {
+    db.exec('ALTER TABLE instellingen RENAME COLUMN vaste_lasten_overzicht_maanden TO vaste_posten_overzicht_maanden');
+    db.exec('ALTER TABLE instellingen RENAME COLUMN vaste_lasten_afwijking_procent TO vaste_posten_afwijking_procent');
+  }
+  // Categorie hernoemen in budgetten_potjes + propagatie
+  const vlRij = db.prepare("SELECT id FROM budgetten_potjes WHERE naam = 'Vaste Lasten'").get() as { id: number } | undefined;
+  if (vlRij) {
+    db.prepare("UPDATE budgetten_potjes SET naam = 'Vaste Posten', beschermd = 1 WHERE id = ?").run(vlRij.id);
+    db.prepare("UPDATE categorieen SET categorie = 'Vaste Posten' WHERE categorie = 'Vaste Lasten'").run();
+    db.prepare("UPDATE transactie_aanpassingen SET categorie = 'Vaste Posten' WHERE categorie = 'Vaste Lasten'").run();
+  }
+  // Als Vaste Posten al bestaat maar niet beschermd is
+  db.prepare("UPDATE budgetten_potjes SET beschermd = 1 WHERE naam = 'Vaste Posten'").run();
+
+  // ── Stap 21: Drop beheerd kolom van rekeningen ──────────────────────────
+  const heeftBeheerd = (db.prepare("SELECT COUNT(*) AS n FROM pragma_table_info('rekeningen') WHERE name = 'beheerd'").get() as { n: number }).n > 0;
+  if (heeftBeheerd) {
+    db.exec('ALTER TABLE rekeningen DROP COLUMN beheerd');
+  }
+
+  // ── Stap 22: Subcategorieën tabel ─────────────────────────────────────
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS subcategorieen (
+      id         INTEGER PRIMARY KEY AUTOINCREMENT,
+      categorie  TEXT NOT NULL,
+      naam       TEXT NOT NULL,
+      UNIQUE(categorie, naam)
+    )
+  `);
+  // Populeer vanuit bestaande data (eenmalig)
+  const subLeeg = db.prepare('SELECT COUNT(*) AS n FROM subcategorieen').get() as { n: number };
+  if (subLeeg.n === 0) {
+    db.prepare(`
+      INSERT OR IGNORE INTO subcategorieen (categorie, naam)
+      SELECT DISTINCT categorie, subcategorie FROM categorieen
+      WHERE subcategorie IS NOT NULL AND subcategorie != ''
+    `).run();
+    db.prepare(`
+      INSERT OR IGNORE INTO subcategorieen (categorie, naam)
+      SELECT DISTINCT categorie, subcategorie FROM transactie_aanpassingen
+      WHERE subcategorie IS NOT NULL AND subcategorie != ''
+    `).run();
+  }
+
+  // ── Stap 23: Backup instellingen ─────────────────────────────────────────
+  try { db.exec("ALTER TABLE instellingen ADD COLUMN backup_bewaar_dagen INTEGER NOT NULL DEFAULT 7"); } catch {}
+  try { db.exec("ALTER TABLE instellingen ADD COLUMN backup_min_bewaard INTEGER NOT NULL DEFAULT 3"); } catch {}
+
+  // ── Stap 24: Backup encryptie ────────────────────────────────────────────
+  try { db.exec("ALTER TABLE instellingen ADD COLUMN backup_encryptie_hash TEXT DEFAULT NULL"); } catch {}
+  try { db.exec("ALTER TABLE instellingen ADD COLUMN backup_encryptie_hint TEXT DEFAULT NULL"); } catch {}
+  try { db.exec("ALTER TABLE instellingen ADD COLUMN backup_encryptie_salt TEXT DEFAULT NULL"); } catch {}
+  try { db.exec("ALTER TABLE instellingen ADD COLUMN backup_herstelsleutel_hash TEXT DEFAULT NULL"); } catch {}
+
+  // ── Stap 25: Apparaat-ID en extern backup pad ──────────────────────────
+  try { db.exec("ALTER TABLE instellingen ADD COLUMN apparaat_id TEXT DEFAULT NULL"); } catch {}
+  try { db.exec("ALTER TABLE instellingen ADD COLUMN backup_extern_pad TEXT DEFAULT NULL"); } catch {}
+  try { db.exec("ALTER TABLE instellingen ADD COLUMN backup_versie INTEGER NOT NULL DEFAULT 0"); } catch {}
+  // Genereer apparaat-ID als die nog niet bestaat
+  const appIdRow = db.prepare('SELECT apparaat_id FROM instellingen WHERE id = 1').get() as { apparaat_id: string | null } | undefined;
+  if (appIdRow && !appIdRow.apparaat_id) {
+    const id = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+    db.prepare('UPDATE instellingen SET apparaat_id = ? WHERE id = 1').run(id);
+  }
 
   // ── Stap 7: Cleanup pre-fix imports zonder volgnummer ────────────────────
   // Transacties geïmporteerd vóór de 'Volgnr'-fix hebben volgnummer = NULL.
@@ -354,4 +477,7 @@ export function runMigrations(): void {
       db.exec('DELETE FROM imports');
     })();
   }
+
+  // Schema-versie vastleggen zodat toekomstige starts deze run overslaan
+  db.pragma(`user_version = ${SCHEMA_VERSION}`);
 }

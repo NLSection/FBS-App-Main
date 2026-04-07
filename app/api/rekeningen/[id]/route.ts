@@ -13,8 +13,9 @@
 // - PUT accepteert ook { beheerd: 0|1 } zonder iban/naam/type
 
 import { NextRequest, NextResponse } from 'next/server';
-import { deleteRekening, updateRekening, updateBeheerd } from '@/lib/rekeningen';
+import { deleteRekening, updateRekening } from '@/lib/rekeningen';
 import { herclassificeerTypes } from '@/lib/herclassificeer';
+import { triggerBackup } from '@/lib/backup';
 
 export async function PUT(
   request: NextRequest,
@@ -24,20 +25,9 @@ export async function PUT(
   const numId = parseInt(id, 10);
   if (isNaN(numId)) return NextResponse.json({ error: 'Ongeldig id.' }, { status: 400 });
 
-  let body: { iban?: string; naam?: string; type?: string; beheerd?: number; kleur?: string | null };
+  let body: { iban?: string; naam?: string; type?: string; kleur?: string | null };
   try { body = await request.json(); } catch {
     return NextResponse.json({ error: 'Ongeldig JSON.' }, { status: 400 });
-  }
-
-  // Alleen beheerd bijwerken
-  if (body.beheerd !== undefined && !body.iban && !body.naam && !body.type) {
-    try {
-      updateBeheerd(numId, body.beheerd);
-      return new NextResponse(null, { status: 204 });
-    } catch (err) {
-      const bericht = err instanceof Error ? err.message : 'Databasefout.';
-      return NextResponse.json({ error: bericht }, { status: 400 });
-    }
   }
 
   if (body.type !== 'betaal' && body.type !== 'spaar') {
@@ -46,6 +36,7 @@ export async function PUT(
   try {
     updateRekening(numId, body.iban ?? '', body.naam ?? '', body.type, body.kleur);
     herclassificeerTypes();
+    triggerBackup();
     return new NextResponse(null, { status: 204 });
   } catch (err) {
     const bericht = err instanceof Error ? err.message : 'Databasefout.';
@@ -65,6 +56,7 @@ export function DELETE(
     try {
       deleteRekening(numId);
       herclassificeerTypes();
+      triggerBackup();
       return NextResponse.json({ ok: true });
     } catch (err) {
       const bericht = err instanceof Error ? err.message : 'Databasefout.';

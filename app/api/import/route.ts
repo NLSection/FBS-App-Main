@@ -27,7 +27,7 @@ import { matchTransactie } from '@/features/import/utils/matchTransactie';
 import { getMatchConfig } from '@/lib/configStore';
 import { insertImport, insertTransacties } from '@/lib/imports';
 import { categoriseerTransacties } from '@/lib/categorisatie';
-import { getRekeningen, insertRekening, updateBeheerd } from '@/lib/rekeningen';
+import { getRekeningen, insertRekening } from '@/lib/rekeningen';
 import getDb from '@/lib/db';
 import { triggerBackup } from '@/lib/backup';
 import { kiesAutomatischeKleur } from '@/lib/kleuren';
@@ -37,7 +37,6 @@ interface BevestigdeRekening {
   iban: string;
   naam: string;
   type: 'betaal' | 'spaar';
-  beheerd: number;
   categorie_ids: number[];
 }
 
@@ -140,7 +139,6 @@ export async function POST(request: NextRequest) {
         .prepare('SELECT id FROM rekeningen WHERE iban = ?')
         .get(r.iban.trim().toUpperCase()) as { id: number } | undefined;
       if (rec) {
-        updateBeheerd(rec.id, r.beheerd);
         for (const catId of r.categorie_ids ?? []) {
           db.prepare('INSERT OR IGNORE INTO budgetten_potjes_rekeningen (potje_id, rekening_id) VALUES (?, ?)').run(catId, rec.id);
         }

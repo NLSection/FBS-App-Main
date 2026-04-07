@@ -40,7 +40,6 @@ interface RekeningKeuze {
   actie: 'toevoegen' | 'negeren' | 'permanent';
   naam: string;
   type: 'betaal' | 'spaar';
-  beheerd: boolean;
   categorie_ids: number[];
 }
 
@@ -129,7 +128,7 @@ export default function ImportForm() {
         setOnbekend(data.onbekendeRekeningen);
         setKeuzes((data.onbekendeRekeningen as OnbekendeRekening[]).map(r => ({
           iban: r.iban, eersteTransactie: r.eersteTransactie,
-          actie: 'toevoegen', naam: '', type: 'betaal', beheerd: true, categorie_ids: [],
+          actie: 'toevoegen', naam: '', type: 'betaal', categorie_ids: [],
         })));
         setBestandStatussen(bestanden.map(b => ({ naam: b.name, status: 'wacht' })));
       } else {
@@ -167,7 +166,7 @@ export default function ImportForm() {
 
     const bevestigde = keuzes
       .filter(k => k.actie === 'toevoegen')
-      .map(k => ({ iban: k.iban, naam: k.naam.trim(), type: k.type, beheerd: k.beheerd ? 1 : 0, categorie_ids: k.categorie_ids }));
+      .map(k => ({ iban: k.iban, naam: k.naam.trim(), type: k.type, categorie_ids: k.categorie_ids }));
     const genegeerd  = keuzes.filter(k => k.actie === 'negeren').map(k => k.iban);
     const permanent  = keuzes.filter(k => k.actie === 'permanent').map(k => k.iban);
 
@@ -348,12 +347,6 @@ export default function ImportForm() {
                           <option value="betaal">Betaalrekening</option>
                           <option value="spaar">Spaarrekening</option>
                         </select>
-                      </div>
-                      <div style={{ gridColumn: '1 / -1' }}>
-                        <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, cursor: 'pointer' }}>
-                          <input type="checkbox" checked={k.beheerd} onChange={e => updateKeuze(k.iban, { beheerd: e.target.checked })} />
-                          <span style={{ color: 'var(--text-dim)' }}>Samenvoegen onder Beheerde Rekeningen</span>
-                        </label>
                       </div>
                       {categorieen.length > 0 && (
                         <div style={{ gridColumn: '1 / -1' }}>

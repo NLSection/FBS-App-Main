@@ -17,7 +17,7 @@ export function GET() {
 
     const rijen = db.prepare(`
       SELECT id, label, verwachte_dag, verwacht_bedrag
-      FROM vaste_lasten_config
+      FROM vaste_posten_config
       WHERE verwachte_dag IS NOT NULL
         AND verwachte_dag >= ?
       ORDER BY verwachte_dag ASC

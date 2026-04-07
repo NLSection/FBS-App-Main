@@ -10,6 +10,9 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   output: 'standalone',
+  turbopack: {
+    root: __dirname,
+  },
   transpilePackages: ['lucide-react'],
   devIndicators: false,
   env: {
