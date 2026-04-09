@@ -32,6 +32,7 @@ interface BudgetPotje {
   rekening_ids: number[];
   beschermd: number;
   kleur: string | null;
+  kleur_auto: number;
 }
 
 interface Rekening {
