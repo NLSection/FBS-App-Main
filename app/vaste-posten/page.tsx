@@ -654,7 +654,7 @@ export default function VastePostenPage() {
               <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-h)', marginBottom: 4 }}>Toevoegen aan groep</div>
               <div style={{ fontSize: 12, color: 'var(--text-dim)', marginBottom: 12 }}>Subcategorie: <strong>{groepModal.subcategorie}</strong></div>
               <label style={{ fontSize: 12, color: 'var(--text-dim)', display: 'block', marginBottom: 4 }}>Kies groep</label>
-              <select value={groepModal.groepId} onChange={e => setGroepModal(m => m ? { ...m, groepId: parseInt(e.target.value, 10) || '' } : m)}
+              <select value={groepModal.groepId} onChange={e => setGroepModal(m => m && m.type === 'voeg-toe' ? { ...m, groepId: parseInt(e.target.value, 10) || '' } : m)}
                 style={{ width: '100%', background: 'var(--bg-base)', border: '1px solid var(--border)', borderRadius: 4, padding: '6px 8px', fontSize: 13, color: 'var(--text-h)', marginBottom: 12 }}>
                 <option value="">— Kies een groep —</option>
                 {vpGroepen.map(g => <option key={g.id} value={g.id}>{g.naam}</option>)}
