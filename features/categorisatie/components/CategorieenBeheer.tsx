@@ -41,6 +41,7 @@ import type { Periode } from '@/lib/maandperiodes';
 import { formatType } from '@/lib/formatType';
 import CategoriePopup from '@/features/shared/components/CategoriePopup';
 import type { PatronModalData } from '@/features/shared/components/CategoriePopup';
+import { maakNaamChips, analyseerOmschrijvingen } from '@/features/shared/utils/naamChips';
 
 interface CategorieRegel {
   id: number;
@@ -56,7 +57,7 @@ interface CategorieRegel {
 }
 
 interface BudgetPotjeNaam { id: number; naam: string; kleur: string | null; rekening_ids: number[]; }
-interface Rekening { id: number; naam: string; iban: string; }
+interface Rekening { id: number; naam: string; iban: string; type?: string; kleur?: string | null; kleur_auto?: number; }
 
 type Tab = 'regels' | 'aangepast';
 
@@ -87,25 +88,6 @@ function kleurBg(hex: string): string {
   return `rgba(${r},${g},${b},0.15)`;
 }
 
-function maakNaamChips(naam: string | null): { label: string; waarde: string }[] {
-  if (!naam) return [];
-  return naam
-    .split(/[\s.,/()\[\]{}'"!?:;]+/)
-    .filter(w => w.length >= 1)
-    .map(w => ({ label: w, waarde: w.toLowerCase().replace(/[^a-z0-9&-]/g, '') }))
-    .filter(c => c.waarde.length > 0);
-}
-
-function analyseerOmschrijvingen(t: TransactieMetCategorie): { label: string; waarde: string }[] {
-  const omschr = [t.omschrijving_1, t.omschrijving_2, t.omschrijving_3]
-    .filter(Boolean).join(' ');
-  if (!omschr) return [];
-  return omschr
-    .split(/[\s.,/()\[\]{}'"!?:;]+/)
-    .filter(w => w.length >= 1)
-    .map(w => ({ label: w, waarde: w.toLowerCase().replace(/[^a-z0-9&-]/g, '') }))
-    .filter(c => c.waarde.length > 0);
-}
 
 export default function CategorieenBeheer() {
   const [tab, setTab]                           = useState<Tab>('regels');
@@ -316,8 +298,8 @@ export default function CategorieenBeheer() {
     });
   }
 
-  function handleVoegRekeningToe(iban: string, naam: string) {
-    window.location.href = `/instellingen?iban=${encodeURIComponent(iban)}&naam=${encodeURIComponent(naam)}`;
+  function handleVoegRekeningToe() {
+    fetch('/api/rekeningen').then(r => r.ok ? r.json() : []).then(setRekeningen);
   }
 
   async function maakCategorieregel(

@@ -54,6 +54,15 @@ const navItems = [
     ),
   },
   {
+    href: '/trends',
+    label: 'Trends',
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+      </svg>
+    ),
+  },
+  {
     href: '/transacties',
     label: 'Transacties',
     icon: (
@@ -155,7 +164,7 @@ export default function Sidebar() {
 
   const zichtbareItems = navItems.filter(item => {
     if (item.href === '/import' || item.href === '/instellingen') return true;
-    if (item.href === '/transacties') return appStatus.heeftImports;
+    if (item.href === '/transacties' || item.href === '/trends') return appStatus.heeftImports;
     return appStatus.heeftGecategoriseerd;
   });
 

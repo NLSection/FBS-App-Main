@@ -25,6 +25,9 @@ function getDb(): Database.Database {
     global._db = new Database(DB_PATH);
     global._db.pragma('journal_mode = WAL');
     global._db.pragma('foreign_keys = ON');
+    global._db.pragma('cache_size = -32768');
+    global._db.pragma('mmap_size = 134217728');
+    global._db.pragma('temp_store = MEMORY');
     // (beheerd kolom verwijderd in migratie stap 20)
     global._db.prepare(`
       CREATE TABLE IF NOT EXISTS genegeerde_rekeningen (
@@ -36,6 +39,9 @@ function getDb(): Database.Database {
     // Idempotente kolom-checks (fallback naast runMigrations)
     try { global._db.prepare('ALTER TABLE instellingen ADD COLUMN cat_uitklappen INTEGER DEFAULT 1').run(); } catch {}
     try { global._db.prepare('ALTER TABLE instellingen ADD COLUMN vaste_posten_buffer REAL NOT NULL DEFAULT 0').run(); } catch {}
+    try { global._db.prepare('ALTER TABLE instellingen ADD COLUMN vaste_posten_vergelijk_maanden INTEGER DEFAULT 3').run(); } catch {}
+    try { global._db.prepare('ALTER TABLE rekeningen ADD COLUMN kleur_auto INTEGER NOT NULL DEFAULT 1').run(); } catch {}
+    try { global._db.prepare('ALTER TABLE budgetten_potjes ADD COLUMN kleur_auto INTEGER NOT NULL DEFAULT 1').run(); } catch {}
   }
   return global._db;
 }

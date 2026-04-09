@@ -341,6 +341,13 @@ export function updateCategorieRegel(
     );
 }
 
+export function updateNaamOrigineel(id: number, naam: string): void {
+  const db = getDb();
+  const schoon = schoonMakenPerWoord(naam) || null;
+  db.prepare('UPDATE categorieen SET naam_origineel = ?, naam_zoekwoord = COALESCE(naam_zoekwoord, ?) WHERE id = ?')
+    .run(naam.trim() || null, schoon, id);
+}
+
 export function deleteCategorieRegel(id: number): void {
   const db = getDb();
   db.prepare('UPDATE transactie_aanpassingen SET categorie_id = NULL WHERE categorie_id = ?').run(id);

@@ -11,7 +11,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import getDb from '@/lib/db';
 
-const TOEGESTANE_TABELLEN = ['transacties', 'transactie_aanpassingen', 'imports', 'categorieen', 'budgetten_potjes', 'budgetten_potjes_rekeningen', 'subcategorieen', 'rekeningen', 'genegeerde_rekeningen', 'rekening_groepen', 'rekening_groep_rekeningen', 'vaste_posten_config', 'instellingen'];
+const TOEGESTANE_TABELLEN = ['transacties', 'transactie_aanpassingen', 'imports', 'categorieen', 'budgetten_potjes', 'budgetten_potjes_rekeningen', 'subcategorieen', 'rekeningen', 'genegeerde_rekeningen', 'rekening_groepen', 'rekening_groep_rekeningen', 'vaste_posten_config', 'vp_groepen', 'vp_groep_subcategorieen', 'vp_volgorde', 'vp_negeer', 'trend_panels', 'trend_panel_items', 'instellingen'];
 
 export function GET(req: NextRequest) {
   const param = req.nextUrl.searchParams.get('tabellen') ?? '';

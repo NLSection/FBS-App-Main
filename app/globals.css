@@ -188,8 +188,6 @@ button {
 .section-title {
   font-size: 13px;
   font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.7px;
   color: var(--text-dim);
   margin-bottom: 14px;
   margin-top: 0;
@@ -453,5 +451,6 @@ button {
   .maand-vol { display: none; }
   .maand-kort { display: inline; }
 }
+
 
 

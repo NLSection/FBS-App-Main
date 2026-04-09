@@ -200,14 +200,14 @@ export async function POST(request: NextRequest) {
     });
   }
 
-  // Vroegste datum bepalen voor redirect
-  let vroegsteDatum: string | null = null;
+  // Recentste datum bepalen voor redirect
+  let recentsteDatum: string | null = null;
   for (const { ruweTransacties } of geParste) {
     for (const t of ruweTransacties) {
-      if (t.datum && (!vroegsteDatum || t.datum < vroegsteDatum)) vroegsteDatum = t.datum;
+      if (t.datum && (!recentsteDatum || t.datum > recentsteDatum)) recentsteDatum = t.datum;
     }
   }
 
   triggerBackup();
-  return NextResponse.json({ resultaten, vroegsteDatum });
+  return NextResponse.json({ resultaten, recentsteDatum });
 }

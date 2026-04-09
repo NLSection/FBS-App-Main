@@ -75,6 +75,10 @@ export default function BackupRestore() {
   const [resetBezig, setResetBezig] = useState(false);
   const [resetBevestig, setResetBevestig] = useState(false);
 
+  // Pending extern state
+  const [pendingBestanden, setPendingBestanden] = useState<{ naam: string; grootte: number; datum: string }[]>([]);
+  const [pendingHighlight, setPendingHighlight] = useState(false);
+
   // Multi-device koppel state
   const [externConfigBestaat, setExternConfigBestaat] = useState(false);
   const [externConfigHint, setExternConfigHint]       = useState<string | null>(null);
@@ -92,6 +96,17 @@ export default function BackupRestore() {
         setExternConfigHint(d.hint);
       }
     } catch { /* extern niet bereikbaar */ }
+  }
+
+  function laadPending() {
+    fetch('/api/backup/pending-extern').then(r => r.ok ? r.json() : []).then((data: { naam: string; grootte: number; datum: string }[]) => {
+      setPendingBestanden(data);
+      if (data.length > 0 && window.location.hash === '#pending-extern') {
+        setPendingHighlight(true);
+        setTimeout(() => setPendingHighlight(false), 3000);
+        setTimeout(() => document.getElementById('pending-extern')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 50);
+      }
+    }).catch(() => {});
   }
 
   function refreshLaatsteBackup() {
@@ -113,8 +128,9 @@ export default function BackupRestore() {
       if (d) { setEncryptieIngesteld(d.ingesteld); setEncryptieHint(d.hint); }
     }).catch(() => {});
     refreshLaatsteBackup();
+    laadPending();
 
-    const onVisible = () => { if (document.visibilityState === 'visible') refreshLaatsteBackup(); };
+    const onVisible = () => { if (document.visibilityState === 'visible') { refreshLaatsteBackup(); laadPending(); } };
     document.addEventListener('visibilitychange', onVisible);
     return () => document.removeEventListener('visibilitychange', onVisible);
   }, []);
@@ -610,6 +626,46 @@ export default function BackupRestore() {
             style={{ position: 'absolute', width: 0, height: 0, opacity: 0, pointerEvents: 'none' }} />
           <button onClick={openImportModal} style={btnDanger}>Importeer backup</button>
         </div>
+
+        {pendingBestanden.length > 0 && <>
+          <div style={{ borderTop: '1px solid var(--border)' }} />
+          <div id="pending-extern">
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-h)', margin: 0, borderRadius: 6, padding: '2px 6px', ...(pendingHighlight ? { animation: 'highlight-pulse 1s ease-in-out 3' } : {}) }}>Wachtende externe backups</p>
+                <span style={{ fontSize: 11, padding: '1px 7px', borderRadius: 10, background: 'color-mix(in srgb, var(--accent) 15%, transparent)', color: 'var(--accent)', fontWeight: 600 }}>{pendingBestanden.length}</span>
+                <InfoTooltip tekst="Deze backups konden niet naar de externe locatie gekopieerd worden omdat die tijdelijk niet bereikbaar was. Ze worden automatisch gesynchroniseerd zodra de externe locatie weer beschikbaar is. Je kunt ze hier handmatig verwijderen als ze niet meer nodig zijn." />
+              </div>
+              <button onClick={async () => { await fetch('/api/backup/pending-extern?alle=1', { method: 'DELETE' }); laadPending(); }}
+                style={{ ...btnDanger, fontSize: 12, padding: '4px 12px' }}>Verwijder alles</button>
+            </div>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+              <thead>
+                <tr style={{ color: 'var(--text-dim)', borderBottom: '1px solid var(--border)' }}>
+                  <th style={{ textAlign: 'left', padding: '3px 8px', fontWeight: 500 }}>Bestand</th>
+                  <th style={{ textAlign: 'right', padding: '3px 8px', fontWeight: 500, whiteSpace: 'nowrap' }}>Grootte</th>
+                  <th style={{ textAlign: 'left', padding: '3px 8px', fontWeight: 500, whiteSpace: 'nowrap' }}>Aangemaakt</th>
+                  <th style={{ width: 32 }} />
+                </tr>
+              </thead>
+              <tbody>
+                {pendingBestanden.map(b => (
+                  <tr key={b.naam} style={{ borderBottom: '1px solid var(--border)' }}>
+                    <td style={{ padding: '5px 8px', color: 'var(--text)', fontFamily: 'monospace', fontSize: 11 }}>{b.naam}</td>
+                    <td style={{ padding: '5px 8px', textAlign: 'right', color: 'var(--text-dim)', whiteSpace: 'nowrap' }}>{(b.grootte / 1024).toFixed(1)} KB</td>
+                    <td style={{ padding: '5px 8px', color: 'var(--text-dim)', whiteSpace: 'nowrap' }}>{new Date(b.datum).toLocaleString('nl-NL', { timeZone: 'Europe/Amsterdam', dateStyle: 'short', timeStyle: 'short' })}</td>
+                    <td style={{ padding: '5px 4px', textAlign: 'center' }}>
+                      <button onClick={async () => { await fetch(`/api/backup/pending-extern?bestand=${encodeURIComponent(b.naam)}`, { method: 'DELETE' }); laadPending(); }}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--red)', padding: 2, display: 'flex', alignItems: 'center' }}>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>}
 
         <div style={{ borderTop: '1px solid var(--border)' }} />
 

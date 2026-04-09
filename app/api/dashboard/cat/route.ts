@@ -40,12 +40,9 @@ export function GET(request: NextRequest) {
     const transacties = getTransacties({ datum_van: datumVan, datum_tot: datumTot });
 
     // Optioneel filteren op rekeninggroep
-    const groepIbans = groepIdStr
-      ? new Set(
-          getRekeningen()
-            .filter(r => (getRekeningGroep(Number(groepIdStr))?.rekening_ids ?? []).includes(r.id))
-            .map(r => r.iban)
-        )
+    const groep = groepIdStr ? getRekeningGroep(Number(groepIdStr)) : null;
+    const groepIbans = groep
+      ? new Set(getRekeningen().filter(r => groep.rekening_ids.includes(r.id)).map(r => r.iban))
       : null;
 
     // Groepeer op categorie + subcategorie, sluit omboekingen uit

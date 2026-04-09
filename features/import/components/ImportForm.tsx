@@ -14,7 +14,7 @@
 
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { Fragment, useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 interface ImportResultaat {
@@ -50,6 +50,17 @@ interface ImportGeschiedenis {
   bestandsnaam: string;
   geimporteerd_op: string;
   aantal_transacties: number;
+  aantal_nieuw: number;
+}
+
+interface ImportTrx {
+  id: number;
+  datum: string;
+  naam_tegenpartij: string | null;
+  bedrag: number;
+  categorie: string | null;
+  subcategorie: string | null;
+  status: string;
 }
 
 interface BestandStatus {
@@ -93,6 +104,8 @@ export default function ImportForm() {
   const [opgeslagenBestanden, setOpgeslagenBestanden] = useState<File[]>([]);
   const [categorieen, setCategorieen]         = useState<Categorie[]>([]);
   const [geschiedenis, setGeschiedenis]       = useState<ImportGeschiedenis[]>([]);
+  const [openImport, setOpenImport]           = useState<number | null>(null);
+  const [importTrx, setImportTrx]             = useState<Record<number, ImportTrx[] | 'laden'>>({});
 
   useEffect(() => {
     fetch('/api/budgetten-potjes').then(r => r.ok ? r.json() : []).then(setCategorieen).catch(() => {});
@@ -101,6 +114,17 @@ export default function ImportForm() {
 
   function laadGeschiedenis() {
     fetch('/api/imports').then(r => r.ok ? r.json() : []).then(setGeschiedenis).catch(() => {});
+  }
+
+  function toggleImport(id: number) {
+    if (openImport === id) { setOpenImport(null); return; }
+    setOpenImport(id);
+    if (importTrx[id]) return;
+    setImportTrx(prev => ({ ...prev, [id]: 'laden' }));
+    fetch(`/api/imports/${id}/transacties`)
+      .then(r => r.ok ? r.json() : [])
+      .then((data: ImportTrx[]) => setImportTrx(prev => ({ ...prev, [id]: data })))
+      .catch(() => setImportTrx(prev => ({ ...prev, [id]: [] })));
   }
 
   const startImport = useCallback(async (bestanden: File[]) => {
@@ -139,7 +163,7 @@ export default function ImportForm() {
         })));
         laadGeschiedenis();
         router.refresh();
-        const vd = data.vroegsteDatum as string | null;
+        const vd = data.recentsteDatum as string | null;
         if (vd) {
           const d = new Date(vd);
           router.push(`/transacties?maand=${d.getFullYear()}-${d.getMonth() + 1}`);
@@ -271,19 +295,69 @@ export default function ImportForm() {
                 <tr>
                   <th>Datum</th>
                   <th>Bestand</th>
-                  <th style={{ textAlign: 'right' }}>Transacties</th>
+                  <th style={{ textAlign: 'right' }}>Totaal</th>
+                  <th style={{ textAlign: 'right' }}>Nieuw</th>
+                  <th style={{ width: 28 }} />
                 </tr>
               </thead>
               <tbody>
-                {geschiedenis.slice(0, 10).map(imp => (
-                  <tr key={imp.id}>
-                    <td style={{ whiteSpace: 'nowrap', color: 'var(--text-dim)', fontSize: 12 }}>
-                      {new Date(imp.geimporteerd_op).toLocaleString('nl-NL', { timeZone: 'Europe/Amsterdam', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                    </td>
-                    <td style={{ fontSize: 13 }}>{imp.bestandsnaam}</td>
-                    <td style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums', fontSize: 13 }}>{imp.aantal_transacties}</td>
-                  </tr>
-                ))}
+                {geschiedenis.slice(0, 10).map(imp => {
+                  const isOpen = openImport === imp.id;
+                  const trx = importTrx[imp.id];
+                  return (
+                    <Fragment key={imp.id}>
+                      <tr onClick={() => toggleImport(imp.id)} style={{ cursor: 'pointer' }}>
+                        <td style={{ whiteSpace: 'nowrap', color: 'var(--text-dim)', fontSize: 12 }}>
+                          {new Date(imp.geimporteerd_op).toLocaleString('nl-NL', { timeZone: 'Europe/Amsterdam', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                        </td>
+                        <td style={{ fontSize: 13 }}>{imp.bestandsnaam}</td>
+                        <td style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums', fontSize: 13 }}>{imp.aantal_transacties}</td>
+                        <td style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums', fontSize: 13, color: 'var(--green)' }}>{imp.aantal_nieuw}</td>
+                        <td style={{ width: 28, textAlign: 'center', color: 'var(--text-dim)', fontSize: 10 }}>
+                          <span style={{ display: 'inline-block', transition: 'transform 0.15s', transform: isOpen ? 'rotate(90deg)' : 'rotate(0deg)' }}>▶</span>
+                        </td>
+                      </tr>
+                      {isOpen && (
+                        <tr className="bls-expand">
+                          <td colSpan={5} style={{ padding: '0 0 8px 0', background: 'var(--bg-base)' }}>
+                            {trx === 'laden' ? (
+                              <div style={{ padding: '12px 16px', fontSize: 12, color: 'var(--text-dim)' }}>Laden…</div>
+                            ) : !trx || trx.length === 0 ? (
+                              <div style={{ padding: '12px 16px', fontSize: 12, color: 'var(--text-dim)' }}>Geen transacties gevonden.</div>
+                            ) : (
+                              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                                <thead>
+                                  <tr style={{ borderBottom: '1px solid var(--border)' }}>
+                                    <th style={{ padding: '6px 16px', textAlign: 'left', fontWeight: 600, color: 'var(--text-dim)', fontSize: 11 }}>Datum</th>
+                                    <th style={{ padding: '6px 8px', textAlign: 'left', fontWeight: 600, color: 'var(--text-dim)', fontSize: 11 }}>Naam</th>
+                                    <th style={{ padding: '6px 8px', textAlign: 'left', fontWeight: 600, color: 'var(--text-dim)', fontSize: 11 }}>Subcategorie</th>
+                                    <th style={{ padding: '6px 16px', textAlign: 'right', fontWeight: 600, color: 'var(--text-dim)', fontSize: 11 }}>Bedrag</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {trx.map(t => (
+                                    <tr key={t.id} style={{ borderBottom: '1px solid var(--border)' }}>
+                                      <td style={{ padding: '5px 16px', whiteSpace: 'nowrap', color: 'var(--text-dim)' }}>{t.datum}</td>
+                                      <td style={{ padding: '5px 8px', maxWidth: 260, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.naam_tegenpartij ?? '—'}</td>
+                                      <td style={{ padding: '5px 8px' }}>
+                                        {t.subcategorie
+                                          ? <span className="badge-outline" style={{ fontSize: 11 }}>{t.subcategorie}</span>
+                                          : <span style={{ color: 'var(--text-dim)' }}>—</span>}
+                                      </td>
+                                      <td style={{ padding: '5px 16px', textAlign: 'right', whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums', fontWeight: 600, color: t.bedrag >= 0 ? 'var(--green)' : 'var(--red)' }}>
+                                        {t.bedrag >= 0 ? '+' : ''}{t.bedrag.toLocaleString('nl-NL', { style: 'currency', currency: 'EUR' })}
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            )}
+                          </td>
+                        </tr>
+                      )}
+                    </Fragment>
+                  );
+                })}
               </tbody>
             </table>
           </div>

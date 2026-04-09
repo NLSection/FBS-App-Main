@@ -1,22 +1,47 @@
 'use client';
 import { useState, useRef, useEffect } from 'react';
 
+let tooltipTeller = 0;
+const sluitCallbacks = new Map<number, () => void>();
+
 export default function InfoTooltip({ tekst, volledigeBreedte }: { tekst: React.ReactNode; volledigeBreedte?: boolean }) {
   const [zichtbaar, setZichtbaar] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
+  const mijnId = useRef(++tooltipTeller);
 
+  // Registreer sluit-callback voor onderlinge uitsluiting
   useEffect(() => {
-    function handler(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setZichtbaar(false);
-    }
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
+    const id = mijnId.current;
+    sluitCallbacks.set(id, () => setZichtbaar(false));
+    return () => { sluitCallbacks.delete(id); };
   }, []);
+
+  // Buiten-klik: alleen actief als tooltip open is
+  useEffect(() => {
+    if (!zichtbaar) return;
+    function buitenKlik(e: MouseEvent) {
+      const target = e.target as Element;
+      if (!target.closest(`[data-infotooltip="${mijnId.current}"]`)) setZichtbaar(false);
+    }
+    document.addEventListener('mousedown', buitenKlik);
+    return () => document.removeEventListener('mousedown', buitenKlik);
+  }, [zichtbaar]);
+
+  function handleMouseDown(e: React.MouseEvent) {
+    // nativeEvent.stopPropagation zodat de buitenKlik van open tooltips niet vurt
+    e.nativeEvent.stopPropagation();
+    if (!zichtbaar) {
+      sluitCallbacks.forEach((fn, id) => { if (id !== mijnId.current) fn(); });
+      setZichtbaar(true);
+    } else {
+      setZichtbaar(false);
+    }
+  }
 
   const knop = (
     <button
       type="button"
-      onClick={() => setZichtbaar(v => !v)}
+      data-infotooltip={mijnId.current}
+      onMouseDown={handleMouseDown}
       style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, color: 'var(--text-dim)', display: 'flex', alignItems: 'center' }}
       title="Meer informatie"
     >
@@ -31,8 +56,7 @@ export default function InfoTooltip({ tekst, volledigeBreedte }: { tekst: React.
   const tekstvak = zichtbaar && (
     <div style={{
       background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 8,
-      padding: '10px 14px',
-      fontSize: 12, color: 'var(--text)', lineHeight: 1.6,
+      padding: '10px 14px', fontSize: 12, color: 'var(--text)', lineHeight: 1.6,
       boxShadow: '0 4px 16px rgba(0,0,0,0.3)',
       ...(volledigeBreedte ? {} : { position: 'absolute' as const, top: '100%', left: 0, zIndex: 50, marginTop: 6, minWidth: 320, maxWidth: 420 }),
     }}>
@@ -42,15 +66,15 @@ export default function InfoTooltip({ tekst, volledigeBreedte }: { tekst: React.
 
   if (volledigeBreedte) {
     return (
-      <div ref={ref} style={{ display: 'contents' }}>
+      <>
         {knop}
         {zichtbaar && <div style={{ flexBasis: '100%', marginTop: 8, marginBottom: 4 }}>{tekstvak}</div>}
-      </div>
+      </>
     );
   }
 
   return (
-    <div ref={ref} style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
+    <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
       {knop}
       {tekstvak}
     </div>

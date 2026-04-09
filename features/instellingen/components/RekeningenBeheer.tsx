@@ -115,7 +115,7 @@ export default function RekeningenBeheer() {
     const res = await fetch('/api/rekeningen', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ iban: form.iban, naam: form.naam, type: form.type, kleur: form.kleur || null }),
+      body: JSON.stringify({ iban: form.iban, naam: form.naam, type: form.type, kleur: form.kleur || null, kleur_auto: form.kleurAutomatisch ? 1 : 0 }),
     });
     setBezig(false);
     if (!res.ok) {
@@ -143,7 +143,7 @@ export default function RekeningenBeheer() {
   function openBewerk(r: Rekening) {
     if (bewerkId === r.id) { setBewerkId(null); return; }
     setBewerkId(r.id);
-    const kleurAutomatisch = !r.kleur;
+    const kleurAutomatisch = r.kleur_auto === 1;
     const kleur = r.kleur ?? kiesAutomatischeKleur(alleGebruikteKleuren(r.id));
     setBewerkForm({ iban: r.iban, naam: r.naam, type: r.type, kleur, kleurAutomatisch });
     setBewerkCats(new Set(categorieen.filter(c => c.rekening_ids.includes(r.id)).map(c => c.id)));
@@ -155,7 +155,7 @@ export default function RekeningenBeheer() {
     const res = await fetch(`/api/rekeningen/${id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ iban: bewerkForm.iban, naam: bewerkForm.naam, type: bewerkForm.type, kleur: bewerkForm.kleur || null }),
+      body: JSON.stringify({ iban: bewerkForm.iban, naam: bewerkForm.naam, type: bewerkForm.type, kleur: bewerkForm.kleur || null, kleur_auto: bewerkForm.kleurAutomatisch ? 1 : 0 }),
     });
     if (!res.ok && res.status !== 204) {
       const d = await res.json();

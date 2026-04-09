@@ -59,5 +59,9 @@ export function insertTransacties(importId: number, transacties: TransactieMetTy
   });
 
   insertAlles(transacties);
+
+  // Bewaar het aantal daadwerkelijk toegevoegde transacties
+  db.prepare('UPDATE imports SET aantal_nieuw = ? WHERE id = ?').run(opgeslagen, importId);
+
   return opgeslagen;
 }

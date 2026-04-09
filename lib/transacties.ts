@@ -18,6 +18,7 @@ export interface TransactieFilters {
   datum_van?: string;
   datum_tot?: string;
   naam_tegenpartij?: string;
+  categorie?: string;
 }
 
 export interface TransactieMetCategorie extends Transactie {
@@ -74,6 +75,10 @@ export function getTransacties(filters?: TransactieFilters): TransactieMetCatego
   if (filters?.naam_tegenpartij) {
     conditions.push('t.naam_tegenpartij = ?');
     params.push(filters.naam_tegenpartij);
+  }
+  if (filters?.categorie) {
+    conditions.push("COALESCE(c.categorie, a.categorie) = ?");
+    params.push(filters.categorie);
   }
 
   const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';

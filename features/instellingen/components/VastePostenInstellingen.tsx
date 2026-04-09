@@ -14,6 +14,7 @@ import InfoTooltip from '@/components/InfoTooltip';
 interface VLInst {
   vastePostenOverzichtMaanden: number;
   vastePostenAfwijkingProcent: number;
+  vastePostenVergelijkMaanden: number;
 }
 
 const inputCls = 'w-full bg-[var(--bg-base)] border border-[var(--border)] rounded px-2 py-1.5 text-sm text-[var(--text-h)] focus:outline-none focus:border-[var(--accent)]';
@@ -27,7 +28,7 @@ export default function VastePostenInstellingen() {
     fetch('/api/instellingen')
       .then(r => r.ok ? r.json() : null)
       .then((d: VLInst | null) => {
-        if (d) setInst({ vastePostenOverzichtMaanden: d.vastePostenOverzichtMaanden ?? 4, vastePostenAfwijkingProcent: d.vastePostenAfwijkingProcent ?? 5 });
+        if (d) setInst({ vastePostenOverzichtMaanden: d.vastePostenOverzichtMaanden ?? 4, vastePostenAfwijkingProcent: d.vastePostenAfwijkingProcent ?? 5, vastePostenVergelijkMaanden: d.vastePostenVergelijkMaanden ?? 3 });
       })
       .catch(() => {});
   }, []);
@@ -64,6 +65,20 @@ export default function VastePostenInstellingen() {
             <select
               value={inst.vastePostenOverzichtMaanden}
               onChange={e => opslaan({ vastePostenOverzichtMaanden: parseInt(e.target.value) })}
+              className={inputCls}
+              style={{ width: 80, marginLeft: 8 }}
+              disabled={bezig}
+            >
+              {Array.from({ length: 12 }, (_, i) => i + 1).map(d => (
+                <option key={d} value={d}>{d}</option>
+              ))}
+            </select>
+          </label>
+          <label style={{ fontSize: 13, color: 'var(--text)' }}>
+            Vergelijkperiode bedrag (maanden)
+            <select
+              value={inst.vastePostenVergelijkMaanden}
+              onChange={e => opslaan({ vastePostenVergelijkMaanden: parseInt(e.target.value) })}
               className={inputCls}
               style={{ width: 80, marginLeft: 8 }}
               disabled={bezig}

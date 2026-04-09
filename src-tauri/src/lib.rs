@@ -176,6 +176,25 @@ pub fn run() {
                 std::thread::sleep(Duration::from_millis(500));
             }
 
+            // Pre-warm: laad alle hoofdpagina's op de achtergrond zodat Turbopack ze compileert
+            let warmup_url = url.clone();
+            std::thread::spawn(move || {
+                let c = reqwest::blocking::Client::builder()
+                    .timeout(Duration::from_secs(10))
+                    .build()
+                    .unwrap();
+                let routes = [
+                    "/",
+                    "/transacties",
+                    "/vaste-posten",
+                    "/instellingen",
+                    "/categorisatie",
+                ];
+                for route in routes {
+                    let _ = c.get(format!("{warmup_url}{route}")).send();
+                }
+            });
+
             // Navigeer webview naar de dynamische poort
             let window = app.get_webview_window("main")
                 .ok_or("Kan hoofdvenster niet vinden")?;

@@ -46,17 +46,28 @@ const TABEL_VOLGORDE = [
   'transacties',
   'transactie_aanpassingen',
   'vaste_posten_config',
+  'vp_groepen',
+  'vp_groep_subcategorieen',
+  'vp_volgorde',
+  'vp_negeer',
+  'trend_panels',
+  'trend_panel_items',
 ];
 
 export async function POST(req: NextRequest) {
   let bestandsnaam: string | undefined;
+  let bron: string | undefined;
   let backupData: Record<string, unknown> | undefined;
 
   try {
     const body = await req.json() as Record<string, unknown>;
     if (typeof body.bestandsnaam === 'string') {
       bestandsnaam = body.bestandsnaam;
-    } else if (TABEL_VOLGORDE.some(t => t in body)) {
+    }
+    if (typeof body.bron === 'string') {
+      bron = body.bron;
+    }
+    if (!bestandsnaam && TABEL_VOLGORDE.some(t => t in body)) {
       // Component stuurde directe tabeldata
       backupData = body;
       bestandsnaam = '(upload)';
@@ -65,10 +76,24 @@ export async function POST(req: NextRequest) {
     // Lege body — gebruik meest recente backup
   }
 
+  // Extern pad + encryptie ophalen uit instellingen
+  let externPad: string | null = null;
+  let encryptieHash: string | null = null;
+  let encryptieSalt: string | null = null;
+  try {
+    const db = getDb();
+    const row = db.prepare('SELECT backup_extern_pad, backup_encryptie_hash, backup_encryptie_salt FROM instellingen WHERE id = 1').get() as { backup_extern_pad: string | null; backup_encryptie_hash: string | null; backup_encryptie_salt: string | null } | undefined;
+    externPad = row?.backup_extern_pad ?? null;
+    encryptieHash = row?.backup_encryptie_hash ?? null;
+    encryptieSalt = row?.backup_encryptie_salt ?? null;
+  } catch { /* */ }
+
   if (!backupData) {
     // Bepaal welk backup-bestand geladen moet worden
     if (!bestandsnaam) {
-      const metaPath = path.join(BACKUP_DIR, 'backup-meta.json');
+      // Bij externe bron: gebruik externe backup-meta.json
+      const metaDir = bron === 'extern' && externPad ? externPad : BACKUP_DIR;
+      const metaPath = path.join(metaDir, 'backup-meta.json');
       if (!fs.existsSync(metaPath)) {
         return NextResponse.json({ error: 'Geen backup beschikbaar.' }, { status: 404 });
       }
@@ -76,34 +101,40 @@ export async function POST(req: NextRequest) {
       bestandsnaam = meta.latestBackup;
     }
 
-    // Valideer bestandsnaam (alleen backup_*.json/.json.gz of fbs-backup-*.json)
-    if (!/^(backup_[\d_-]+|fbs-backup-[\d_-]+(\s*\(\d+\))?)\.json(\.gz)?$/.test(bestandsnaam)) {
+    // Valideer bestandsnaam (backup_*.json/.json.gz/.enc.gz of fbs-backup-*.json)
+    if (!/^(backup_[\d_-]+|fbs-backup-[\d_-]+(\s*\(\d+\))?)(\.(json(\.gz)?|enc\.gz))$/.test(bestandsnaam)) {
       return NextResponse.json({ error: 'Ongeldig backup-bestandsnaam.' }, { status: 400 });
     }
 
     let bestandsPad = path.join(BACKUP_DIR, bestandsnaam);
     if (!fs.existsSync(bestandsPad)) {
-      // Fallback: zoek meest recent backup-bestand in de map
-      const bestanden = fs.readdirSync(BACKUP_DIR)
-        .filter(f => f.startsWith('backup_') && (f.endsWith('.json') || f.endsWith('.json.gz')))
+      // Check externe locatie als het bestand niet lokaal staat
+      if (externPad) {
+        const externBestandsPad = path.join(externPad, bestandsnaam);
+        if (fs.existsSync(externBestandsPad)) {
+          bestandsPad = externBestandsPad;
+        }
+      }
+    }
+    if (!fs.existsSync(bestandsPad)) {
+      // Fallback: zoek meest recent backup-bestand in de relevante map
+      const zoekDir = bron === 'extern' && externPad ? externPad : BACKUP_DIR;
+      const bestanden = fs.readdirSync(zoekDir)
+        .filter(f => f.startsWith('backup_') && (f.endsWith('.json') || f.endsWith('.json.gz') || f.endsWith('.enc.gz')))
         .sort()
         .reverse();
       if (bestanden.length === 0) {
         return NextResponse.json({ error: `Backup-bestand niet gevonden: ${bestandsnaam}` }, { status: 404 });
       }
       bestandsnaam = bestanden[0];
-      bestandsPad = path.join(BACKUP_DIR, bestandsnaam);
-      const metaPath = path.join(BACKUP_DIR, 'backup-meta.json');
-      if (fs.existsSync(metaPath)) {
-        const bestaandeMeta = JSON.parse(fs.readFileSync(metaPath, 'utf-8'));
-        fs.writeFileSync(metaPath, JSON.stringify({ ...bestaandeMeta, latestBackup: bestandsnaam }), 'utf-8');
-      }
+      bestandsPad = path.join(zoekDir, bestandsnaam);
     }
 
     try {
-      backupData = leesBackupBestand(bestandsPad);
-    } catch {
-      return NextResponse.json({ error: 'Backup-bestand is geen geldige JSON.' }, { status: 400 });
+      backupData = leesBackupBestand(bestandsPad, encryptieHash ?? undefined, encryptieSalt ?? undefined);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Backup-bestand is geen geldige JSON.';
+      return NextResponse.json({ error: msg }, { status: 400 });
     }
   }
 
@@ -167,12 +198,19 @@ export async function POST(req: NextRequest) {
       if (fs.existsSync(metaPath)) {
         const meta = JSON.parse(fs.readFileSync(metaPath, 'utf-8')) as { versie?: number; latestBackup?: string };
         if ((meta.versie ?? 0) > maxVersie) maxVersie = meta.versie!;
-        db.prepare('UPDATE instellingen SET laatst_herstelde_backup = ?, backup_versie = ? WHERE id = 1')
-          .run(meta.latestBackup ?? bestandsnaam, maxVersie);
-      } else {
-        db.prepare('UPDATE instellingen SET laatst_herstelde_backup = ?, backup_versie = ? WHERE id = 1')
-          .run(bestandsnaam, maxVersie);
       }
+      // Ook externe meta meenemen zodat backup_versie niet lager blijft dan extern
+      if (externPad) {
+        try {
+          const externMetaPath = path.join(externPad, 'backup-meta.json');
+          if (fs.existsSync(externMetaPath)) {
+            const externMeta = JSON.parse(fs.readFileSync(externMetaPath, 'utf-8')) as { versie?: number };
+            if ((externMeta.versie ?? 0) > maxVersie) maxVersie = externMeta.versie!;
+          }
+        } catch { /* extern niet bereikbaar */ }
+      }
+      db.prepare('UPDATE instellingen SET laatst_herstelde_backup = ?, backup_versie = ? WHERE id = 1')
+        .run(bestandsnaam, maxVersie);
     } catch {
       db.prepare('UPDATE instellingen SET laatst_herstelde_backup = ? WHERE id = 1').run(bestandsnaam);
     }

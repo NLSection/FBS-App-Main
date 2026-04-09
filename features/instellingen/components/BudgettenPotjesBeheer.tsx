@@ -127,7 +127,7 @@ export default function BudgettenPotjesBeheer() {
   function openBewerk(item: BudgetPotje) {
     if (bewerkId === item.id) { setBewerkId(null); return; }
     setBewerkId(item.id);
-    const kleurAutomatisch = !item.kleur;
+    const kleurAutomatisch = item.kleur_auto === 1;
     const kleur = item.kleur ?? kiesAutomatischeKleur(alleGebruikteKleuren(items, rekeningen, item.id));
     setBewerkForm({ naam: item.naam, rekening_ids: new Set(item.rekening_ids), kleur, kleurAutomatisch });
     setBewerkFout(null);
@@ -142,6 +142,7 @@ export default function BudgettenPotjesBeheer() {
         naam:         item.beschermd ? undefined : bewerkForm.naam.trim(),
         rekening_ids: Array.from(bewerkForm.rekening_ids),
         kleur:        bewerkForm.kleur || null,
+        kleur_auto:   bewerkForm.kleurAutomatisch ? 1 : 0,
       }),
     });
     setBewerkBezig(false);

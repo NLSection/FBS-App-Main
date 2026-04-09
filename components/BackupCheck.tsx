@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 
 interface CheckData {
   backupIsNieuwer: boolean;
@@ -14,6 +15,7 @@ interface CheckData {
 }
 
 export default function BackupCheck() {
+  const router = useRouter();
   const [check, setCheck] = useState<CheckData | null>(null);
   const [pending, setPending] = useState(0);
   const [bezig, setBezig] = useState(false);
@@ -44,11 +46,12 @@ export default function BackupCheck() {
   // Pending indicator (niet-blokkend)
   if (!check && pending > 0) {
     return (
-      <div style={{
+      <div onClick={() => router.push('/instellingen#pending-extern')} style={{
         position: 'fixed', bottom: 16, right: 16, zIndex: 9000,
         background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 8,
         padding: '10px 16px', boxShadow: '0 4px 16px rgba(0,0,0,0.3)',
         display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: 'var(--text-dim)',
+        cursor: 'pointer',
       }}>
         <span style={{ color: 'var(--accent)', fontSize: 14 }}>⏳</span>
         {pending} backup{pending !== 1 ? 's' : ''} wacht{pending === 1 ? '' : 'en'} op synchronisatie naar externe locatie
@@ -65,7 +68,7 @@ export default function BackupCheck() {
       const restoreRes = await fetch('/api/restore', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({}),
+        body: JSON.stringify({ bestandsnaam: check?.backupBestand, bron: check?.bron }),
       });
       if (!restoreRes.ok) {
         const err = await restoreRes.json().catch(() => ({}));

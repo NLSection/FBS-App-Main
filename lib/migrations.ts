@@ -43,7 +43,7 @@
 import getDb from '@/lib/db';
 
 // Huidig schema-versienummer. Ophogen bij elke release met schema-wijzigingen.
-export const SCHEMA_VERSION = 26;
+export const SCHEMA_VERSION = 30;
 
 // Nieuwe transacties tabel DDL — gedeeld door fresh install en migratie
 const TRANSACTIES_DDL = `
@@ -189,6 +189,10 @@ export function runMigrations(): void {
 
   // ── Stap 3: Idempotente kolom- en indexmigraties ─────────────────────────
   db.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_transacties_volgnummer ON transacties(volgnummer)');
+  db.exec('CREATE INDEX IF NOT EXISTS idx_transacties_datum ON transacties(datum)');
+  db.exec('CREATE INDEX IF NOT EXISTS idx_ta_transactie_id ON transactie_aanpassingen(transactie_id)');
+  db.exec('CREATE INDEX IF NOT EXISTS idx_ta_datum ON transactie_aanpassingen(datum_aanpassing)');
+  db.exec('CREATE INDEX IF NOT EXISTS idx_categorieen_categorie ON categorieen(categorie)');
   try { db.exec('ALTER TABLE vaste_posten_config ADD COLUMN verwachte_dag INTEGER'); } catch { /* bestaat al */ }
   try { db.exec('ALTER TABLE vaste_posten_config ADD COLUMN verwacht_bedrag REAL'); } catch { /* bestaat al */ }
   try { db.exec('ALTER TABLE transacties ADD COLUMN handmatig_gecategoriseerd INTEGER DEFAULT 0'); } catch { /* bestaat al */ }
@@ -480,6 +484,86 @@ export function runMigrations(): void {
 
   // ── Stap 26: Vaste posten buffer instelling ───────────────────────────────
   try { db.exec('ALTER TABLE instellingen ADD COLUMN vaste_posten_buffer REAL NOT NULL DEFAULT 0'); } catch {}
+
+  // ── Stap 27: VP groepen (samenvoegen subcategorieën op vaste posten pagina) ─
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS vp_groepen (
+      id   INTEGER PRIMARY KEY AUTOINCREMENT,
+      naam TEXT NOT NULL UNIQUE
+    )
+  `);
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS vp_groep_subcategorieen (
+      groep_id    INTEGER NOT NULL REFERENCES vp_groepen(id) ON DELETE CASCADE,
+      subcategorie TEXT NOT NULL,
+      UNIQUE(subcategorie)
+    )
+  `);
+
+  // ── Stap 28: VP volgorde en negeer ───────────────────────────────────────
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS vp_volgorde (
+      sleutel  TEXT NOT NULL PRIMARY KEY,
+      volgorde INTEGER NOT NULL
+    )
+  `);
+
+  // ── Stap 29: VP volgorde uitbreiden met periode-scope ────────────────────
+  if (currentVersion < 29) {
+    db.transaction(() => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS vp_volgorde_new (
+          sleutel  TEXT NOT NULL,
+          periode  TEXT NOT NULL DEFAULT 'permanent',
+          volgorde INTEGER NOT NULL,
+          PRIMARY KEY (sleutel, periode)
+        )
+      `);
+      db.exec(`INSERT OR IGNORE INTO vp_volgorde_new (sleutel, periode, volgorde) SELECT sleutel, 'permanent', volgorde FROM vp_volgorde`);
+      db.exec(`DROP TABLE vp_volgorde`);
+      db.exec(`ALTER TABLE vp_volgorde_new RENAME TO vp_volgorde`);
+    })();
+  }
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS vp_negeer (
+      regel_id INTEGER NOT NULL REFERENCES categorieen(id) ON DELETE CASCADE,
+      periode  TEXT NOT NULL,
+      UNIQUE(regel_id, periode)
+    )
+  `);
+
+  // ── Stap 30: Trend-panels ──────────────────────────────────────────────────
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS trend_panels (
+      id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+      titel               TEXT NOT NULL DEFAULT 'Nieuwe trend',
+      databron            TEXT NOT NULL DEFAULT 'saldo'
+                              CHECK(databron IN ('saldo','uitgaven','inkomsten')),
+      grafiek_type        TEXT NOT NULL DEFAULT 'lijn'
+                              CHECK(grafiek_type IN ('lijn','staaf')),
+      weergave            TEXT NOT NULL DEFAULT 'per_maand'
+                              CHECK(weergave IN ('per_maand','cumulatief')),
+      toon_jaarknoppen    INTEGER NOT NULL DEFAULT 1,
+      toon_maandknoppen   INTEGER NOT NULL DEFAULT 0,
+      toon_alle_jaren     INTEGER NOT NULL DEFAULT 1,
+      volgorde            INTEGER NOT NULL DEFAULT 0
+    )
+  `);
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS trend_panel_items (
+      id        INTEGER PRIMARY KEY AUTOINCREMENT,
+      panel_id  INTEGER NOT NULL REFERENCES trend_panels(id) ON DELETE CASCADE,
+      item_type TEXT NOT NULL CHECK(item_type IN ('rekening','categorie','subcategorie')),
+      item_id   INTEGER NOT NULL,
+      UNIQUE(panel_id, item_type, item_id)
+    )
+  `);
+
+  // ── Stap 30b: aantal_nieuw kolom op imports ────────────────────────────────
+  const importKolommen = db.prepare("PRAGMA table_info(imports)").all() as { name: string }[];
+  if (!importKolommen.some(k => k.name === 'aantal_nieuw')) {
+    db.exec(`ALTER TABLE imports ADD COLUMN aantal_nieuw INTEGER`);
+  }
 
   // Schema-versie vastleggen zodat toekomstige starts deze run overslaan
   db.pragma(`user_version = ${SCHEMA_VERSION}`);

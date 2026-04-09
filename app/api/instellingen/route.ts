@@ -36,6 +36,7 @@ export async function PUT(request: NextRequest) {
   if (body.catTrxUitgeklapt       !== undefined) update.catTrxUitgeklapt       = Boolean(body.catTrxUitgeklapt);
   if (body.vastePostenOverzichtMaanden !== undefined) update.vastePostenOverzichtMaanden = Number(body.vastePostenOverzichtMaanden);
   if (body.vastePostenAfwijkingProcent !== undefined) update.vastePostenAfwijkingProcent = Number(body.vastePostenAfwijkingProcent);
+  if (body.vastePostenVergelijkMaanden !== undefined) update.vastePostenVergelijkMaanden = Number(body.vastePostenVergelijkMaanden);
   if (body.vastePostenBuffer          !== undefined) update.vastePostenBuffer          = Number(body.vastePostenBuffer);
   if (body.backupBewaarDagen    !== undefined) update.backupBewaarDagen    = Number(body.backupBewaarDagen);
   if (body.backupMinBewaard     !== undefined) update.backupMinBewaard     = Number(body.backupMinBewaard);

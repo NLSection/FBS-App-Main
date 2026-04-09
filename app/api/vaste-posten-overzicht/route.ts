@@ -1,25 +1,57 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { getInstellingen } from '@/lib/instellingen';
-import { getVastePostenConfig, VastePostDefinitie } from '@/lib/vastePostenConfig';
-import { getTransacties, TransactieMetCategorie } from '@/lib/transacties';
+import { getCategorieRegels, matchCategorie } from '@/lib/categorisatie';
+import { getTransacties } from '@/lib/transacties';
 import { getPeriodeBereik, getPeriodeVanDatum } from '@/lib/maandperiodes';
+import { getVpGroepen } from '@/lib/vpGroepen';
+import { getVpVolgorde } from '@/lib/vpVolgorde';
+import { getVpNegeer } from '@/lib/vpNegeer';
 
-export type VastePostStatus = 'ontvangen' | 'te-gaan' | 'afwezig';
+export type VastePostStatus = 'geweest' | 'verwacht' | 'ontbreekt';
+
+export interface VastePostTransactie {
+  id: number;
+  datum: string;
+  naam_tegenpartij: string | null;
+  omschrijving_1: string | null;
+  omschrijving_2: string | null;
+  omschrijving_3: string | null;
+  bedrag: number;
+  categorie: string | null;
+  subcategorie: string | null;
+  categorie_id: number | null;
+  toelichting: string | null;
+  type: string | null;
+  tegenrekening_iban_bban: string | null;
+  iban_bban: string | null;
+  rekening_naam: string | null;
+}
 
 export interface VastePostItem {
-  sleutel: string;
-  label: string;
+  regelId: number;
+  subcategorie: string;
   naam: string;
-  iban: string | null;
-  configId: number | null;
-  verwachteDag: number | null;
-  verwachtBedrag: number | null;
-  verwachteDatum: string | null;
-  werkelijkeDatum: string | null;
-  werkelijkBedrag: number | null;
-  historischGemiddelde: number | null;
-  afwijkingProcent: number | null;
   status: VastePostStatus;
+  datum: string | null;
+  bedrag: number | null;
+  gemiddeldBedrag: number | null;
+  afwijkingBedrag: number | null;
+  ontbrakVorigeMaand: boolean;
+  transacties: VastePostTransactie[];
+}
+
+export interface VastePostGroep {
+  subcategorie: string;  // weergavenaam (groepnaam of subcategorie)
+  groepId: number | null;
+  subcategorieen: string[];  // alle subcategorieen in deze weergavegroep
+  items: VastePostItem[];
+}
+
+export interface NegeerItem {
+  regelId: number;
+  naam: string;
+  subcategorie: string;
+  periode: string; // 'permanent' | 'YYYY-MM'
 }
 
 export interface VastePostenOverzicht {
@@ -28,16 +60,17 @@ export interface VastePostenOverzicht {
   periodeEind: string;
   vandaag: string;
   afwijkingDrempel: number;
-  buffer: number;
-  items: VastePostItem[];
+  groepen: VastePostGroep[];
+  negeerde: NegeerItem[];
   totaalInkomsten: number;
   totaalUitgaven: number;
   nogTeGaan: number;
-  vrijTeBesteden: number;
 }
 
+const MAANDEN = ['jan','feb','mrt','apr','mei','jun','jul','aug','sep','okt','nov','dec'];
+
 function toISO(y: number, m: number, d: number): string {
-  return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+  return `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
 }
 
 function vandaagStr(): string {
@@ -45,188 +78,258 @@ function vandaagStr(): string {
   return toISO(v.getFullYear(), v.getMonth() + 1, v.getDate());
 }
 
-function bepaalVerwachteDatum(dag: number, start: string, eind: string): string | null {
-  for (const iso of [eind, start]) {
-    const y = parseInt(iso.slice(0, 4));
-    const m = parseInt(iso.slice(5, 7));
-    const maxDag = new Date(y, m, 0).getDate();
-    if (dag <= maxDag) {
-      const d = toISO(y, m, dag);
-      if (d >= start && d <= eind) return d;
-    }
-  }
-  return null;
+function vorigePeriode(jaar: number, maand: number, maandStartDag: number) {
+  let vJaar = jaar, vMaand = maand - 1;
+  if (vMaand < 1) { vMaand = 12; vJaar--; }
+  return getPeriodeBereik(vJaar, vMaand, maandStartDag);
 }
 
-/** Groepeer transacties op tegenpartij-sleutel: IBAN als aanwezig, anders naam. */
-function sleutelVan(t: TransactieMetCategorie): string {
-  return t.tegenrekening_iban_bban?.trim().toUpperCase() || t.naam_tegenpartij || '?';
-}
-
-function matchConfig(sleutel: string, naam: string | null, config: VastePostDefinitie[]): VastePostDefinitie | null {
-  // IBAN-match (primair)
-  const ibanMatch = config.find(c => c.iban && c.iban === sleutel);
-  if (ibanMatch) return ibanMatch;
-  // Naam-match (fallback, alleen als sleutel geen IBAN-formaat heeft)
-  if (naam) {
-    const naamMatch = config.find(c => naam.toLowerCase().includes(c.naam.toLowerCase()));
-    if (naamMatch) return naamMatch;
-  }
-  return null;
-}
-
-const MAANDEN = ['jan','feb','mrt','apr','mei','jun','jul','aug','sep','okt','nov','dec'];
-
-export function GET() {
+export function GET(req: NextRequest) {
   try {
     const inst = getInstellingen();
-    const { maandStartDag, vastePostenOverzichtMaanden, vastePostenAfwijkingProcent, vastePostenBuffer } = inst;
+    const { maandStartDag, vastePostenOverzichtMaanden, vastePostenVergelijkMaanden, vastePostenAfwijkingProcent } = inst;
 
-    const vandaag = vandaagStr();
+    const sp = req.nextUrl.searchParams;
+    const paramJaar  = sp.get('jaar')  ? parseInt(sp.get('jaar')!)  : null;
+    const paramMaand = sp.get('maand') ? parseInt(sp.get('maand')!) : null;
+
     const nu = new Date();
-
-    // Huidige periode
     const huidig = getPeriodeVanDatum(nu, maandStartDag);
-    const { start: periodeStart, eind: periodeEind } = getPeriodeBereik(huidig.jaar, huidig.maand, maandStartDag);
-    const periodeLabel = `${MAANDEN[huidig.maand - 1]} '${String(huidig.jaar).slice(2)}`;
+    const gesJaar  = paramJaar  ?? huidig.jaar;
+    const gesMaand = paramMaand ?? huidig.maand;
 
-    // Historische periodes
-    const histPeriodes: { start: string; eind: string }[] = [];
-    let pJaar = huidig.jaar, pMaand = huidig.maand;
+    const { start: periodeStart, eind: periodeEind } = getPeriodeBereik(gesJaar, gesMaand, maandStartDag);
+    const periodeLabel = `${MAANDEN[gesMaand - 1]} '${String(gesJaar).slice(2)}`;
+    const vandaag = vandaagStr();
+
+    // Vorige periode
+    const vorigePer = vorigePeriode(gesJaar, gesMaand, maandStartDag);
+
+    // Lookback: genoeg voor zowel X (verwachte datum) als Y (bedraggemiddelde)
+    const aantalTerug = Math.max(vastePostenOverzichtMaanden, vastePostenVergelijkMaanden);
+    let lookJaar = gesJaar, lookMaand = gesMaand;
+    for (let i = 0; i < aantalTerug; i++) {
+      if (--lookMaand < 1) { lookMaand = 12; lookJaar--; }
+    }
+    const { start: lookbackStart } = getPeriodeBereik(lookJaar, lookMaand, maandStartDag);
+
+    // X periodes (voor verwachte datum)
+    const xPeriodes: { start: string; eind: string }[] = [];
+    let pJ = gesJaar, pM = gesMaand;
     for (let i = 0; i < vastePostenOverzichtMaanden; i++) {
-      if (--pMaand < 1) { pMaand = 12; pJaar--; }
-      histPeriodes.push(getPeriodeBereik(pJaar, pMaand, maandStartDag));
+      if (--pM < 1) { pM = 12; pJ--; }
+      xPeriodes.push(getPeriodeBereik(pJ, pM, maandStartDag));
     }
 
-    const isVastePost = (t: TransactieMetCategorie) =>
-      t.categorie === 'Vaste Posten' && t.type !== 'omboeking-af' && t.type !== 'omboeking-bij';
-
-    // Huidige-periode transacties
-    const huidigeTrx = getTransacties({ datum_van: periodeStart, datum_tot: periodeEind }).filter(isVastePost);
-
-    // Historische transacties
-    const histTrx: TransactieMetCategorie[] = histPeriodes.length > 0
-      ? getTransacties({
-          datum_van: histPeriodes[histPeriodes.length - 1].start,
-          datum_tot: histPeriodes[0].eind,
-        }).filter(isVastePost)
-      : [];
-
-    const config = getVastePostenConfig();
-
-    // ── Groepeer huidige transacties op sleutel ──────────────────────────────
-    const groepMap = new Map<string, { trx: TransactieMetCategorie[] }>();
-    for (const t of huidigeTrx) {
-      const s = sleutelVan(t);
-      if (!groepMap.has(s)) groepMap.set(s, { trx: [] });
-      groepMap.get(s)!.trx.push(t);
+    // Y periodes (voor bedraggemiddelde)
+    const yPeriodes: { start: string; eind: string }[] = [];
+    let yJ = gesJaar, yM = gesMaand;
+    for (let i = 0; i < vastePostenVergelijkMaanden; i++) {
+      if (--yM < 1) { yM = 12; yJ--; }
+      yPeriodes.push(getPeriodeBereik(yJ, yM, maandStartDag));
     }
 
-    // ── Historisch gemiddelde per sleutel ────────────────────────────────────
-    const histPerSleutel = new Map<string, number>();
-    if (histTrx.length > 0) {
-      const perSleutelPeriode = new Map<string, Map<string, number>>();
-      for (const t of histTrx) {
-        const s = sleutelVan(t);
-        const datum = (t.datum_aanpassing ?? t.datum) ?? '';
-        let periodeKey: string | null = null;
-        for (const hp of histPeriodes) {
-          if (datum >= hp.start && datum <= hp.eind) { periodeKey = hp.start; break; }
-        }
-        if (!periodeKey) continue;
-        if (!perSleutelPeriode.has(s)) perSleutelPeriode.set(s, new Map());
-        const pm = perSleutelPeriode.get(s)!;
-        pm.set(periodeKey, (pm.get(periodeKey) ?? 0) + (t.bedrag ?? 0));
+    // Alle VP regels
+    const alleRegels = getCategorieRegels().filter(r => r.categorie === 'Vaste Posten');
+
+    // Alle relevante transacties ophalen — direct gefilterd op Vaste Posten in SQL
+    const alleTrx = getTransacties({ datum_van: lookbackStart, datum_tot: periodeEind, categorie: 'Vaste Posten' });
+
+    // Map elke transactie naar een regelId
+    interface TrxMapped { regelId: number; datum: string; bedrag: number; t: ReturnType<typeof getTransacties>[0] }
+    const trxGemapped: TrxMapped[] = [];
+    for (const t of alleTrx) {
+      const r = matchCategorie(t, alleRegels);
+      if (!r) continue;
+      const datum = (t.datum_aanpassing ?? t.datum) ?? '';
+      if (!datum) continue;
+      trxGemapped.push({ regelId: r.id, datum, bedrag: t.bedrag ?? 0, t });
+    }
+
+    // Groepeer op regelId
+    const perRegel = new Map<number, TrxMapped[]>();
+    for (const tm of trxGemapped) {
+      if (!perRegel.has(tm.regelId)) perRegel.set(tm.regelId, []);
+      perRegel.get(tm.regelId)!.push(tm);
+    }
+
+    function inPeriode(datum: string, p: { start: string; eind: string }) {
+      return datum >= p.start && datum <= p.eind;
+    }
+
+    // Negeer- en volgorde-data ophalen
+    const periodeSleutel = `${gesJaar}-${String(gesMaand).padStart(2, '0')}`;
+    const negeerRegels = getVpNegeer();
+    const negeerMap = new Map<number, string>(); // regelId → periode (meest specifiek)
+    for (const n of negeerRegels) {
+      if (n.periode === 'permanent') {
+        negeerMap.set(n.regel_id, 'permanent');
+      } else if (n.periode.startsWith('vanaf:')) {
+        const vanaf = n.periode.slice(6); // 'YYYY-MM'
+        if (periodeSleutel >= vanaf && !negeerMap.has(n.regel_id)) negeerMap.set(n.regel_id, n.periode);
+      } else if (n.periode === periodeSleutel && !negeerMap.has(n.regel_id)) {
+        negeerMap.set(n.regel_id, periodeSleutel);
       }
-      for (const [s, pm] of perSleutelPeriode) {
-        const vals = [...pm.values()];
-        histPerSleutel.set(s, vals.reduce((a, b) => a + b, 0) / vals.length);
-      }
     }
 
-    // ── Bouw items uit huidige transacties ───────────────────────────────────
     const items: VastePostItem[] = [];
-    const gebruikteConfigIds = new Set<number>();
+    const negeerde: NegeerItem[] = [];
 
-    for (const [sleutel, { trx }] of groepMap) {
-      const eersteT = trx[0];
-      const naam = eersteT.naam_tegenpartij ?? sleutel;
-      const iban = eersteT.tegenrekening_iban_bban?.trim().toUpperCase() ?? null;
-      const cfg = matchConfig(sleutel, naam, config);
-      if (cfg) gebruikteConfigIds.add(cfg.id);
+    for (const regel of alleRegels) {
+      const trx = perRegel.get(regel.id) ?? [];
 
-      const werkelijkBedrag = trx.reduce((s, t) => s + (t.bedrag ?? 0), 0);
-      const werkelijkeDatum = [...trx]
-        .sort((a, b) => ((a.datum_aanpassing ?? a.datum) ?? '').localeCompare((b.datum_aanpassing ?? b.datum) ?? ''))
-        [0].datum_aanpassing ?? eersteT.datum ?? null;
+      // Geselecteerde periode
+      const gesTrx = trx.filter(t => inPeriode(t.datum, { start: periodeStart, eind: periodeEind }));
 
-      const verwachteDatum = cfg?.verwachte_dag
-        ? bepaalVerwachteDatum(cfg.verwachte_dag, periodeStart, periodeEind)
+      // Vorige periode
+      const vorigeTrx = trx.filter(t => inPeriode(t.datum, vorigePer));
+      const ontbrakVorigeMaand = vorigeTrx.length === 0;
+
+      // Werkelijk bedrag + datum voor geselecteerde periode
+      const werkelijkBedrag = gesTrx.length > 0
+        ? gesTrx.reduce((s, t) => s + t.bedrag, 0)
+        : null;
+      const werkelijkeDatum = gesTrx.length > 0
+        ? [...gesTrx].sort((a, b) => a.datum.localeCompare(b.datum))[0].datum
         : null;
 
-      const historischGemiddelde = histPerSleutel.get(sleutel) ?? null;
-      const afwijkingProcent = (historischGemiddelde !== null && historischGemiddelde !== 0)
-        ? Math.round(((werkelijkBedrag - historischGemiddelde) / Math.abs(historischGemiddelde)) * 100)
+      // Verwachte datum: gemiddelde dag-van-maand uit X periodes waar transactie voorkwam
+      const xDagen: number[] = [];
+      for (const xp of xPeriodes) {
+        const xt = trx.filter(t => inPeriode(t.datum, xp));
+        if (xt.length > 0) {
+          const vroegste = [...xt].sort((a, b) => a.datum.localeCompare(b.datum))[0];
+          xDagen.push(parseInt(vroegste.datum.slice(8, 10), 10));
+        }
+      }
+      let verwachteDatum: string | null = null;
+      if (xDagen.length > 0) {
+        const gemDag = Math.round(xDagen.reduce((s, d) => s + d, 0) / xDagen.length);
+        const maxDag = new Date(gesJaar, gesMaand, 0).getDate();
+        const dag = Math.min(gemDag, maxDag);
+        verwachteDatum = toISO(gesJaar, gesMaand, dag);
+      }
+
+      // Gemiddeld bedrag uit Y periodes
+      const yBedragen: number[] = [];
+      for (const yp of yPeriodes) {
+        const yt = trx.filter(t => inPeriode(t.datum, yp));
+        if (yt.length > 0) {
+          yBedragen.push(yt.reduce((s, t) => s + t.bedrag, 0));
+        }
+      }
+      const gemiddeldBedrag = yBedragen.length > 0
+        ? yBedragen.reduce((s, b) => s + b, 0) / yBedragen.length
         : null;
 
-      items.push({
-        sleutel,
-        label: cfg?.label ?? naam,
-        naam,
-        iban,
-        configId: cfg?.id ?? null,
-        verwachteDag: cfg?.verwachte_dag ?? null,
-        verwachtBedrag: cfg?.verwacht_bedrag ?? null,
-        verwachteDatum,
-        werkelijkeDatum,
-        werkelijkBedrag,
-        historischGemiddelde,
-        afwijkingProcent,
-        status: 'ontvangen',
-      });
+      // Afwijking
+      const afwijkingProcent = (werkelijkBedrag !== null && gemiddeldBedrag !== null && gemiddeldBedrag !== 0)
+        ? Math.round(((werkelijkBedrag - gemiddeldBedrag) / Math.abs(gemiddeldBedrag)) * 100)
+        : null;
+      const afwijkingBedrag = (werkelijkBedrag !== null && gemiddeldBedrag !== null)
+        ? werkelijkBedrag - gemiddeldBedrag
+        : null;
+
+      // Status
+      let status: VastePostStatus;
+      if (werkelijkBedrag !== null) {
+        status = 'geweest';
+      } else if (periodeEind < vandaag) {
+        status = 'ontbreekt';
+      } else {
+        status = 'verwacht';
+      }
+
+      const naam = regel.naam_origineel ?? regel.naam_zoekwoord ?? '?';
+
+      // Y-maanden transacties voor subtabel
+      const yStart = yPeriodes.length > 0 ? yPeriodes[yPeriodes.length - 1].start : periodeStart;
+      const yEind  = yPeriodes.length > 0 ? yPeriodes[0].eind : periodeStart;
+      const subtabelTrx: VastePostTransactie[] = trx
+        .filter(tm => tm.datum >= yStart && tm.datum <= yEind)
+        .sort((a, b) => b.datum.localeCompare(a.datum))
+        .map(tm => ({
+          id: tm.t.id,
+          datum: tm.datum,
+          naam_tegenpartij: tm.t.naam_tegenpartij ?? null,
+          omschrijving_1: tm.t.omschrijving_1 ?? null,
+          omschrijving_2: tm.t.omschrijving_2 ?? null,
+          omschrijving_3: tm.t.omschrijving_3 ?? null,
+          bedrag: tm.bedrag,
+          categorie: tm.t.categorie ?? null,
+          subcategorie: tm.t.subcategorie ?? null,
+          categorie_id: tm.t.categorie_id ?? null,
+          toelichting: tm.t.toelichting ?? null,
+          type: tm.t.type ?? null,
+          tegenrekening_iban_bban: tm.t.tegenrekening_iban_bban ?? null,
+          iban_bban: tm.t.iban_bban ?? null,
+          rekening_naam: tm.t.rekening_naam ?? null,
+        }));
+
+      const negeerPeriode = negeerMap.get(regel.id);
+      if (negeerPeriode) {
+        negeerde.push({ regelId: regel.id, naam, subcategorie: regel.subcategorie ?? '—', periode: negeerPeriode });
+      } else {
+        items.push({
+          regelId: regel.id,
+          subcategorie: regel.subcategorie ?? '—',
+          naam,
+          status,
+          datum: werkelijkeDatum ?? verwachteDatum,
+          bedrag: werkelijkBedrag ?? (yBedragen.length > 0 ? yBedragen[yBedragen.length - 1] : null),
+          gemiddeldBedrag,
+          afwijkingBedrag: Math.abs(afwijkingProcent ?? 0) > vastePostenAfwijkingProcent ? afwijkingBedrag : null,
+          ontbrakVorigeMaand,
+          transacties: subtabelTrx,
+        });
+      }
     }
 
-    // ── Voeg config-entries toe die geen transactie hebben ───────────────────
-    for (const cfg of config) {
-      if (gebruikteConfigIds.has(cfg.id)) continue;
-      const verwachteDatum = cfg.verwachte_dag
-        ? bepaalVerwachteDatum(cfg.verwachte_dag, periodeStart, periodeEind)
-        : null;
-      const status: VastePostStatus = (verwachteDatum && verwachteDatum > vandaag) ? 'te-gaan' : 'afwezig';
-      const historischGemiddelde = histPerSleutel.get(cfg.iban) ?? null;
-
-      items.push({
-        sleutel: cfg.iban,
-        label: cfg.label,
-        naam: cfg.naam,
-        iban: cfg.iban,
-        configId: cfg.id,
-        verwachteDag: cfg.verwachte_dag,
-        verwachtBedrag: cfg.verwacht_bedrag,
-        verwachteDatum,
-        werkelijkeDatum: null,
-        werkelijkBedrag: null,
-        historischGemiddelde,
-        afwijkingProcent: null,
-        status,
-      });
-    }
-
-    // ── Sorteer op datum (werkelijk of verwacht), null last ──────────────────
+    // Sorteer items: 1) datum oplopend, 2) subcategorie, 3) naam
     items.sort((a, b) => {
-      const ad = a.werkelijkeDatum ?? a.verwachteDatum ?? '9999';
-      const bd = b.werkelijkeDatum ?? b.verwachteDatum ?? '9999';
-      return ad.localeCompare(bd);
+      const ad = a.datum ?? '9999';
+      const bd = b.datum ?? '9999';
+      if (ad !== bd) return ad.localeCompare(bd);
+      if (a.subcategorie !== b.subcategorie) return a.subcategorie.localeCompare(b.subcategorie);
+      return a.naam.localeCompare(b.naam);
     });
 
-    // ── Totalen ──────────────────────────────────────────────────────────────
+    // Groepeer op subcategorie, rekening houdend met vp_groepen
+    const vpGroepen = getVpGroepen();
+    // subcategorie → { groepId, groepNaam }
+    const subcatNaarGroep = new Map<string, { groepId: number; groepNaam: string }>();
+    for (const g of vpGroepen) {
+      for (const s of g.subcategorieen) subcatNaarGroep.set(s, { groepId: g.id, groepNaam: g.naam });
+    }
+
+    // Sleutel: groepNaam als in groep, anders subcategorie zelf
+    const groepenMap = new Map<string, { groepId: number | null; subcategorieen: Set<string>; items: VastePostItem[] }>();
+    for (const item of items) {
+      const groepInfo = subcatNaarGroep.get(item.subcategorie);
+      const sleutel = groepInfo ? groepInfo.groepNaam : item.subcategorie;
+      if (!groepenMap.has(sleutel)) groepenMap.set(sleutel, { groepId: groepInfo?.groepId ?? null, subcategorieen: new Set(), items: [] });
+      const entry = groepenMap.get(sleutel)!;
+      entry.subcategorieen.add(item.subcategorie);
+      entry.items.push(item);
+    }
+    const volgorde = getVpVolgorde(periodeSleutel);
+    const groepen: VastePostGroep[] = [...groepenMap.entries()]
+      .map(([subcategorie, { groepId, subcategorieen, items }]) => ({ subcategorie, groepId, subcategorieen: [...subcategorieen], items }))
+      .sort((a, b) => {
+        const va = volgorde.get(a.subcategorie) ?? Infinity;
+        const vb = volgorde.get(b.subcategorie) ?? Infinity;
+        if (va !== vb) return va - vb;
+        return a.subcategorie.localeCompare(b.subcategorie);
+      });
+
+    // Totalen
     let totaalInkomsten = 0, totaalUitgaven = 0, nogTeGaan = 0;
     for (const item of items) {
-      const bedrag = item.werkelijkBedrag ?? item.verwachtBedrag ?? 0;
-      if (bedrag > 0) totaalInkomsten += bedrag;
-      else if (bedrag < 0) {
-        totaalUitgaven += Math.abs(bedrag);
-        if (item.status !== 'ontvangen') nogTeGaan += Math.abs(bedrag);
+      const b = item.bedrag ?? 0;
+      if (b > 0) totaalInkomsten += b;
+      else if (b < 0) {
+        totaalUitgaven += Math.abs(b);
+        if (item.status !== 'geweest') nogTeGaan += Math.abs(b);
       }
     }
 
@@ -236,12 +339,11 @@ export function GET() {
       periodeEind,
       vandaag,
       afwijkingDrempel: vastePostenAfwijkingProcent,
-      buffer: vastePostenBuffer,
-      items,
+      groepen,
+      negeerde,
       totaalInkomsten,
       totaalUitgaven,
       nogTeGaan,
-      vrijTeBesteden: totaalInkomsten - totaalUitgaven - vastePostenBuffer,
     } satisfies VastePostenOverzicht);
 
   } catch (err) {

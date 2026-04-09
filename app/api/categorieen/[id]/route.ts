@@ -11,11 +11,27 @@
 // - triggerBackup() aangeroepen na succesvolle PUT en DELETE
 
 import { NextRequest, NextResponse } from 'next/server';
-import { updateCategorieRegel, deleteCategorieRegel } from '@/lib/categorisatie';
+import { updateCategorieRegel, deleteCategorieRegel, updateNaamOrigineel } from '@/lib/categorisatie';
 import { triggerBackup } from '@/lib/backup';
 import { insertSubcategorie } from '@/lib/subcategorieen';
 
 type Params = Promise<{ id: string }>;
+
+export async function PATCH(request: NextRequest, { params }: { params: Params }) {
+  const { id } = await params;
+  const numId = parseInt(id, 10);
+  if (isNaN(numId)) return NextResponse.json({ error: 'Ongeldig id.' }, { status: 400 });
+  let body: Record<string, unknown>;
+  try { body = await request.json(); } catch { return NextResponse.json({ error: 'Ongeldig JSON.' }, { status: 400 }); }
+  if (typeof body.naam_origineel !== 'string') return NextResponse.json({ error: 'naam_origineel is verplicht.' }, { status: 400 });
+  try {
+    updateNaamOrigineel(numId, body.naam_origineel);
+    triggerBackup();
+    return NextResponse.json({ ok: true });
+  } catch (err) {
+    return NextResponse.json({ error: err instanceof Error ? err.message : 'Databasefout.' }, { status: 500 });
+  }
+}
 
 export function DELETE(_req: NextRequest, { params }: { params: Params }) {
   return params.then(({ id }) => {

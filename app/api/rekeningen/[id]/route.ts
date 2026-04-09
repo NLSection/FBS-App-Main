@@ -25,7 +25,7 @@ export async function PUT(
   const numId = parseInt(id, 10);
   if (isNaN(numId)) return NextResponse.json({ error: 'Ongeldig id.' }, { status: 400 });
 
-  let body: { iban?: string; naam?: string; type?: string; kleur?: string | null };
+  let body: { iban?: string; naam?: string; type?: string; kleur?: string | null; kleur_auto?: number };
   try { body = await request.json(); } catch {
     return NextResponse.json({ error: 'Ongeldig JSON.' }, { status: 400 });
   }
@@ -34,7 +34,7 @@ export async function PUT(
     return NextResponse.json({ error: 'Type moet "betaal" of "spaar" zijn.' }, { status: 400 });
   }
   try {
-    updateRekening(numId, body.iban ?? '', body.naam ?? '', body.type, body.kleur);
+    updateRekening(numId, body.iban ?? '', body.naam ?? '', body.type, body.kleur, body.kleur_auto);
     herclassificeerTypes();
     triggerBackup();
     return new NextResponse(null, { status: 204 });

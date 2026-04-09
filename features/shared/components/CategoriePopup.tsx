@@ -19,6 +19,7 @@
 
 import { useState } from 'react';
 import { ChevronRight, ChevronsLeft, ChevronsRight, ArrowLeft, ArrowRight, ArrowLeftRight, Settings } from 'lucide-react';
+import InfoTooltip from '@/components/InfoTooltip';
 import type { TransactieMetCategorie } from '@/lib/transacties';
 import type { Periode } from '@/lib/maandperiodes';
 
@@ -39,7 +40,7 @@ export interface PatronModalData {
 }
 
 interface BudgetPotjeNaam { id: number; naam: string; kleur: string | null; rekening_ids: number[]; }
-interface Rekening { id: number; naam: string; iban: string; }
+interface Rekening { id: number; naam: string; iban: string; type?: string; kleur?: string | null; kleur_auto?: number; }
 
 interface CategoriePopupProps {
   patronModal: PatronModalData;
@@ -78,8 +79,6 @@ export default function CategoriePopup({
   patronModal, setPatronModal, onBevestig, onBevestigStart, onSluiten, onAnalyseer, onDatumWijzig, onVoegRekeningToe,
   budgettenPotjes, rekeningen, periodes, uniekeCategorieenDropdown,
 }: CategoriePopupProps) {
-  const [tooltipNaam, setTooltipNaam]       = useState(false);
-  const [tooltipOmschr, setTooltipOmschr]   = useState(false);
   const [woordTellers, setWoordTellers]     = useState<Record<string, number> | null>(null);
   const [tellerLaden, setTellerLaden]       = useState(false);
   // undefined = geen lokale wijziging, null = herstel (wis datum_aanpassing), string = nieuwe datum
@@ -89,6 +88,24 @@ export default function CategoriePopup({
   const [vrijeKeuzeJaarOpen, setVrijeKeuzeJaarOpen] = useState(false);
   const [vrijeKeuzeJaar, setVrijeKeuzeJaar]       = useState<number>(new Date().getFullYear());
   const [vrijeKeuzeMaand, setVrijeKeuzeMaand]     = useState<number>(new Date().getMonth() + 1);
+  const [rekeningFormOpen, setRekeningFormOpen]   = useState(false);
+  const [rekeningNaam, setRekeningNaam]           = useState('');
+  const [rekeningType, setRekeningType]           = useState<'betaal' | 'spaar'>('betaal');
+  const [rekeningGroepId, setRekeningGroepId]     = useState<number | ''>('');
+  const [gekozenBudgetIds, setGekozenBudgetIds]   = useState<number[]>([]);
+  const [rekeningGroepen, setRekeningGroepen]     = useState<{ id: number; naam: string; rekening_ids: number[] }[]>([]);
+  const [rekeningLaden, setRekeningLaden]         = useState(false);
+  const [rekeningFout, setRekeningFout]           = useState<string | null>(null);
+  const [rekeningKleurAuto, setRekeningKleurAuto] = useState(true);
+  const [rekeningKleurWaarde, setRekeningKleurWaarde] = useState('#7c8cff');
+  const [eigenRekFormOpen, setEigenRekFormOpen]   = useState(false);
+  const [eigenRekLaden, setEigenRekLaden]         = useState(false);
+  const [eigenRekFout, setEigenRekFout]           = useState<string | null>(null);
+  const [bewerkRekeningId, setBewerkRekeningId]   = useState<number | null>(null);
+  const [eigenRekForm, setEigenRekForm]           = useState<{
+    naam: string; type: 'betaal' | 'spaar'; kleurAuto: boolean; kleur: string;
+    groepId: number | ''; budgetIds: number[];
+  }>({ naam: '', type: 'betaal', kleurAuto: false, kleur: '#7c8cff', groepId: '', budgetIds: [] });
 
   const t = patronModal.transactie;
   const isOmboeking = t.type === 'omboeking-af' || t.type === 'omboeking-bij';
@@ -124,6 +141,140 @@ export default function CategoriePopup({
     const periode = periodes.find(p => p.jaar === vrijeKeuzeJaar && p.maand === vrijeKeuzeMaand);
     const start = periode?.start ?? berekeningPeriodeBereik(vrijeKeuzeJaar, vrijeKeuzeMaand, maandStartDag).start;
     stelDatumIn(start);
+  }
+
+  async function openRekeningForm() {
+    setRekeningNaam(t.naam_tegenpartij ?? '');
+    setRekeningType('betaal');
+    setRekeningGroepId('');
+    setGekozenBudgetIds([]);
+    setRekeningFout(null);
+    setRekeningKleurAuto(true);
+    setRekeningKleurWaarde('#7c8cff');
+    const groepen = await fetch('/api/rekening-groepen').then(r => r.ok ? r.json() : []);
+    setRekeningGroepen(groepen);
+    setRekeningFormOpen(true);
+  }
+
+  async function handleRekeningToevoegen() {
+    setRekeningLaden(true);
+    setRekeningFout(null);
+    try {
+      const res = await fetch('/api/rekeningen', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ iban: t.tegenrekening_iban_bban, naam: rekeningNaam, type: rekeningType, kleur: rekeningKleurAuto ? null : rekeningKleurWaarde, kleur_auto: rekeningKleurAuto ? 1 : 0 }),
+      });
+      if (!res.ok) {
+        const { error } = await res.json();
+        setRekeningFout(error ?? 'Onbekende fout');
+        return;
+      }
+      const { id: nieuweId } = await res.json();
+      if (rekeningGroepId !== '') {
+        const groep = rekeningGroepen.find(g => g.id === rekeningGroepId);
+        if (groep) {
+          await fetch(`/api/rekening-groepen/${rekeningGroepId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ rekening_ids: [...groep.rekening_ids, nieuweId] }),
+          });
+        }
+      }
+      for (const budgetId of gekozenBudgetIds) {
+        const bp = budgettenPotjes.find(b => b.id === budgetId);
+        if (bp) {
+          await fetch(`/api/budgetten-potjes/${budgetId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ rekening_ids: [...bp.rekening_ids, nieuweId] }),
+          });
+        }
+      }
+      setRekeningFormOpen(false);
+      onVoegRekeningToe(t.tegenrekening_iban_bban!, rekeningNaam);
+    } catch {
+      setRekeningFout('Er is een fout opgetreden.');
+    } finally {
+      setRekeningLaden(false);
+    }
+  }
+
+  async function openRekeningEditForm(rek: Rekening) {
+    if (!rek) return;
+    setBewerkRekeningId(rek.id);
+    const groepen: { id: number; naam: string; rekening_ids: number[] }[] =
+      await fetch('/api/rekening-groepen').then(r => r.ok ? r.json() : []);
+    setRekeningGroepen(groepen);
+    const huidigeGroep = groepen.find(g => g.rekening_ids.includes(rek.id));
+    const huidigeBudgetIds = budgettenPotjes.filter(bp => bp.rekening_ids.includes(rek.id)).map(bp => bp.id);
+    setEigenRekForm({
+      naam: rek.naam,
+      type: (rek.type as 'betaal' | 'spaar') ?? 'betaal',
+      kleurAuto: rek.kleur_auto === 1,
+      kleur: rek.kleur ?? '#7c8cff',
+      groepId: huidigeGroep?.id ?? '',
+      budgetIds: huidigeBudgetIds,
+    });
+    setEigenRekFout(null);
+    setEigenRekFormOpen(true);
+  }
+
+  async function handleEigenRekeningOpslaan() {
+    const rek = rekeningen.find(r => r.id === bewerkRekeningId);
+    if (!rek) return;
+    setEigenRekLaden(true);
+    setEigenRekFout(null);
+    try {
+      const res = await fetch(`/api/rekeningen/${rek.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ iban: rek.iban, naam: eigenRekForm.naam, type: eigenRekForm.type, kleur: eigenRekForm.kleur || null, kleur_auto: eigenRekForm.kleurAuto ? 1 : 0 }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        setEigenRekFout(body.error ?? 'Onbekende fout');
+        return;
+      }
+      // Groepen bijwerken: verwijder uit groepen die niet meer gelden
+      for (const groep of rekeningGroepen) {
+        if (groep.rekening_ids.includes(rek.id) && groep.id !== eigenRekForm.groepId) {
+          await fetch(`/api/rekening-groepen/${groep.id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ rekening_ids: groep.rekening_ids.filter(id => id !== rek.id) }),
+          });
+        }
+      }
+      if (eigenRekForm.groepId !== '') {
+        const nieuweGroep = rekeningGroepen.find(g => g.id === eigenRekForm.groepId);
+        if (nieuweGroep && !nieuweGroep.rekening_ids.includes(rek.id)) {
+          await fetch(`/api/rekening-groepen/${eigenRekForm.groepId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ rekening_ids: [...nieuweGroep.rekening_ids, rek.id] }),
+          });
+        }
+      }
+      // BudgetPotjes bijwerken
+      for (const bp of budgettenPotjes) {
+        const had = bp.rekening_ids.includes(rek.id);
+        const heeft = eigenRekForm.budgetIds.includes(bp.id);
+        if (had !== heeft) {
+          await fetch(`/api/budgetten-potjes/${bp.id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ rekening_ids: heeft ? [...bp.rekening_ids, rek.id] : bp.rekening_ids.filter(id => id !== rek.id) }),
+          });
+        }
+      }
+      setEigenRekFormOpen(false);
+      onVoegRekeningToe(rek.iban, eigenRekForm.naam);
+    } catch {
+      setEigenRekFout('Er is een fout opgetreden.');
+    } finally {
+      setEigenRekLaden(false);
+    }
   }
 
   async function handleBevestig() {
@@ -166,7 +317,8 @@ export default function CategoriePopup({
   const MAAND_NAMEN = ['Januari','Februari','Maart','April','Mei','Juni','Juli','Augustus','September','Oktober','November','December'];
 
   const sectionLabel: React.CSSProperties = {
-    fontSize: 11, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 8,
+    fontSize: 12, color: 'var(--text-dim)', fontWeight: 600, marginBottom: 8,
+    display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap',
   };
   const subtielKnop: React.CSSProperties = {
     border: '1px solid var(--border)', background: 'none', color: 'var(--text-dim)',
@@ -189,7 +341,7 @@ export default function CategoriePopup({
 
         {/* Sectie 1: Datum */}
         <div style={{ marginBottom: 16, paddingBottom: 16, borderBottom: '1px solid var(--border)' }}>
-          <div style={sectionLabel}>Boekdatum</div>
+          <div style={sectionLabel}>Boekdatum <InfoTooltip volledigeBreedte tekst="De boekdatum bepaalt in welke maandperiode deze transactie wordt meegeteld. Standaard is dit de importdatum van de bank. Gebruik de knoppen om de transactie naar een aangrenzende periode te verplaatsen, of open het tandwiel om een specifieke maand en jaar te kiezen." /></div>
           <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 6, padding: '10px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
             {/* Links: datum weergave */}
             <div>
@@ -296,14 +448,25 @@ export default function CategoriePopup({
         {/* Sectie 2: Rekeningen */}
         {t.tegenrekening_iban_bban && (
           <div style={{ marginBottom: 16, paddingBottom: 16, borderBottom: '1px solid var(--border)' }}>
-            <div style={sectionLabel}>Rekeningen</div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <div style={kaartStijl}>
-                <div style={{ fontSize: 10, color: 'var(--text-dim)', marginBottom: 3 }}>Eigen rekening</div>
-                <div style={{ fontSize: 13, color: 'var(--text-h)', fontWeight: 600 }}>{t.rekening_naam ?? '—'}</div>
-                <div style={{ fontSize: 11, color: 'var(--text-dim)' }}>{t.iban_bban ?? ''}</div>
+            <div style={sectionLabel}>Rekeningen <InfoTooltip volledigeBreedte tekst="Toont de eigen rekening (jouw bankrekening) en de tegenrekening (de andere partij). Klik het tandwiel bij een rekening om de instellingen te bekijken en aan te passen. Is de tegenrekening nog niet als eigen rekening toegevoegd, dan kun je dat via hetzelfde tandwiel doen." /></div>
+            <div style={{ display: 'flex', alignItems: 'stretch', gap: 10 }}>
+              <div style={{ ...kaartStijl, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <div>
+                  <div style={{ fontSize: 10, color: 'var(--text-dim)', marginBottom: 3 }}>Eigen rekening</div>
+                  <div style={{ fontSize: 13, color: 'var(--text-h)', fontWeight: 600 }}>{t.rekening_naam ?? '—'}</div>
+                  <div style={{ fontSize: 11, color: 'var(--text-dim)' }}>{t.iban_bban ?? ''}</div>
+                </div>
+                {eigenRekening && (
+                  <button
+                    onClick={() => openRekeningEditForm(eigenRekening)}
+                    style={{ background: 'none', border: 'none', color: 'var(--text-dim)', cursor: 'pointer', padding: 2, display: 'flex', alignItems: 'center', flexShrink: 0 }}
+                    title="Rekening bewerken"
+                  >
+                    <Settings size={14} />
+                  </button>
+                )}
               </div>
-              <div style={{ color: 'var(--text-dim)', flexShrink: 0 }}>
+              <div style={{ color: 'var(--text-dim)', flexShrink: 0, display: 'flex', alignItems: 'center' }}>
                 {isOmboeking
                   ? <ArrowLeftRight size={16} />
                   : t.type === 'normaal-bij'
@@ -311,16 +474,24 @@ export default function CategoriePopup({
                     : <ArrowRight size={16} />
                 }
               </div>
-              <div style={kaartStijl}>
-                <div style={{ fontSize: 10, color: 'var(--text-dim)', marginBottom: 3 }}>Tegenrekening</div>
-                <div style={{ fontSize: 13, color: 'var(--text-h)', fontWeight: 600 }}>{t.naam_tegenpartij ?? '—'}</div>
-                <div style={{ fontSize: 11, color: 'var(--text-dim)' }}>{t.tegenrekening_iban_bban}</div>
-                {!isEigenTegenrekening && (
-                  <button
-                    onClick={() => onVoegRekeningToe(t.tegenrekening_iban_bban!, t.naam_tegenpartij ?? '')}
-                    style={{ marginTop: 4, border: '1px solid var(--accent)', background: 'none', color: 'var(--accent)', fontSize: 10, borderRadius: 4, padding: '2px 8px', cursor: 'pointer' }}
-                  >+ Eigen rekening</button>
-                )}
+              <div style={{ ...kaartStijl, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <div>
+                  <div style={{ fontSize: 10, color: 'var(--text-dim)', marginBottom: 3 }}>Tegenrekening</div>
+                  <div style={{ fontSize: 13, color: 'var(--text-h)', fontWeight: 600 }}>{t.naam_tegenpartij ?? '—'}</div>
+                  <div style={{ fontSize: 11, color: 'var(--text-dim)' }}>{t.tegenrekening_iban_bban}</div>
+                </div>
+                {(() => {
+                  const tegenRek = rekeningen.find(r => r.iban === t.tegenrekening_iban_bban);
+                  return (
+                    <button
+                      onClick={() => tegenRek ? openRekeningEditForm(tegenRek) : openRekeningForm()}
+                      style={{ background: 'none', border: 'none', color: 'var(--text-dim)', cursor: 'pointer', padding: 2, display: 'flex', alignItems: 'center', flexShrink: 0 }}
+                      title={tegenRek ? 'Rekening bewerken' : 'Toevoegen als eigen rekening'}
+                    >
+                      <Settings size={14} />
+                    </button>
+                  );
+                })()}
               </div>
             </div>
           </div>
@@ -328,7 +499,7 @@ export default function CategoriePopup({
 
         {/* Categorie */}
         <div style={{ marginBottom: 16 }}>
-          <label style={{ display: 'block', fontSize: 12, color: 'var(--text-dim)', marginBottom: 4 }}>Categorie</label>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', fontSize: 12, color: 'var(--text-dim)', marginBottom: 4 }}>Categorie <InfoTooltip volledigeBreedte tekst="Kies een categorie voor deze transactie. De gekozen categorie wordt opgeslagen als matchregel, zodat toekomstige transacties van dezelfde tegenpartij automatisch gecategoriseerd worden. Kies 'Nieuwe categorie…' om zelf een categorie aan te maken." /></label>
           {patronModal.catNieuw ? (
             <div style={{ display: 'flex', gap: 6 }}>
               <input
@@ -387,7 +558,7 @@ export default function CategoriePopup({
 
         {/* Subcategorie */}
         <div style={{ marginBottom: 16 }}>
-          <label style={{ display: 'block', fontSize: 12, color: 'var(--text-dim)', marginBottom: 4 }}>Subcategorie</label>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', fontSize: 12, color: 'var(--text-dim)', marginBottom: 4 }}>Subcategorie <InfoTooltip volledigeBreedte tekst="Verfijn de categorisatie met een subcategorie, zoals 'Boodschappen › Albert Heijn'. Subcategorieën zijn optioneel en worden ook als matchregel opgeslagen. Kies 'Nieuwe subcategorie…' om er een aan te maken." /></label>
           {patronModal.subcatNieuw ? (
             <div style={{ display: 'flex', gap: 6 }}>
               <input
@@ -425,24 +596,8 @@ export default function CategoriePopup({
         {/* Naam zoekwoord chips */}
         {patronModal.naamChips.length > 0 && (
           <div style={{ marginBottom: 14 }}>
-            <p style={{ margin: '0 0 6px', fontSize: 12, color: 'var(--text-dim)', display: 'flex', alignItems: 'center', gap: 4 }}>
-              Match op naam (optioneel):
-              <span style={{ position: 'relative', display: 'inline-flex' }}
-                onMouseEnter={() => setTooltipNaam(true)}
-                onMouseLeave={() => setTooltipNaam(false)}>
-                <span style={{ cursor: 'default', opacity: 0.6, fontSize: 11 }}>ⓘ</span>
-                {tooltipNaam && (
-                  <span style={{
-                    position: 'absolute', bottom: '100%', left: 0, right: 'auto',
-                    background: '#1e1e2e', color: '#e0e0e0', border: '1px solid var(--border)',
-                    borderRadius: 6, padding: '8px 10px', fontSize: 12, lineHeight: 1.4, minWidth: 320, maxWidth: 400,
-                    whiteSpace: 'normal', zIndex: 1000, marginBottom: 4, pointerEvents: 'none', overflow: 'visible',
-                    boxShadow: '0 2px 8px rgba(0,0,0,0.4)',
-                  }}>
-                    Selecteer één of meer woorden om de matching te verfijnen. Bijv. &lsquo;Lidl&rsquo; matcht alle Lidl-filialen in plaats van alleen &lsquo;Lidl 765 Landgraaf&rsquo;. Zonder selectie wordt de volledige naam tegenpartij gebruikt.
-                  </span>
-                )}
-              </span>
+            <p style={{ margin: '0 0 6px', fontSize: 12, color: 'var(--text-dim)', display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
+              Match op naam (optioneel): <InfoTooltip volledigeBreedte tekst="Selecteer één of meer woorden uit de naam van de tegenpartij om de matchregel specifieker te maken. Zo matcht 'Lidl' alle filialen in plaats van alleen dit specifieke filiaal. Zonder selectie wordt de volledige naam als criterium gebruikt." />
             </p>
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
               {patronModal.naamChips.map((chip, index) => {
@@ -469,24 +624,8 @@ export default function CategoriePopup({
 
         {/* Omschrijving zoekwoord chips */}
         <div style={{ marginBottom: 14, paddingTop: 12, borderTop: '1px solid var(--border)' }}>
-          <p style={{ margin: '0 0 6px', fontSize: 12, color: 'var(--text-dim)', display: 'flex', alignItems: 'center', gap: 4 }}>
-            Match op omschrijving (optioneel):
-            <span style={{ position: 'relative', display: 'inline-flex' }}
-              onMouseEnter={() => setTooltipOmschr(true)}
-              onMouseLeave={() => setTooltipOmschr(false)}>
-              <span style={{ cursor: 'default', opacity: 0.6, fontSize: 11 }}>ⓘ</span>
-              {tooltipOmschr && (
-                <span style={{
-                  position: 'absolute', bottom: '100%', left: 0, right: 'auto',
-                  background: '#1e1e2e', color: '#e0e0e0', border: '1px solid var(--border)',
-                  borderRadius: 6, padding: '8px 10px', fontSize: 12, lineHeight: 1.4, minWidth: 320, maxWidth: 400,
-                  whiteSpace: 'normal', zIndex: 1000, marginBottom: 4, pointerEvents: 'none', overflow: 'visible',
-                  boxShadow: '0 2px 8px rgba(0,0,0,0.4)',
-                }}>
-                  Selecteer een woord uit de omschrijving voor extra precisie — handig als dezelfde tegenpartij verschillende soorten transacties heeft. Door zoekwoorden op te geven wordt de matching geoptimaliseerd. Zonder selectie wordt geen omschrijving als criterium gebruikt.
-                </span>
-              )}
-            </span>
+          <p style={{ margin: '0 0 6px', fontSize: 12, color: 'var(--text-dim)', display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
+            Match op omschrijving (optioneel): <InfoTooltip volledigeBreedte tekst="Selecteer een woord uit de omschrijving als extra matchcriterium. Handig wanneer één tegenpartij meerdere soorten transacties heeft. Klik 'Analyseer' om te zien hoe vaak elk woord voorkomt in eerdere transacties van deze tegenpartij." />
             <button
               disabled={tellerLaden}
               onClick={async () => {
@@ -534,7 +673,7 @@ export default function CategoriePopup({
 
         {/* Toelichting */}
         <div style={{ marginBottom: 16, paddingTop: 12, borderTop: '1px solid var(--border)' }}>
-          <label style={{ display: 'block', fontSize: 12, color: 'var(--text-dim)', marginBottom: 4 }}>Toelichting (optioneel)</label>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', fontSize: 12, color: 'var(--text-dim)', marginBottom: 4 }}>Toelichting (optioneel) <InfoTooltip volledigeBreedte tekst="Voeg een persoonlijke notitie toe aan deze transactie. De toelichting is zichtbaar in de transactielijst maar heeft geen invloed op de matchregel of categorisatie." /></label>
           <div style={{ display: 'flex', gap: 6 }}>
             <input
               value={patronModal.toelichting}
@@ -553,7 +692,7 @@ export default function CategoriePopup({
 
         {/* Scope keuze */}
         <div style={{ marginBottom: 16, paddingTop: 12, borderTop: '1px solid var(--border)' }}>
-          <label style={{ display: 'block', fontSize: 12, color: 'var(--text-dim)', marginBottom: 6 }}>Toepassen op</label>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', fontSize: 12, color: 'var(--text-dim)', marginBottom: 6 }}>Toepassen op <InfoTooltip volledigeBreedte tekst="Kies of de categorie voor álle transacties van deze tegenpartij geldt (matchregel opslaan), of alleen voor deze ene transactie. Als je de boekdatum hebt aangepast, wordt automatisch 'Alleen deze transactie' geselecteerd." /></label>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--text)', cursor: 'pointer' }}>
               <input type="radio" checked={patronModal.scope === 'alle'}
@@ -592,6 +731,164 @@ export default function CategoriePopup({
           )}
         </div>
       </div>
+
+      {/* Mini popup: tegenrekening toevoegen als eigen rekening */}
+      {rekeningFormOpen && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 400, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.4)' }}>
+          <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 10, padding: 24, minWidth: 340, maxWidth: 460 }}>
+            <h3 style={{ margin: '0 0 16px', color: 'var(--text-h)', fontSize: 15 }}>Toevoegen als eigen rekening</h3>
+            <div style={{ marginBottom: 12 }}>
+              <div style={{ fontSize: 11, color: 'var(--text-dim)', marginBottom: 3 }}>IBAN</div>
+              <div style={{ fontSize: 13, color: 'var(--text)', background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 4, padding: '4px 8px' }}>{t.tegenrekening_iban_bban}</div>
+            </div>
+            <div style={{ marginBottom: 12 }}>
+              <label style={{ display: 'block', fontSize: 11, color: 'var(--text-dim)', marginBottom: 3 }}>Naam</label>
+              <input
+                autoFocus
+                value={rekeningNaam}
+                onChange={e => setRekeningNaam(e.target.value)}
+                style={{ width: '100%', background: 'var(--bg-base)', border: '1px solid var(--border)', borderRadius: 4, padding: '4px 8px', fontSize: 12, color: 'var(--text-h)', boxSizing: 'border-box' }}
+              />
+            </div>
+            <div style={{ marginBottom: 12 }}>
+              <label style={{ display: 'block', fontSize: 11, color: 'var(--text-dim)', marginBottom: 3 }}>Type</label>
+              <select value={rekeningType} onChange={e => setRekeningType(e.target.value as 'betaal' | 'spaar')}
+                style={{ width: '100%', background: 'var(--bg-base)', border: '1px solid var(--border)', borderRadius: 4, padding: '4px 8px', fontSize: 12, color: 'var(--text-h)' }}>
+                <option value="betaal">Betaalrekening</option>
+                <option value="spaar">Spaarrekening</option>
+              </select>
+            </div>
+            <div style={{ marginBottom: 12 }}>
+              <label style={{ display: 'block', fontSize: 11, color: 'var(--text-dim)', marginBottom: 3 }}>Rekeninggroep (optioneel)</label>
+              <select value={rekeningGroepId} onChange={e => setRekeningGroepId(e.target.value === '' ? '' : Number(e.target.value))}
+                style={{ width: '100%', background: 'var(--bg-base)', border: '1px solid var(--border)', borderRadius: 4, padding: '4px 8px', fontSize: 12, color: 'var(--text-h)' }}>
+                <option value="">— Geen groep —</option>
+                {rekeningGroepen.map(g => <option key={g.id} value={g.id}>{g.naam}</option>)}
+              </select>
+            </div>
+            <div style={{ marginBottom: 12 }}>
+              <label style={{ display: 'block', fontSize: 11, color: 'var(--text-dim)', marginBottom: 3 }}>Kleur</label>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <input type="color" value={rekeningKleurWaarde} disabled={rekeningKleurAuto}
+                  onChange={e => setRekeningKleurWaarde(e.target.value)}
+                  style={{ width: 36, height: 30, padding: 2, borderRadius: 4, border: '1px solid var(--border)', background: 'var(--bg-base)', cursor: rekeningKleurAuto ? 'default' : 'pointer', pointerEvents: rekeningKleurAuto ? 'none' : 'auto', opacity: rekeningKleurAuto ? 0.4 : 1 }}
+                />
+                <label style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: 'var(--text)', cursor: 'pointer' }}>
+                  <input type="checkbox" checked={rekeningKleurAuto} onChange={e => setRekeningKleurAuto(e.target.checked)} />
+                  Automatisch
+                </label>
+              </div>
+            </div>
+            {budgettenPotjes.length > 0 && (
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ fontSize: 11, color: 'var(--text-dim)', marginBottom: 6 }}>Gekoppelde categorieën (optioneel)</div>
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                  {budgettenPotjes.map(bp => {
+                    const actief = gekozenBudgetIds.includes(bp.id);
+                    return (
+                      <button
+                        key={bp.id}
+                        onClick={() => setGekozenBudgetIds(ids => actief ? ids.filter(id => id !== bp.id) : [...ids, bp.id])}
+                        style={{
+                          padding: '3px 10px', borderRadius: 4, fontSize: 12, cursor: 'pointer',
+                          border: `1px solid ${actief ? (bp.kleur ?? 'var(--accent)') : 'var(--border)'}`,
+                          background: actief ? `color-mix(in srgb, ${bp.kleur ?? 'var(--accent)'} 15%, transparent)` : 'var(--bg-surface)',
+                          color: actief ? (bp.kleur ?? 'var(--accent)') : 'var(--text)',
+                          fontWeight: actief ? 600 : 400,
+                        }}
+                      >{bp.naam}</button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+            {rekeningFout && <div style={{ color: 'var(--red)', fontSize: 12, marginBottom: 10 }}>{rekeningFout}</div>}
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+              <button onClick={() => setRekeningFormOpen(false)} style={{ background: 'none', border: '1px solid var(--border)', color: 'var(--text)', borderRadius: 6, padding: '6px 14px', fontSize: 13, cursor: 'pointer' }}>Annuleer</button>
+              <button
+                onClick={handleRekeningToevoegen}
+                disabled={rekeningLaden || !rekeningNaam.trim()}
+                style={{ background: 'var(--accent)', border: 'none', color: '#fff', borderRadius: 6, padding: '6px 14px', fontSize: 13, cursor: rekeningNaam.trim() ? 'pointer' : 'not-allowed', fontWeight: 600, opacity: rekeningNaam.trim() ? 1 : 0.5 }}
+              >{rekeningLaden ? 'Toevoegen…' : 'Toevoegen'}</button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Mini popup: eigen rekening bewerken */}
+      {eigenRekFormOpen && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 400, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.4)' }}>
+          <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 10, padding: 24, minWidth: 340, maxWidth: 460 }}>
+            <h3 style={{ margin: '0 0 16px', color: 'var(--text-h)', fontSize: 15 }}>Rekening bewerken</h3>
+            <div style={{ marginBottom: 12 }}>
+              <div style={{ fontSize: 11, color: 'var(--text-dim)', marginBottom: 3 }}>IBAN</div>
+              <div style={{ fontSize: 13, color: 'var(--text)', background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 4, padding: '4px 8px' }}>{eigenRekening?.iban}</div>
+            </div>
+            <div style={{ marginBottom: 12 }}>
+              <label style={{ display: 'block', fontSize: 11, color: 'var(--text-dim)', marginBottom: 3 }}>Naam</label>
+              <input autoFocus value={eigenRekForm.naam} onChange={e => setEigenRekForm(f => ({ ...f, naam: e.target.value }))}
+                style={{ width: '100%', background: 'var(--bg-base)', border: '1px solid var(--border)', borderRadius: 4, padding: '4px 8px', fontSize: 12, color: 'var(--text-h)', boxSizing: 'border-box' }} />
+            </div>
+            <div style={{ marginBottom: 12 }}>
+              <label style={{ display: 'block', fontSize: 11, color: 'var(--text-dim)', marginBottom: 3 }}>Type</label>
+              <select value={eigenRekForm.type} onChange={e => setEigenRekForm(f => ({ ...f, type: e.target.value as 'betaal' | 'spaar' }))}
+                style={{ width: '100%', background: 'var(--bg-base)', border: '1px solid var(--border)', borderRadius: 4, padding: '4px 8px', fontSize: 12, color: 'var(--text-h)' }}>
+                <option value="betaal">Betaalrekening</option>
+                <option value="spaar">Spaarrekening</option>
+              </select>
+            </div>
+            <div style={{ marginBottom: 12 }}>
+              <label style={{ display: 'block', fontSize: 11, color: 'var(--text-dim)', marginBottom: 3 }}>Kleur</label>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <input type="color" value={eigenRekForm.kleur} disabled={eigenRekForm.kleurAuto}
+                  onChange={e => setEigenRekForm(f => ({ ...f, kleur: e.target.value }))}
+                  style={{ width: 36, height: 30, padding: 2, borderRadius: 4, border: '1px solid var(--border)', background: 'var(--bg-base)', cursor: eigenRekForm.kleurAuto ? 'default' : 'pointer', pointerEvents: eigenRekForm.kleurAuto ? 'none' : 'auto', opacity: eigenRekForm.kleurAuto ? 0.4 : 1 }}
+                />
+                <label style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: 'var(--text)', cursor: 'pointer' }}>
+                  <input type="checkbox" checked={eigenRekForm.kleurAuto} onChange={e => setEigenRekForm(f => ({ ...f, kleurAuto: e.target.checked }))} />
+                  Automatisch
+                </label>
+              </div>
+            </div>
+            <div style={{ marginBottom: 12 }}>
+              <label style={{ display: 'block', fontSize: 11, color: 'var(--text-dim)', marginBottom: 3 }}>Rekeninggroep (optioneel)</label>
+              <select value={eigenRekForm.groepId} onChange={e => setEigenRekForm(f => ({ ...f, groepId: e.target.value === '' ? '' : Number(e.target.value) }))}
+                style={{ width: '100%', background: 'var(--bg-base)', border: '1px solid var(--border)', borderRadius: 4, padding: '4px 8px', fontSize: 12, color: 'var(--text-h)' }}>
+                <option value="">— Geen groep —</option>
+                {rekeningGroepen.map(g => <option key={g.id} value={g.id}>{g.naam}</option>)}
+              </select>
+            </div>
+            {budgettenPotjes.length > 0 && (
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ fontSize: 11, color: 'var(--text-dim)', marginBottom: 6 }}>Gekoppelde categorieën (optioneel)</div>
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                  {budgettenPotjes.map(bp => {
+                    const actief = eigenRekForm.budgetIds.includes(bp.id);
+                    return (
+                      <button key={bp.id}
+                        onClick={() => setEigenRekForm(f => ({ ...f, budgetIds: actief ? f.budgetIds.filter(id => id !== bp.id) : [...f.budgetIds, bp.id] }))}
+                        style={{
+                          padding: '3px 10px', borderRadius: 4, fontSize: 12, cursor: 'pointer',
+                          border: `1px solid ${actief ? (bp.kleur ?? 'var(--accent)') : 'var(--border)'}`,
+                          background: actief ? `color-mix(in srgb, ${bp.kleur ?? 'var(--accent)'} 15%, transparent)` : 'var(--bg-surface)',
+                          color: actief ? (bp.kleur ?? 'var(--accent)') : 'var(--text)',
+                          fontWeight: actief ? 600 : 400,
+                        }}
+                      >{bp.naam}</button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+            {eigenRekFout && <div style={{ color: 'var(--red)', fontSize: 12, marginBottom: 10 }}>{eigenRekFout}</div>}
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+              <button onClick={() => setEigenRekFormOpen(false)} style={{ background: 'none', border: '1px solid var(--border)', color: 'var(--text)', borderRadius: 6, padding: '6px 14px', fontSize: 13, cursor: 'pointer' }}>Annuleer</button>
+              <button onClick={handleEigenRekeningOpslaan} disabled={eigenRekLaden || !eigenRekForm.naam.trim()}
+                style={{ background: 'var(--accent)', border: 'none', color: '#fff', borderRadius: 6, padding: '6px 14px', fontSize: 13, cursor: eigenRekForm.naam.trim() ? 'pointer' : 'not-allowed', fontWeight: 600, opacity: eigenRekForm.naam.trim() ? 1 : 0.5 }}
+              >{eigenRekLaden ? 'Opslaan…' : 'Opslaan'}</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

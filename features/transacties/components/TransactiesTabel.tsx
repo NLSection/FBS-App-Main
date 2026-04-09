@@ -135,17 +135,13 @@ import type { Periode } from '@/lib/maandperiodes';
 import { formatType } from '@/lib/formatType';
 import CategoriePopup from '@/features/shared/components/CategoriePopup';
 import type { PatronModalData } from '@/features/shared/components/CategoriePopup';
+import { maakNaamChips, analyseerOmschrijvingen } from '@/features/shared/utils/naamChips';
+import MaandFilter from '@/components/MaandFilter';
 
 interface BudgetPotjeNaam { id: number; naam: string; kleur: string | null; rekening_ids: number[]; }
-interface Rekening { id: number; naam: string; iban: string; }
+interface Rekening { id: number; naam: string; iban: string; type?: string; kleur?: string | null; kleur_auto?: number; }
 interface RekeningGroep { id: number; naam: string; volgorde: number; rekening_ids: number[]; }
 
-interface EditingCell {
-  id: number;
-  veld: 'categorie' | 'subcategorie';
-  waarde: string;
-  origCategorie: string;
-}
 
 const TYPE_FILTERS: { label: string; waarde: TransactieType | 'alle' }[] = [
   { label: 'Alle',            waarde: 'alle'          },
@@ -206,25 +202,6 @@ const filterKnopStijl = (actief: boolean): React.CSSProperties => ({
   fontWeight: actief ? 600 : 400,
 });
 
-function maakNaamChips(naam: string | null): { label: string; waarde: string }[] {
-  if (!naam) return [];
-  return naam
-    .split(/[\s.,/()\[\]{}'"!?:;]+/)
-    .filter(w => w.length >= 1)
-    .map(w => ({ label: w, waarde: w.toLowerCase().replace(/[^a-z0-9&-]/g, '') }))
-    .filter(c => c.waarde.length > 0);
-}
-
-function analyseerOmschrijvingen(t: TransactieMetCategorie): { label: string; waarde: string }[] {
-  const omschr = [t.omschrijving_1, t.omschrijving_2, t.omschrijving_3]
-    .filter(Boolean).join(' ');
-  if (!omschr) return [];
-  return omschr
-    .split(/[\s.,/()\[\]{}'"!?:;]+/)
-    .filter(w => w.length >= 1)
-    .map(w => ({ label: w, waarde: w.toLowerCase().replace(/[^a-z0-9&-]/g, '') }))
-    .filter(c => c.waarde.length > 0);
-}
 
 export default function TransactiesTabel() {
   const [klaar, setKlaar]                               = useState(false);
@@ -242,7 +219,6 @@ export default function TransactiesTabel() {
   const [budgettenPotjes, setBudgettenPotjes]           = useState<BudgetPotjeNaam[]>([]);
   const [rekeningen, setRekeningen]                     = useState<Rekening[]>([]);
   const [subcatOpties, setSubcatOpties]                 = useState<string[]>([]);
-  const [editingCell, setEditingCell]                   = useState<EditingCell | null>(null);
   const [reloadTrigger, setReloadTrigger]               = useState(0);
   const [zichtbareKolommen, setZichtbareKolommen]       = useState<Set<string>>(DEFAULT_KOLOMMEN);
   const [kolomMenuOpen, setKolomMenuOpen]               = useState(false);
@@ -475,16 +451,6 @@ const [patronModal, setPatronModal]                   = useState<PatronModalData
     }
   }
 
-  function startEdit(t: TransactieMetCategorie, veld: 'categorie' | 'subcategorie') {
-    cancelledRef.current = false;
-    setEditingCell({
-      id: t.id,
-      veld,
-      waarde: veld === 'categorie' ? (t.categorie ?? '') : (t.subcategorie ?? ''),
-      origCategorie: t.categorie ?? '',
-    });
-  }
-
   async function maakCategorieregel(
     t: TransactieMetCategorie,
     categorie: string,
@@ -523,41 +489,6 @@ const [patronModal, setPatronModal]                   = useState<PatronModalData
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(extra),
     });
-  }
-
-  async function handleInlineOpslaan(t: TransactieMetCategorie, waardeParam?: string) {
-    if (!editingCell || editingCell.id !== t.id || isSavingRef.current || cancelledRef.current) return;
-    isSavingRef.current = true;
-
-    const { veld }     = editingCell;
-    const waarde       = waardeParam ?? editingCell.waarde;
-    const categorie    = veld === 'categorie' ? waarde.trim() : editingCell.origCategorie;
-    const subcategorie = veld === 'subcategorie' ? waarde.trim() : (t.subcategorie ?? '');
-
-    if (!categorie) {
-      setEditingCell(null);
-      isSavingRef.current = false;
-      return;
-    }
-
-    // Altijd volledige flow: patroonherkenning + hermatch
-    const chips = veld === 'categorie'
-      ? analyseerOmschrijvingen(t)
-      : [];
-    setEditingCell(null);
-    isSavingRef.current = false;
-
-    if (veld === 'categorie') {
-      const subcatRes = await fetch(`/api/subcategorieen?categorie=${encodeURIComponent(categorie)}`);
-      const subcatOpties: string[] = subcatRes.ok ? await subcatRes.json() : [];
-      const naamChips = maakNaamChips(t.naam_tegenpartij ?? null);
-      setPatronModal({ transactie: t, toelichting: t.toelichting ?? '', nieuweCat: categorie, catNieuw: false, nieuweCatRekeningId: '', subcategorie, subcatOpties, subcatNieuw: false, naamChips, gekozenNaamChips: [], chips, gekozenWoorden: [], scope: t.categorie_id != null ? 'alle' : (t.categorie ? 'enkel' : 'alle') });
-    } else {
-      // Subcategorie-aanpassing: direct opslaan
-      await maakCategorieregel(t, categorie, subcategorie, null, true);
-      await triggerHermatch();
-      setReloadTrigger(n => n + 1);
-    }
   }
 
   async function vindMatchendeRegelId(
@@ -722,8 +653,8 @@ const [patronModal, setPatronModal]                   = useState<PatronModalData
     });
   }
 
-  function handleVoegRekeningToe(iban: string, naam: string) {
-    window.location.href = `/instellingen?iban=${encodeURIComponent(iban)}&naam=${encodeURIComponent(naam)}`;
+  function handleVoegRekeningToe() {
+    fetch('/api/rekeningen').then(r => r.ok ? r.json() : []).then(setRekeningen);
   }
 
   // Unieke categorieën uit huidige gefilterde transacties (voor categorie-filterrij)
@@ -902,75 +833,15 @@ const [patronModal, setPatronModal]                   = useState<PatronModalData
         })()}
       </div>
 
-      {/* Jaarfilter-knoppen */}
-      {jaarOpties.length > 0 && (
-        <div style={{ display: 'flex', gap: 6, marginBottom: 8, flexWrap: 'wrap' }}>
-          {jaarOpties.map(jaar => (
-            <button
-              key={jaar}
-              onClick={() => handleJaarSelectie(jaar)}
-              style={filterKnopStijl(geselecteerdJaar === jaar)}
-            >
-              {jaar}
-            </button>
-          ))}
-        </div>
-      )}
-
-      {/* Maand-knoppen */}
-      {periodesVoorJaar.length > 0 && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'auto repeat(12, 1fr)', gap: 6, marginBottom: 20 }}>
-          <button
-            onClick={() => setGeselecteerdePeriode(null)}
-            style={{
-              padding: '4px 10px', borderRadius: 6, fontSize: 12, textAlign: 'center',
-              fontWeight: !geselecteerdePeriode ? 600 : 400,
-              background: !geselecteerdePeriode ? 'var(--accent)' : 'var(--bg-card)',
-              color: !geselecteerdePeriode ? '#fff' : 'var(--text-dim)',
-              border: !geselecteerdePeriode ? '1px solid transparent' : '1px solid var(--border)',
-              cursor: 'pointer',
-            }}
-          >
-            Alle
-          </button>
-          {periodesVoorJaar.map(p => {
-            const geselecteerd = geselecteerdePeriode?.jaar === p.jaar && geselecteerdePeriode?.maand === p.maand;
-            const toekomstig   = p.status === 'toekomstig';
-            const actueel      = p.status === 'actueel';
-
-            let bg: string, kleur: string, border: string, cursor: string, opacity: number;
-            if (geselecteerd) {
-              bg = 'var(--accent)'; kleur = '#fff';
-              border = '1px solid transparent'; cursor = 'pointer'; opacity = 1;
-            } else if (toekomstig) {
-              bg = 'var(--bg-card)'; kleur = 'var(--text-dim)';
-              border = '1px solid var(--border)'; cursor = 'not-allowed'; opacity = 0.3;
-            } else if (actueel) {
-              bg = 'transparent'; kleur = 'var(--accent)';
-              border = '1px solid var(--accent)'; cursor = 'pointer'; opacity = 1;
-            } else {
-              bg = 'var(--bg-card)'; kleur = 'var(--text-dim)';
-              border = '1px solid var(--border)'; cursor = 'pointer'; opacity = 1;
-            }
-
-            return (
-              <button
-                key={`${p.jaar}-${p.maand}`}
-                onClick={() => !toekomstig && setGeselecteerdePeriode(p)}
-                style={{
-                  padding: '4px 0', borderRadius: 6, fontSize: 12, textAlign: 'center',
-                  fontWeight: geselecteerd ? 600 : 400,
-                  background: bg, color: kleur, border, cursor, opacity,
-                  pointerEvents: toekomstig ? 'none' : 'auto',
-                }}
-              >
-                <span className="maand-vol">{MAAND_NAMEN[p.maand - 1]}</span>
-                <span className="maand-kort">{MAAND_KORT[p.maand - 1]}</span>
-              </button>
-            );
-          })}
-        </div>
-      )}
+      <div style={{ marginBottom: 20 }}>
+        <MaandFilter
+          periodes={periodes}
+          geselecteerdJaar={geselecteerdJaar}
+          geselecteerdePeriode={geselecteerdePeriode}
+          onJaarChange={handleJaarSelectie}
+          onPeriodeChange={setGeselecteerdePeriode}
+        />
+      </div>
 
       {/* Zoekbalk + kolommen knop */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, position: 'relative' }}>
@@ -1087,8 +958,6 @@ const [patronModal, setPatronModal]                   = useState<PatronModalData
               <tbody>
                 {gesorteerdeTransacties.map(t => {
                   const isOmboeking  = t.type === 'omboeking-af' || t.type === 'omboeking-bij';
-                  const editCat      = editingCell?.id === t.id && editingCell.veld === 'categorie';
-                  const editSub      = editingCell?.id === t.id && editingCell.veld === 'subcategorie';
                   const catKleur     = budgettenPotjes.find(bp => bp.naam === t.categorie)?.kleur ?? 'var(--accent)';
                   const inOgz        = isOvergangszone(t.datum);
                   const prevLabel    = inOgz && t.datum ? vorigePeriodeLabel(t.datum) : '';
@@ -1143,52 +1012,18 @@ const [patronModal, setPatronModal]                   = useState<PatronModalData
                         )}
                         {zk.has('categorie') && (
                           <td>
-                            {editCat ? (
-                              <select
-                                autoFocus
-                                value={editingCell.waarde}
-                                onChange={e => handleInlineOpslaan(t, e.target.value)}
-                                onBlur={() => { if (!isSavingRef.current) { cancelledRef.current = true; setEditingCell(null); } }}
-                                onKeyDown={e => { if (e.key === 'Escape') { cancelledRef.current = true; setEditingCell(null); } }}
-                                style={{ background: 'var(--bg-base)', border: '1px solid var(--accent)', borderRadius: 4, padding: '2px 6px', fontSize: 12, color: 'var(--text-h)', outline: 'none' }}
-                              >
-                                {!editingCell.waarde && <option value="">— Kies categorie —</option>}
-                                {budgettenPotjes.map(bp => (
-                                  <option key={bp.id} value={bp.naam}>{bp.naam}</option>
-                                ))}
-                              </select>
-                            ) : (
-                              t.categorie
-                                ? <span className="badge" style={{ cursor: 'pointer', background: kleurBg(catKleur), border: `1px solid ${catKleur}`, color: catKleur }}>{t.categorie}</span>
-                                : <span className="badge-outline-red" style={{ cursor: 'pointer' }}>Ongecategoriseerd</span>
-                            )}
+                            {t.categorie
+                              ? <span className="badge" style={{ cursor: 'pointer', background: kleurBg(catKleur), border: `1px solid ${catKleur}`, color: catKleur }}>{t.categorie}</span>
+                              : <span className="badge-outline-red" style={{ cursor: 'pointer' }}>Ongecategoriseerd</span>
+                            }
                           </td>
                         )}
                         {zk.has('subcategorie') && (
                           <td>
-                            {editSub ? (
-                              <>
-                                <input
-                                  autoFocus list="subcat-lijst"
-                                  value={editingCell.waarde}
-                                  onChange={e => setEditingCell(c => c ? { ...c, waarde: e.target.value } : c)}
-                                  onBlur={() => handleInlineOpslaan(t)}
-                                  onKeyDown={e => {
-                                    if (e.key === 'Enter') { e.preventDefault(); handleInlineOpslaan(t); }
-                                    if (e.key === 'Escape') { cancelledRef.current = true; setEditingCell(null); }
-                                  }}
-                                  placeholder="bijv. Supermarkt"
-                                  style={{ width: '100%', background: 'var(--bg-base)', border: '1px solid var(--accent)', borderRadius: 4, padding: '2px 6px', fontSize: 12, color: 'var(--text-h)', outline: 'none' }}
-                                />
-                                <datalist id="subcat-lijst">
-                                  {subcatOpties.map(s => <option key={s} value={s} />)}
-                                </datalist>
-                              </>
-                            ) : (
-                              t.subcategorie
-                                ? <span className="badge-outline" style={{ cursor: 'pointer', borderColor: catKleur, color: catKleur }}>{t.subcategorie}</span>
-                                : <span style={{ color: 'var(--text-dim)', fontSize: 12 }}>—</span>
-                            )}
+                            {t.subcategorie
+                              ? <span className="badge-outline" style={{ cursor: 'pointer', borderColor: catKleur, color: catKleur }}>{t.subcategorie}</span>
+                              : <span style={{ color: 'var(--text-dim)', fontSize: 12 }}>—</span>
+                            }
                           </td>
                         )}
                         {zk.has('omschrijving_1') && (

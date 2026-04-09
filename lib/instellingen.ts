@@ -28,6 +28,7 @@ export interface Instellingen {
   backupEncryptieHint:   string | null;
   backupEncryptieSalt:   string | null;
   vastePostenBuffer:     number;
+  vastePostenVergelijkMaanden: number;
 }
 
 type Row = {
@@ -48,11 +49,12 @@ type Row = {
   backup_encryptie_hint:   string | null;
   backup_encryptie_salt:   string | null;
   vaste_posten_buffer:     number;
+  vaste_posten_vergelijk_maanden: number;
 };
 
 export function getInstellingen(): Instellingen {
   const row = getDb()
-    .prepare('SELECT maand_start_dag, dashboard_bls_tonen, dashboard_cat_tonen, cat_uitklappen, cat_trx_uitgeklapt, bls_trx_uitgeklapt, vaste_posten_overzicht_maanden, vaste_posten_afwijking_procent, vaste_posten_buffer, backup_bewaar_dagen, backup_min_bewaard, apparaat_id, backup_extern_pad, backup_versie, backup_encryptie_hash, backup_encryptie_hint, backup_encryptie_salt FROM instellingen WHERE id = 1')
+    .prepare('SELECT maand_start_dag, dashboard_bls_tonen, dashboard_cat_tonen, cat_uitklappen, cat_trx_uitgeklapt, bls_trx_uitgeklapt, vaste_posten_overzicht_maanden, vaste_posten_afwijking_procent, vaste_posten_buffer, vaste_posten_vergelijk_maanden, backup_bewaar_dagen, backup_min_bewaard, apparaat_id, backup_extern_pad, backup_versie, backup_encryptie_hash, backup_encryptie_hint, backup_encryptie_salt FROM instellingen WHERE id = 1')
     .get() as Row | undefined;
   if (!row) throw new Error('Instellingen niet gevonden in database.');
   return {
@@ -73,6 +75,7 @@ export function getInstellingen(): Instellingen {
     backupEncryptieHint:   row.backup_encryptie_hint   ?? null,
     backupEncryptieSalt:   row.backup_encryptie_salt   ?? null,
     vastePostenBuffer:     row.vaste_posten_buffer      ?? 0,
+    vastePostenVergelijkMaanden: row.vaste_posten_vergelijk_maanden ?? 3,
   };
 }
 
@@ -103,6 +106,12 @@ export function updateInstellingen(data: Partial<Instellingen>): void {
       throw new Error('vastePostenAfwijkingProcent moet een geheel getal zijn tussen 1 en 100.');
     }
     sets.push('vaste_posten_afwijking_procent = ?'); values.push(data.vastePostenAfwijkingProcent);
+  }
+  if (data.vastePostenVergelijkMaanden !== undefined) {
+    if (!Number.isInteger(data.vastePostenVergelijkMaanden) || data.vastePostenVergelijkMaanden < 1 || data.vastePostenVergelijkMaanden > 12) {
+      throw new Error('vastePostenVergelijkMaanden moet een geheel getal zijn tussen 1 en 12.');
+    }
+    sets.push('vaste_posten_vergelijk_maanden = ?'); values.push(data.vastePostenVergelijkMaanden);
   }
   if (data.vastePostenBuffer !== undefined) {
     if (typeof data.vastePostenBuffer !== 'number' || data.vastePostenBuffer < 0) {

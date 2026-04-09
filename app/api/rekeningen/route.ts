@@ -27,7 +27,7 @@ export function GET() {
 }
 
 export async function POST(request: NextRequest) {
-  let body: { iban?: string; naam?: string; type?: string; kleur?: string | null };
+  let body: { iban?: string; naam?: string; type?: string; kleur?: string | null; kleur_auto?: number };
   try {
     body = await request.json();
   } catch {
@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
       const catKleuren = getBudgettenPotjes().map(bp => bp.kleur).filter((k): k is string => !!k);
       kleur = kiesAutomatischeKleur([...bestaandeRek, ...catKleuren]);
     }
-    const id = insertRekening(iban, naam, type, kleur);
+    const id = insertRekening(iban, naam, type, kleur, body.kleur_auto);
     herclassificeerTypes();
     triggerBackup();
     return NextResponse.json({ ok: true, id }, { status: 201 });

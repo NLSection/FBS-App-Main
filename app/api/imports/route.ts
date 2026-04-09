@@ -15,7 +15,8 @@ export function GET() {
   try {
     const db = getDb();
     const imports = db.prepare(
-      `SELECT i.id, i.bestandsnaam, i.geimporteerd_op, i.aantal_transacties
+      `SELECT i.id, i.bestandsnaam, i.geimporteerd_op, i.aantal_transacties,
+              (SELECT COUNT(*) FROM transacties t WHERE t.import_id = i.id) AS aantal_nieuw
        FROM imports i
        WHERE (SELECT COUNT(*) FROM transacties t WHERE t.import_id = i.id) > 0
        ORDER BY i.id DESC LIMIT 10`

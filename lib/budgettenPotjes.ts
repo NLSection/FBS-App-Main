@@ -21,6 +21,7 @@ export interface BudgetPotje {
   rekening_ids: number[];
   beschermd: number;
   kleur: string | null;
+  kleur_auto: number;
 }
 
 // Zacht palette met goed verspreide hue-waarden (HSL ~60-70% sat, ~72% light)
@@ -81,16 +82,22 @@ function volgendePaletKleur(db: ReturnType<typeof getDb>): string {
 export function getBudgettenPotjes(): BudgetPotje[] {
   const db = getDb();
   const items = db.prepare(
-    'SELECT id, naam, beschermd, kleur FROM budgetten_potjes ORDER BY beschermd DESC, id ASC'
+    'SELECT id, naam, beschermd, kleur, kleur_auto FROM budgetten_potjes ORDER BY beschermd DESC, id ASC'
   ).all() as Omit<BudgetPotje, 'rekening_ids'>[];
 
   const koppelingen = db.prepare(
     'SELECT potje_id, rekening_id FROM budgetten_potjes_rekeningen'
   ).all() as { potje_id: number; rekening_id: number }[];
 
+  const koppelingMap = new Map<number, number[]>();
+  for (const k of koppelingen) {
+    if (!koppelingMap.has(k.potje_id)) koppelingMap.set(k.potje_id, []);
+    koppelingMap.get(k.potje_id)!.push(k.rekening_id);
+  }
+
   return items.map(item => ({
     ...item,
-    rekening_ids: koppelingen.filter(k => k.potje_id === item.id).map(k => k.rekening_id),
+    rekening_ids: koppelingMap.get(item.id) ?? [],
   }));
 }
 
@@ -102,10 +109,10 @@ function setRekeningKoppelingen(db: ReturnType<typeof getDb>, potjeId: number, r
   }
 }
 
-export function insertBudgetPotje(naam: string, rekening_ids: number[], kleur?: string | null): number {
+export function insertBudgetPotje(naam: string, rekening_ids: number[], kleur?: string | null, kleurAuto?: number): number {
   const db = getDb();
   const k = kleur ?? volgendePaletKleur(db);
-  const result = db.prepare('INSERT INTO budgetten_potjes (naam, kleur) VALUES (?, ?)').run(naam, k);
+  const result = db.prepare('INSERT INTO budgetten_potjes (naam, kleur, kleur_auto) VALUES (?, ?, ?)').run(naam, k, kleurAuto ?? 1);
   const id = result.lastInsertRowid as number;
   db.transaction(() => setRekeningKoppelingen(db, id, rekening_ids))();
   return id;
@@ -120,6 +127,7 @@ export function updateBudgetPotje(
   naam: string | null,
   rekening_ids: number[],
   kleur: string | null,
+  kleurAuto?: number,
 ): void {
   const db = getDb();
   const rij = db
@@ -128,13 +136,14 @@ export function updateBudgetPotje(
   if (!rij) throw new Error('Categorie niet gevonden.');
 
   db.transaction(() => {
+    const ka = kleurAuto ?? 1;
     if (rij.beschermd) {
-      db.prepare('UPDATE budgetten_potjes SET kleur = ? WHERE id = ?').run(kleur, id);
+      db.prepare('UPDATE budgetten_potjes SET kleur = ?, kleur_auto = ? WHERE id = ?').run(kleur, ka, id);
     } else {
       if (!naam?.trim()) throw new Error('Naam mag niet leeg zijn.');
       const oudeNaam = (db.prepare('SELECT naam FROM budgetten_potjes WHERE id = ?').get(id) as { naam: string }).naam;
       const nieuweNaam = naam.trim();
-      db.prepare('UPDATE budgetten_potjes SET naam = ?, kleur = ? WHERE id = ?').run(nieuweNaam, kleur, id);
+      db.prepare('UPDATE budgetten_potjes SET naam = ?, kleur = ?, kleur_auto = ? WHERE id = ?').run(nieuweNaam, kleur, ka, id);
       if (oudeNaam !== nieuweNaam) {
         db.prepare('UPDATE categorieen SET categorie = ? WHERE categorie = ?').run(nieuweNaam, oudeNaam);
         db.prepare('UPDATE transactie_aanpassingen SET categorie = ? WHERE categorie = ?').run(nieuweNaam, oudeNaam);

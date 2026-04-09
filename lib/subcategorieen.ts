@@ -13,9 +13,22 @@ export function getSubcategorieen(categorie?: string): Subcategorie[] {
     ? db.prepare('SELECT id, categorie, naam FROM subcategorieen WHERE categorie = ? ORDER BY naam').all(categorie) as Omit<Subcategorie, 'inGebruik'>[]
     : db.prepare('SELECT id, categorie, naam FROM subcategorieen ORDER BY categorie, naam').all() as Omit<Subcategorie, 'inGebruik'>[];
 
+  if (rijen.length === 0) return [];
+
+  // Batch: haal alle in-gebruik combinaties op in 2 vaste queries i.p.v. N*2
+  const inGebruikSet = new Set<string>();
+  const inRegels = db.prepare(
+    "SELECT DISTINCT categorie, subcategorie FROM categorieen WHERE subcategorie IS NOT NULL AND subcategorie != ''"
+  ).all() as { categorie: string; subcategorie: string }[];
+  for (const r of inRegels) inGebruikSet.add(`${r.categorie}::${r.subcategorie}`);
+  const inAanpassingen = db.prepare(
+    "SELECT DISTINCT categorie, subcategorie FROM transactie_aanpassingen WHERE subcategorie IS NOT NULL AND subcategorie != ''"
+  ).all() as { categorie: string; subcategorie: string }[];
+  for (const r of inAanpassingen) inGebruikSet.add(`${r.categorie}::${r.subcategorie}`);
+
   return rijen.map(r => ({
     ...r,
-    inGebruik: isInGebruik(db, r.categorie, r.naam),
+    inGebruik: inGebruikSet.has(`${r.categorie}::${r.naam}`),
   }));
 }
 

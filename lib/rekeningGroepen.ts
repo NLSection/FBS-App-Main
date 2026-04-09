@@ -17,9 +17,15 @@ export function getRekeningGroepen(): RekeningGroep[] {
     'SELECT groep_id, rekening_id FROM rekening_groep_rekeningen'
   ).all() as { groep_id: number; rekening_id: number }[];
 
+  const koppelingMap = new Map<number, number[]>();
+  for (const k of koppelingen) {
+    if (!koppelingMap.has(k.groep_id)) koppelingMap.set(k.groep_id, []);
+    koppelingMap.get(k.groep_id)!.push(k.rekening_id);
+  }
+
   return groepen.map(g => ({
     ...g,
-    rekening_ids: koppelingen.filter(k => k.groep_id === g.id).map(k => k.rekening_id),
+    rekening_ids: koppelingMap.get(g.id) ?? [],
   }));
 }
 

@@ -26,18 +26,14 @@ export function GET(request: NextRequest) {
   if (tot && !ISO_DATE.test(tot)) return NextResponse.json({ error: 'tot moet YYYY-MM-DD formaat hebben.' }, { status: 400 });
 
   try {
-    const transacties = getTransacties({ datum_van: van, datum_tot: tot });
+    const transacties = getTransacties({ datum_van: van, datum_tot: tot, categorie });
 
-    const groepIbans = groepIdStr
-      ? new Set(
-          getRekeningen()
-            .filter(r => (getRekeningGroep(Number(groepIdStr))?.rekening_ids ?? []).includes(r.id))
-            .map(r => r.iban)
-        )
+    const groep = groepIdStr ? getRekeningGroep(Number(groepIdStr)) : null;
+    const groepIbans = groep
+      ? new Set(getRekeningen().filter(r => groep.rekening_ids.includes(r.id)).map(r => r.iban))
       : null;
 
     const gefilterd = transacties.filter(t => {
-      if (t.categorie !== categorie) return false;
       if (t.type === 'omboeking-af' || t.type === 'omboeking-bij') return false;
       if (groepIbans && (!t.iban_bban || !groepIbans.has(t.iban_bban))) return false;
       if (subcategorie !== '') return (t.subcategorie ?? '') === subcategorie;

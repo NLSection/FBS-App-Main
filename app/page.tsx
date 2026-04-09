@@ -66,6 +66,8 @@ import CategoriePopup from '@/features/shared/components/CategoriePopup';
 import type { PatronModalData } from '@/features/shared/components/CategoriePopup';
 import type { TransactieMetCategorie } from '@/lib/transacties';
 import { kiesAutomatischeKleur } from '@/lib/kleuren';
+import MaandFilter from '@/components/MaandFilter';
+import { maakNaamChips, analyseerOmschrijvingen } from '@/features/shared/utils/naamChips';
 
 const MAAND_NAMEN = ['Januari','Februari','Maart','April','Mei','Juni','Juli','Augustus','September','Oktober','November','December'];
 const MAAND_KORT  = ['jan','feb','mrt','apr','mei','jun','jul','aug','sep','okt','nov','dec'];
@@ -180,25 +182,6 @@ function RichtingsIndicator({ saldo }: { saldo: number }) {
   );
 }
 
-function maakNaamChips(naam: string | null): { label: string; waarde: string }[] {
-  if (!naam) return [];
-  return naam
-    .split(/[\s.,/()\[\]{}'"!?:;]+/)
-    .filter(w => w.length >= 1)
-    .map(w => ({ label: w, waarde: w.toLowerCase().replace(/[^a-z0-9&-]/g, '') }))
-    .filter(c => c.waarde.length > 0);
-}
-
-function analyseerOmschrijvingenBls(trx: BlsTransactie): { label: string; waarde: string }[] {
-  const omschr = [trx.omschrijving_1, trx.omschrijving_2, trx.omschrijving_3]
-    .filter(Boolean).join(' ');
-  if (!omschr) return [];
-  return omschr
-    .split(/[\s.,/()\[\]{}'"!?:;]+/)
-    .filter(w => w.length >= 1)
-    .map(w => ({ label: w, waarde: w.toLowerCase().replace(/[^a-z0-9&-]/g, '') }))
-    .filter(c => c.waarde.length > 0);
-}
 
 const filterKnop = (actief: boolean): React.CSSProperties => ({
   padding: '4px 10px', borderRadius: 6, fontSize: 12, cursor: 'pointer',
@@ -571,7 +554,7 @@ export default function DashboardPage() {
   async function openCategoriePopupBls(trx: BlsTransactie, e: React.MouseEvent) {
     e.stopPropagation();
     const naamChips = maakNaamChips(trx.naam_tegenpartij ?? null);
-    const chips = analyseerOmschrijvingenBls(trx);
+    const chips = analyseerOmschrijvingen(trx);
 
     if (trx.categorie_id != null || trx.categorie) {
       const regelsRes = await fetch('/api/categorieen');
@@ -681,69 +664,13 @@ export default function DashboardPage() {
       {/* Periodenavigatie */}
       {!laadtPeriodes && (
         <div style={{ marginBottom: 20 }}>
-          {/* Jaarknoppen */}
-          <div style={{ display: 'flex', gap: 6, marginBottom: 8, flexWrap: 'wrap' }}>
-            {jaarOpties.map(jaar => (
-              <button key={jaar} onClick={() => handleJaar(jaar)} style={filterKnop(geselecteerdJaar === jaar)}>
-                {jaar}
-              </button>
-            ))}
-          </div>
-
-          {/* Maandknoppen */}
-          {periodesVoorJaar.length > 0 && (
-            <div style={{ display: 'grid', gridTemplateColumns: 'auto repeat(12, 1fr)', gap: 6, marginBottom: 0 }}>
-              <button
-                onClick={() => setGeselecteerdePeriode(null)}
-                style={{
-                  padding: '4px 10px', borderRadius: 6, fontSize: 12, textAlign: 'center',
-                  fontWeight: !geselecteerdePeriode ? 600 : 400,
-                  background: !geselecteerdePeriode ? 'var(--accent)' : 'var(--bg-card)',
-                  color: !geselecteerdePeriode ? '#fff' : 'var(--text-dim)',
-                  border: !geselecteerdePeriode ? '1px solid transparent' : '1px solid var(--border)',
-                  cursor: 'pointer',
-                }}
-              >
-                Alle
-              </button>
-              {periodesVoorJaar.map(p => {
-                const geselecteerd = geselecteerdePeriode?.jaar === p.jaar && geselecteerdePeriode?.maand === p.maand;
-                const toekomstig   = p.status === 'toekomstig';
-                const actueel      = p.status === 'actueel';
-
-                let bg: string, kleur: string, border: string, cursor: string, opacity: number;
-                if (geselecteerd) {
-                  bg = 'var(--accent)'; kleur = '#fff';
-                  border = '1px solid transparent'; cursor = 'pointer'; opacity = 1;
-                } else if (toekomstig) {
-                  bg = 'var(--bg-card)'; kleur = 'var(--text-dim)';
-                  border = '1px solid var(--border)'; cursor = 'not-allowed'; opacity = 0.3;
-                } else if (actueel) {
-                  bg = 'transparent'; kleur = 'var(--accent)';
-                  border = '1px solid var(--accent)'; cursor = 'pointer'; opacity = 1;
-                } else {
-                  bg = 'var(--bg-card)'; kleur = 'var(--text-dim)';
-                  border = '1px solid var(--border)'; cursor = 'pointer'; opacity = 1;
-                }
-
-                return (
-                  <button
-                    key={`${p.jaar}-${p.maand}`}
-                    onClick={() => !toekomstig && setGeselecteerdePeriode(p)}
-                    style={{
-                      padding: '4px 0', borderRadius: 6, fontSize: 12, textAlign: 'center',
-                      fontWeight: geselecteerd ? 600 : 400,
-                      background: bg, color: kleur, border, cursor, opacity,
-                      pointerEvents: toekomstig ? 'none' : 'auto',
-                    }}
-                  >
-                    <span className="maand-vol">{MAAND_NAMEN[p.maand - 1]}</span>
-                    <span className="maand-kort">{MAAND_KORT[p.maand - 1]}</span>
-                  </button>
-                );
-              })}
-            </div>
-          )}
+          <MaandFilter
+            periodes={periodes}
+            geselecteerdJaar={geselecteerdJaar}
+            geselecteerdePeriode={geselecteerdePeriode}
+            onJaarChange={handleJaar}
+            onPeriodeChange={setGeselecteerdePeriode}
+          />
         </div>
       )}
 
